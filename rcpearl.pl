@@ -1,3 +1,8 @@
+:- module(rcpearl, [
+              path//1,
+              state_tallies/2
+          ]).
+
 :- use_module(library(lists)).
 :- use_module(library(clpz)).
 :- use_module(library(reif)).
