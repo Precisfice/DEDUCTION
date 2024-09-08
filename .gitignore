@@ -1,0 +1,9 @@
+*~
+_*
+.ediprolog-temp
+*.aux
+*.bbl
+*.blg
+*.dvi
+*.log
+*.pdf

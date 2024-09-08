@@ -1,0 +1,690 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{multirow}
+
+\usepackage{mathtools} % provides \xhookrightarrow
+
+%%\usepackage{verbatim} % provides a {comment} environment for Appendix-only code
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usetikzlibrary{shapes}
+
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\IE}{\ensuremath{\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}}}
+\newcommand{\E}{\ensuremath{\widehat{E}}}
+\newcommand{\delihat}{\ensuremath{\surd\E}}
+
+\DeclareMathOperator{\dual}{op}
+
+\DeclareMathAlphabet{\bbold}{U}{bbold}{m}{n} % to obtain Riehl's \bbold{1}
+
+\usepackage{listings}
+\lstset{
+  basicstyle=\small\ttfamily,
+  basewidth=0.5em,
+  fontadjust=true,
+  language=prolog,
+  mathescape
+}
+
+\begin{document}
+
+\newtheorem{thm}{Theorem}[section]
+\newtheorem{nota}[thm]{Notation}
+\newtheorem{defn}[thm]{Definition}
+\newtheorem{fact}[thm]{Fact}
+\newtheorem{prop}[thm]{Proposition}
+\newtheorem{lemma}[thm]{Lemma}
+\newtheorem{corr}[thm]{Corrolary}
+\newtheorem{conj}[thm]{Conjecture}
+\newtheorem{eg}[thm]{Example}
+
+\title{DRAFT: A Categorical Formulation of Dose-Escalation Designs}
+\author{David C. Norris\\Precision Methodologies, LLC\\Wayland, MA}
+\date{8 Sep 2024}
+
+\maketitle
+
+\section{Introduction}
+
+\begin{nota}
+  The \textbf{dose levels} --- or more simply, \textbf{doses} --- of a dose-escalation trial are a strictly ascending finite sequence $(x_1 < ... < x_D)$ of dose intensities $x_d \in \R^+$.  The formulation advanced here refers to these doses by their indices $\{1,...,D\}$, preserving their order but abstracting away from their numerical magnitudes.\footnote{But in what follows, it will be seen that a few general premises about the quantitative spacing of the dose levels will be important for justifying certain heuristics.}
+\end{nota}
+
+\begin{nota}
+  The \textbf{participants} in a dose-escalation trial, indexed by $i \in I$, \textbf{enroll} at time $t_0^i$ into dose $d^i$.  Given that toxic responses generally manifest with some latency after dose administration, \textbf{toxicity assessment} remains \textbf{pending} for participant $i$ until some time $t_1^i \in (t_0^i, t_0^i + \delta t]$ when the assessment \textbf{resolves} into one of three \textbf{outcomes}:
+  
+  \begin{itemize}
+    \item Participant $i$ is found to have experienced an (intolerable) \textbf{toxicity},
+    \item to have become \textbf{inevaluable} due e.g. to early withdrawal from the trial or death unrelated to toxicity,
+  \item or otherwise (at $t_1^i = t_0^i + \delta t$) is assessed to have \textbf{tolerated} their dose.\footnote{Our formulation ignores late-manifesting toxicities that occur after the lapse of time $\delta t$.}
+  \end{itemize}
+\end{nota}
+
+\begin{nota}
+  We denote evaluability by $n^i \in \{0,1\}$ and the outcome of toxicity assessment by $y^i \in \{0,1\}$.
+\end{nota}
+
+\begin{nota}
+  We write $I_d(t) \subseteq I$ for the subset of individuals enrolled at dose $d$ whose assessments have resolved by time $t$:
+  $$
+  I_d(t) = \{ i \in I \mid d^i = d,\, t_1^i \le t \}.
+  $$
+\end{nota}
+
+\begin{defn}
+  A \textbf{dosewise tally} is an ordered pair $(t, n) \in \N \times \N$, recording the assessment of $t \le n$ toxic responses among $n$ evaluable trial participants who have received that dose.  These will be freely denoted with fraction bars as $t/n$ or $\frac{t}{n}$, or in ratio form as $t\!:\!u \equiv t/(t+u)$.  Note that $0/0$ represents a valid dosewise tally.
+\end{defn}
+
+\begin{nota}
+  We will denote the set of dosewise tallies by $Q = \{ t/n \mid t, n \in \N; t \le n \}$ or $R = \{ t\!:\!u \mid t, u \in \N \}$ as needed.  We will also write elements of $Q^D$ or $R^D$ using the same notation, with context dictating that $t, n, u \in \N^D$.
+\end{nota}
+
+Observe that $Q$ equipped with a $+$ operator defined naturally,
+$$
+\frac{t_1}{n_1} + \frac{t_2}{n_2} = \frac{t_1+t_2}{n_1+n_2},
+$$
+is a commutative monoid, with identity $0/0$.  This property extends in the obvious way to $Q^D$.
+
+\begin{defn}
+  A \textbf{[full] tally} is a vector $q = (q_1, ..., q_D) \in Q^D$ giving the dosewise tally for each dose in an ascending sequence indexed by $\{1,...,D\} \subset \N$.
+\end{defn}
+
+\begin{defn}
+  The \textbf{cumulative tally} is a right-continuous function of time,
+  $$
+  q : \R^+ \rightarrow Q^D,
+  $$
+  with dosewise components
+  $$
+  q_d(t) = \sum_{i \in I_d(t)} \frac{y^i}{n^i}.
+  $$
+\end{defn}
+
+\begin{defn}
+  The \textbf{pending count} is a right-continuous function of time,
+  $$
+  p : \R^+ \rightarrow \N^D,
+  $$
+  with dosewise components
+  $$
+  p_d(t) = | \{ i \in I \mid d^i = d,\, t_0^i \le t < t_1^i \} |.
+  $$
+\end{defn}
+
+\begin{defn}
+  The \textbf{state} of a dose-escalation trial is an ordered pair consisting of the cumulative tally and pending count:
+  $$
+  s(t) = (q(t), p(t)).
+  $$
+  This state sums up what is known at time $t$ about all the participants who have enrolled by then: those who proved inevaluable contribute $0/0$ to $q$; those who did or did not tolerate the drug contribute $0/1$ or $1/1$, respectively; and those whose assessments remain pending are counted in $p$.
+\end{defn}
+
+\begin{nota}
+  By implicitly regarding $t$ as an arbitrary `current time' or `now', we will often freely suppress the $t$-dependence of $I_d$, $q$, $p$ and $s$.
+  \end{nota}
+
+\begin{nota}
+  Denote by $S = Q^D \times \N^D$ the range of $s : \R^+ \rightarrow S$.
+\end{nota}
+
+\begin{nota}
+  For $s \in S$, let $\underbar{s}$ denote the first component and $\bar{s}$ the second:
+  $$
+  s \equiv (\underbar{s},\bar{s}).
+  $$
+\end{nota}
+
+\begin{defn}\label{delta-p}
+  For $p \in \N^D$, we regard the \textbf{pending assessment} as the set,
+  $$
+  \surd p = \{ \frac{t}{n} \in Q^D \mid n \le p \} \subset Q^D,
+  $$
+  of all its possible resolutions.
+  The surd notation $\surd$ is meant to convey the idea that $\surd p$ represents the unresolved potentiality of pending assessments that have `not yet spoken' [L. {\em surdus}, mute].  The angular appearance of $\surd$ also serves to remind of the triangular shape of each dosewise component $(\surd p)_d \subset Q \subset \N^2$.  Pronouncing $\surd$ `res' instead of `root' in this context may help.
+\end{defn}
+
+\begin{nota}
+  Let $A = \surd \N^D = \{ \surd p \mid p \in \N^D \} \subset 2^{Q^D}$ denote $\surd$'s range.
+\end{nota}
+
+\begin{fact}
+  For any pending assessment $\surd p$, it is possible to recover the vector $p$ from the maximal denominator:
+  $$
+  \bigvee \{ n \mid t/n \in \surd p \} = p.
+  $$
+  To see this, simply consider any resolution in $\surd p$ with all participants evaluable.
+\end{fact}
+
+\begin{fact}
+  The mapping $\N^D \xrightarrow{\;\surd\;} A$ thus establishes an isomorphism:
+  $$
+  \N^D \cong A \subset 2^{Q^D}.
+  $$
+\end{fact}
+
+\begin{fact}
+  Accordingly, we may regard $S$ as the direct sum,
+  $$
+  S = Q^D \times \N^D \cong Q^D \oplus A,
+  $$
+  writing its individual elements (i.e., states) as,
+  $$
+  s = \underbar{s} \oplus \surd \bar{s},
+  $$
+  thereby conceptualizing states as \textbf{sets of possible tallies}:
+  $$
+  s = \{ \underbar{s} + a \mid a \in \surd \bar{s} \} \subset Q^D.
+  $$
+\end{fact}
+
+\begin{nota}
+  We formalize this understanding by extending $\surd$ to a function on $S$, and writing $Q^D \times \N^D = S \cong \surd S = Q^D \oplus A \subset 2^{Q^D}$.
+\end{nota}
+
+\begin{defn}
+  The \textbf{plurality} of a state $s \in S$, denoted $|s|$, is defined as
+  $$
+  |s| = |\surd s| = |\surd\bar{s}|.
+  $$
+\end{defn}
+
+\begin{defn}
+  A state $s \in S$ is \textbf{singular} if $|s|=1$ and \textbf{plural} if $|s|>1$.
+\end{defn}
+
+\begin{nota}
+  For any set $X$, the power set $2^X$ is customarily identified with the preorder (hence, category) $(2^X, \subseteq)$.  The opposite category $(2^X)^{\dual}$ is then the preorder $(2^X, \supseteq)$.
+\end{nota}
+
+\begin{nota}
+  Let $\mathcal{S} = (S,\supseteq)$ denote the preorder obtained as the (full) subcategory of $(2^{Q^D})^{\dual}$ defined by $\surd$ as an inclusion functor $\mathcal{S} \xhookrightarrow{\;\surd\;} (2^{Q^D})^{\dual}$.
+\end{nota}
+
+By choosing to embed $\mathcal{S}$ in the {\em opposite} (dual) category of $2^{Q^D}$ we obtain arrows $\supseteq$ that point {\em in the direction of time}, as pending evaluations resolve and {\em information increases}.
+
+\begin{nota}
+  Let $\mathcal{A} = (A,\supseteq)$ denote the preorder obtained from the embedding of $A \subset 2^{Q^D}$.  Observe that $\mathcal{A}$ may be regarded as a subcategory of $\mathcal{S}$ via the inclusion functor $0 \oplus -$:
+  \begin{align}
+    \mathcal{A} & \xhookrightarrow{0 \oplus -} \mathcal{S} \\
+    \surd p & \mapsto (\frac{0}{0},...,\frac{0}{0}) \oplus \surd p.
+  \end{align}
+\end{nota}
+
+\begin{nota}
+  We extend $\oplus$ to a bifunctor $\mathcal{S} \times \mathcal{A} \xrightarrow{\oplus} \mathcal{S}$:
+  $$
+  s \oplus \surd p = \underbar{s} \oplus \surd ( \bar{s} + p ),
+  $$
+  modeling the possibility of enrolling additional participants into a still-plural state $s$ with nonzero pending count $\bar{s}$.
+\end{nota}
+
+\begin{fact}
+  Augmenting $\mathcal{S}$ to include the initial object $U = Q^D$ and the terminal object $\emptyset$, we obtain obtain a symmetric monoidal preorder, $\mathcal{S}^* = (S^*,\supseteq,U,\cap)$ with set intersection as the monoidal product and $U$ as its unit.  The essence of the proof is showing that $S^* = \surd S \cup \{\emptyset,U\}$ is closed under set intersections.  This is readily appreciated from the geometry of the components $(\surd s \cap \surd s')_d$ as intersecting isosceles right-triangular subsets of $Q \subset \N^2$.  (The formal proof may be slightly easier in the plane of $R \cong \N^2$, where the elements $t\!:\!u$ admit a symmetrical treatment of their $t$ and $u$ parts.)
+\end{fact}
+
+\begin{fact}
+  The above holds true for any choice of $U \subset Q^D$, provided that we take the elements of $\mathcal{S}^*$ to be $\{s \cap U \mid s \in \surd S\}$.  This allows for $U$ to define a bounded set of \textbf{accessible tallies}, such as might arise from a fixed limit on trial enrollment.
+\end{fact}
+
+Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em actual} state $\frac{0}{0} \oplus 0$ which we might well regard as obtaining upon initiation of the trial.  The `universe' $U$ is likewise an abstraction which would never obtain as an actual trial state, except in the (pathological) case where the entire planned enrollment were achieved before any assessments completed.
+
+\section{Modeling Pharmacologic Monotonicities}
+
+\begin{defn}
+  Let $+:Q \times Q \rightarrow Q$ be defined by
+  $$
+  \frac{t_1}{n_1} + \frac{t_2}{n_2} = \frac{t_1 + t_2}{n_1 + n_2}.
+  $$
+  Observe that this is a monoidal operation with unit $0/0$, which extends in the obvious way to a monoidal operation on $Q^D$ with unit $(\frac{0}{0},...,\frac{0}{0})$.
+\end{defn}
+
+\begin{defn}\label{lesaf}
+  Let $\preceq$ be the transitive closure of a preorder relation satisfying,
+  \begin{equation}
+  \frac{t}{n}\!+\!\frac{1}{1} \;\preceq\; \frac{t}{n} \;\preceq\; \frac{t}{n}\!+\!\frac{0}{1} \quad \forall\; \frac{t}{n} \in Q. \label{lesafcond}
+  \end{equation}
+  Then the preorder $(Q,\preceq)$ compares the \textbf{evident safety} expressed in dosewise tallies, such that we read
+  $$
+  q_1 \preceq q_2
+  $$
+  as ``$q_1$ is evidently no safer than $q_2$'' or ``$q_2$ is evidently at least as safe as $q_1$''.
+\end{defn}
+
+\begin{fact}
+  $(Q,\preceq,\frac{0}{0},+)$ is a symmetric monoidal preorder.  It is easy to see that $+$ is a symmetric monoidal operation on $Q$ with unit $0/0$, the necessary unitality, associativity and commutativity all being inherited directly from the monoid $(\N,0,+)$.  The monotonicity condition.
+  $$
+  q \preceq q',\; g \preceq g' \implies q + g \preceq q' + g',
+  $$
+  arises by induction from the Definition~\ref{lesaf} of $\preceq$ in terms of $+$.
+\end{fact}
+
+\begin{fact}
+  $$
+  \frac{t}{n} \preceq \frac{t'}{n'} \quad \iff \quad t \ge t' + \max(0,n-n').
+  $$
+\end{fact}
+\begin{proof}
+  This is most easily seen by expressing \eqref{lesafcond} in its equivalent ratio form,
+  $$
+  t\!:\!u + 1\!:\!0 \preceq t\!:\!u \preceq t\!:\!u + 0\!:\!1 \quad \forall\; t\!:\!u \in R,
+  $$
+  and observing that consequently $t\!:\!u \preceq t'\!:\!u'$ iff $t \ge t'$ and $u \le u'$.  This latter condition, in turn, may be transformed as follows:
+  \begin{align*}
+    & t \ge t' \;\wedge\; u \le u' \\
+    \iff\quad & t \ge t' \;\wedge\; n-t \le n'-t' \\
+    \iff\quad & t \ge t' \;\wedge\; t \ge t' + (n-n') \\
+    \iff\quad & t \ge t' + \max(0,n-n').
+  \end{align*}
+\end{proof}
+
+\begin{nota}
+  Let $\langle q \rangle_j$ denote the tally $(\frac{0}{0},...,\frac{0}{0},q,\frac{0}{0},...,\frac{0}{0}) \in Q^D$ with $q \in Q$ in the $j$'th position and $0/0$ elsewhere, and let $\langle q, q' \rangle_{j,k}$ denote the tally $\langle q \rangle_j + \langle q' \rangle_k$ with $q, q' \in Q$ in the $j$'th and $k$'th positions of an otherwise-$0/0$ tally.  It is to be understood that $j < k$ whenever this latter notation is used.
+\end{nota}
+
+\begin{nota}
+  The sheer fact of having recorded a tally of the form $\langle\frac{1}{1},\frac{0}{1}\rangle_{j,k}$ means that we enrolled participants $i, i' \in I$ at doses $x_j < x_k$ respectively, and upon assessment found that:
+  $$
+  y(i,x_j) = 1, \; y(i',x_k) = 0.
+  $$
+  Thus we may regard $\langle\frac{1}{1},\frac{0}{1}\rangle_{j,k}$ as \textbf{equivalent to a proposition:}
+  $$
+  \langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} \; \equiv \; \exists\, i, i' \in I \;\mbox{such that}\;\, y(i,x_j) = 1 \;\mbox{and}\;\, y(i',x_k) = 0.
+  $$
+  On this understanding, we can express the pharmacologic premise of \textbf{monotone dose-toxicity} via,
+  $$
+  \langle\frac{1}{1}\rangle_j \implies \langle\frac{1}{1}\rangle_k \;\forall\, k > j \\
+  $$
+  and
+  $$
+  \langle\frac{0}{1}\rangle_j \implies \langle\frac{0}{1}\rangle_\ell \;\forall\, \ell < j.
+  $$
+\end{nota}
+
+\begin{defn}\label{domon}
+  A preorder relation $\le$ on $Q^D$ is \textbf{dose-monotone} iff,
+  $$
+  \langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} \le \langle\frac{0}{1},\frac{1}{1}\rangle_{j,k} \quad \forall \; j < k.
+  $$
+\end{defn}
+
+\begin{nota}
+  Let $\preceq_{ce}$ denote the binary relation on $Q^D$ obtained by componentwise extension of Definition~\ref{lesaf},
+  $$
+  \bigwedge_{i=1}^D (q_i \preceq q_i') \implies q \preceq_{ce} q',
+  $$
+  and let $\preceq_{dm}$ denote the \underline{monoidal} dose-monotonicity relation,
+  \begin{equation}
+  q + \langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} \preceq_{dm} q + \langle\frac{0}{1},\frac{1}{1}\rangle_{j,k} \quad \forall\; j < k \quad \forall\; q \in Q^D, \label{xchg}
+  \end{equation}
+  which ensures that $+ : Q^D \times Q^D \rightarrow Q^D$ is monotone with respect to $\preceq_{dm}$.
+\end{nota}
+
+\begin{defn}\label{lesaf^D}
+  Let $\mathcal{Q} = (Q^D,\preceq)$ be the free preorder generated by $\preceq_{ce} \cup \preceq_{dm}$.
+\end{defn}
+
+\begin{fact}
+  Def.~\ref{lesaf^D} creates no ambiguity by its reuse of $\preceq$, since it incorporates Def.~\ref{lesaf} as the special case $D=1$.
+\end{fact}
+
+\begin{fact}\label{symon}
+  $\mathcal{Q} = (Q^D,\preceq,\langle\frac{0}{0}\rangle,+)$ is a symmetric monoidal preorder.
+\end{fact}
+
+\begin{nota}
+  Given a dose-indexed tuple $x = (x_d) \in \N^D$, let capitalization denote partial summation, such that $X_d = \sum_{j=1}^d x_j$, and $X = (X_d) \in \N^D$.
+\end{nota}
+
+\begin{fact}
+  The preorder $\preceq$ is readily calculated from an equivalent condition,
+  \begin{equation}
+  t\!:\!u \preceq t'\!:\!u' \quad\iff\quad T \ge T' \;\wedge\; U \le U'.\label{cond}
+  \end{equation}
+\end{fact}
+\begin{proof}
+  It is the universal property of the free preorder $(Q^D, \preceq)$ that $\preceq$ is the reflexive, transitive closure of the relation $\preceq_{ce} \cup \preceq_{dm}$.  The $(\!\impliedby\!)$ direction of \eqref{cond} is immediate: the RHS obviously defines a reflexive and transitive relation on $R^D \cong Q^D$, which directly implies both $\preceq_{ce}$ and $\preceq_{dm}$ as special cases.  So the RHS of \eqref{cond} clearly defines a preorder that contains $\preceq$.
+
+  To show the $(\!\implies\!)$ direction, consider that any statement $q \preceq q'$ with $q \neq q'$ must arise from some finite string of the form,
+  \begin{equation}
+  q = q^0 \preceq_* q^1 \preceq_* ... \preceq_* q^n = q' \quad n \ge 1, \label{string}
+  \end{equation}
+  where each $\preceq_*$ is either $\preceq_{ce}$ or $\preceq_{dm}$.  But observe that across either of these $\preceq_*$'s, both $T_d^{n-1} \ge T_d^n$ and $U_d^{n-1} \le U_d^n$ must hold $\forall d, n$.  Since the latter are themselves transitive conditions, they must hold also across the whole chain from $q$ to $q'$.  
+\end{proof}
+
+\begin{corr}\label{partord}
+  $\preceq$ is in fact a \underline{partial order} on $Q^D$, since $t\!:\!u \cong t'\!:\!u'$ requires both equalities on the RHS of \eqref{cond} to hold, forcing $t_i = t_i'$ and $u_i = u_i'$ for all $\,i$.
+\end{corr}
+
+\begin{nota}
+  Corrolary~\ref{partord} licenses the notation $\prec$ defined by,
+  $$
+  q_1 \prec q_2 \iff q_1 \preceq q_2 \;\wedge\; q_1 \neq q_2.
+  $$
+\end{nota}
+
+\subsection{Further characterization of the monoidal preorder $\preceq$}
+
+\begin{quote}
+  Make no mistake about it: Computers process numbers --- not symbols.
+  We measure our understanding (and control) by the extent to which
+  we can arithmetize an activity.
+  
+  \hfill --- Alan J. Perlis (Epigram \#65)
+\end{quote}
+
+Observe that the proof of Fact~\ref{symon} did not use the {\em symmetric monoidal} character of the $+$ operation on $\mathcal{Q}$.  By exploiting specifically the {\em commutativity} of $+$, however, we can obtain a more readily generalizable reformulation of \eqref{cond}.
+
+\begin{fact}
+  Every arrow of the preorder $\preceq$ may be obtained in the form,
+  \begin{equation}
+  \sum_{i=1}^D \lambda_i\langle\frac{1}{1}\rangle_i + \sum_{j<k} \eta_{jk}\langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} +q \preceq q + \sum_{j<k} \eta_{jk}\langle\frac{0}{1},\frac{1}{1}\rangle_{j,k} + \sum_{i=1}^D \gamma_i\langle\frac{0}{1}\rangle_i, \label{clpz}
+  \end{equation}
+  for some $q \in Q^D$ and $\lambda_i, \eta_{jk}, \gamma_i \in \N$.  This is a CLP($\mathbb{Z}$) constraint.
+\end{fact}
+\begin{proof}
+  It is clear that every statement of the form \eqref{clpz} is a valid arrow that we may build up by starting with the reflexive arrow $q \preceq q$, repeatedly applying $\preceq_{dm}$ (obtaining the paired $\eta_{jk}$ terms), then repeatedly applying $\preceq_{ce}$; the left-hand side of \eqref{lesafcond} generates the $\lambda_i$ terms, its right-hand side the $\gamma_i$ terms.
+  The converse, that all valid arrows must be of the form \eqref{clpz}, follows from considering strings of the form \eqref{string}, and exploiting the commutativity of $+$ to collect like terms.
+\end{proof}
+
+\section{Dose-Escalation Protocols}
+
+A dose-escalation protocol (DEP) is generally situated in a queueing context, where it must service the {\em arrival process} of participants presenting available for enrollment.  At any time, there may be 0, 1, or many participants waiting to enroll.  It is the task of a dose-escalation protocol to decide at what doses (if any) to enroll the waiting participants, conditional on the trial's current state.
+
+\begin{defn}
+  A \textbf{cohort} is a pair $(t,c) \in [0,\infty) \times \N^D$ giving the number of participants enrolling concurrently at time $t$ at each dose in $\{1,...,D\}$.  As previously for tallies, pending counts and trial states, a `current time' will often be implicit, so that we will freely suppress the $t$-component and speak of `cohorts' in $\N^D$.
+\end{defn}
+
+\begin{defn}\label{cohcat}
+  Let $\unlhd$ denote the preorder relation formed by transitive closure of the usual preorder $\le$ on $\N^D$,
+  $$
+  x \le y \implies x \unlhd y \quad\forall\, x, y \in \N^D,
+  $$
+  together with the condition
+  $$
+  j \le k \implies \widehat{j} \unlhd \widehat{k} \quad\forall j,k \in \{0,...,D\}.
+  $$
+  Let $\mathcal{C} = (\N^D,\unlhd)$ denote the resulting preorder, and call its objects `cohorts'.  Observe that the arrows $c \xrightarrow{\unlhd} c'$ in this category point in the direction of increasingly `ambitious' cohorts that enroll more participants, or at higher doses.
+\end{defn}
+
+\begin{nota}
+  Let $\downarrow : \mathcal{C} \rightarrow 2^\mathcal{C}$ denote the functor yielding the principal lower sets,
+  $$
+  \downarrow c = \{ c' \in \mathcal{C} \mid c' \unlhd c \}.
+  $$
+\end{nota}
+
+\begin{defn}\label{deprot}
+  A \textbf{rolling dose escalation [RDE]} is a functor
+  $$
+  \widetilde{E} : \mathcal{S} \rightarrow 2^\mathcal{C}
+  $$
+  that in any trial state determines a set of admissible cohorts.  The functoriality here models a caution that underlies any reasonable approach to dose escalation:
+  $$
+  s \supseteq s' \implies \widetilde{E} s \subseteq \widetilde{E} s',
+  $$
+  which is to say that in states with less information, enrollment options should be more restrictive.
+
+  The qualifier `rolling' applies on account of the set-valued domain $\mathcal{S}$, meant generally to allow for `rolling enrollment' (cite Skolnik et al, 2008) even from plural states with pending assessments.
+  
+  The set-valued codomain of $\widetilde{E}$ is intended to allow generally for servicing waiting queues of different sizes, and even for the arbitrary exercise of `clinical judgment' in dose assignments.
+
+  We will freely regard any functor $\widetilde{E} : \mathcal{S} \rightarrow \mathcal{C}$ as the RDE, $\downarrow\!\circ \widetilde{E} : \mathcal{S} \rightarrow 2^\mathcal{C}$.
+\end{defn}
+
+The high generality of Definition~\ref{deprot} allows for development of a taxonomy that identifies and names various desirable properties which, at their intersection, may define a class of rational DEP's of practical interest.  But we now leap ahead to a highly restrictive class, in order to make concrete progress.
+
+\begin{nota}
+  For $D \in \N^+$, let $\mathcal{D}$ denote the preorder consisting of the set $\{0, 1, ..., D\}$ equipped with the (reflexive and transitive) relation $\le$ defined as usual on $\N$.  In order to use categorical language, we will regard $\mathcal{D}$ as the category freely generated by the graph, $0 \rightarrow 1 \rightarrow \dots \rightarrow D$.\footnote{More conventionally, the ordinal category with D+1 elements would be written $\mathbb{D}+\bbold{1}$; see Riehl Example 4.1.14.  But we trust no confusion will arise from our notation $\mathcal{D}$.}
+\end{nota}
+
+\begin{defn}
+  An \textbf{incremental enrollment [IE]} is a functor $\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}$.  Note that the functoriality here imposes the core intuition of dose-escalation,
+  $$
+  q \preceq q' \implies E q \le E q',
+  $$
+  that dose assignment should correlate with evident safety.
+\end{defn}
+
+\begin{nota}
+  Let $\mathcal{S} \xrightarrow{\bigwedge} \mathcal{Q}$ denote the functor defined by the worst-possible (most toxic) resolution,
+  $$
+  \bigwedge s = \bigwedge_{q \in s} q.
+  $$
+  The right-hand side is well-defined, since any given state $s$ is finite, and $\mathcal{Q}$ is a strict preorder (i.e., partial order) by Corollary~\ref{partord}.  Functoriality holds because $s \supseteq s' \implies \bigwedge_{q \in s} q \preceq \bigwedge_{q \in s'} q$.
+\end{nota}
+
+\begin{nota}\label{hatfun}
+  Let $\mathcal{D} \xrightarrow{\widehat{-}} \mathcal{C}$ be the functor defined by $\widehat{d} = ([j = d])_{j\in\mathcal{D}}$, where $[-]$ represents the Iverson bracket,
+  $$
+  [P] = \begin{cases*}
+    1 & if $P$ is true \\
+    0 & otherwise.
+  \end{cases*}
+  $$
+  Thus, $\widehat{0}$ is a $D$-vector of all zeros, and for $d>0$, $\widehat{d}$ is the vector $(0,...,0,1,0,...,0)$ with 1 in the $d$\!'th position.  The functoriality of $\widehat{-}$ arises directly from the 2nd condition in Definition~\ref{cohcat}.
+\end{nota}
+
+\begin{nota}
+  Given IE $\IE$, define $\E = \widehat{-} \circ E \circ \bigwedge$:
+  \begin{center}
+    \begin{tikzcd}[column sep=large,row sep=large]
+      \mathcal{Q} \ar[r,"E"]
+      & \mathcal{D} \ar[d,"\widehat{-}"] \\
+      \mathcal{S} \ar[u,"\bigwedge"] \ar[r,"\E"']
+      & \mathcal{C}
+    \end{tikzcd}
+  \end{center}
+\end{nota}
+
+\begin{fact}
+  `$E$' and `$\bigwedge$\!' commute in the definition of $\E$:
+  $$
+  \E s = E \left(\bigwedge s\right) = E \bigwedge_{q \in s} q = \bigwedge_{q \in s} E q.
+  $$
+\end{fact}
+
+\begin{nota}\label{altmutrec}
+  Given IE $\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}$, define functors $\mathcal{S} \xrightarrow{\E_n} \mathcal{S}, n \in \N$ by,
+  $$
+  \begin{aligned}
+    \E_0 s &= s \\
+    \E_{n+1} s &= \E_n s \oplus \surd\E(\E_n s).
+  \end{aligned}
+  $$
+\end{nota}
+
+\begin{fact}
+  Given a state $s \in \mathcal{S}$, the sequence $(\E_n s)_{n\in\N}$ defines a diagram in $\mathcal{S}$ of shape $(\N,\le)^{\dual}$:
+  $$
+  \dots \supseteq \E_2s \supseteq \E_1s \supseteq \E_0s\equiv s,
+  $$
+for which the so-called `inverse limit' is $\displaystyle{\lim_{\longleftarrow} \E_{-} s} = \bigcup_{n\in\N} \E_n s$.\footnote{Leinster [Ex. 5.1.21(d), p.120] seems to disparage the term `inverse' as ``old fashioned'', whereas Riehl [Def.~3.1.21, p.80] presents it as standard.}
+\end{fact}
+
+\begin{nota}
+  Let $\E_\leftarrow : \mathcal{S} \rightarrow \mathcal{S}$ denote the functor defined by these limits,
+  $$
+  \E_\leftarrow s = \displaystyle{\lim_{\longleftarrow} \E_{-} s} = \bigcup_{n\in\N} \E_n s.
+  $$
+\end{nota}
+
+\begin{defn}\label{rdegenbyie}
+  The \textbf{RDE generated by an IE} $\IE$ is the functor $\widetilde{E} : \mathcal{S} \rightarrow \mathcal{C}$ defined by the equation,
+  $$
+  \E_\leftarrow s = s \oplus \surd\widetilde{E} s.
+  $$
+  \begin{center}
+    \begin{tikzcd}[column sep=large,row sep=large]
+      \mathcal{S} \ar[dr,"\E_\leftarrow"']
+      \ar[rr,bend left,"\surd\widetilde{E}"]
+      & \;\mathcal{S}\times \mathcal{A}
+      \ar[l,"\pi_\mathcal{S}"] \ar[d,"\oplus"] \ar[r,"\pi_\mathcal{A}"']
+      & \mathcal{A} \\
+      & \mathcal{S}
+    \end{tikzcd}
+  \end{center}
+\end{defn}
+
+\subsection{A Concrete Construction}
+
+In this subsection, we motivate and elucidate the rather abstract Definition~\ref{rdegenbyie} using a more concrete construction.
+
+\begin{nota}\label{mutrec}
+  Given IE $\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}$ and a tally $q \in \mathcal{Q}$, define sequences $e_n(q) \in \{0,...,D\}$ and $E_n(q) \in S$ inductively by the mutually recursive relations,
+  $$
+  \begin{aligned}
+    e_1(q) &= E q \\
+    E_n(q) &= q \oplus \surd \sum_{k=1}^n \widehat{e_k(q)} \\
+    e_{n+1}(q) &= \bigwedge_{q' \in E_n(q)} E q'.
+  \end{aligned}
+  $$
+This defines how, from the standpoint of a singular trial state $q \oplus \{\widehat{0}\} \in \mathcal{S}$, one might proceed to enroll participants from a waiting queue: enroll a first participant at dose $e_1(q)$; then, from the standpoint of the resulting plural state $E_1(q) = q \oplus \surd\widehat{e_1(q)}$, the minimax principle suggests $e_2(q) = \bigwedge_{q' \in E_1(q)} E q'$ as a suitable dose for enrolling a second participant; this yields the even larger state $E_2(q)$, which may then admit further enrollment, and so on.
+\end{nota}
+
+\begin{fact}
+  The sequence $(e_n(q))_{n \in \N^+}$ is nonincreasing:
+  $$
+  m < n \implies e_m(q) \ge e_n(q) \quad \forall\, q \in \mathcal{Q}.
+  $$
+\end{fact}
+
+\begin{fact}
+  The sequence $(E_n(q))_{n \in \N^+}$ is nested:
+  $$
+  m < n \implies E_m(q) \subseteq E_n(q) \quad \forall\, q \in \mathcal{Q}.
+  $$
+\end{fact}
+
+Except in pathological cases (\textbf{TODO:} rule these out by some explicit provision), the sequence $e_n(q)$ must become zero after a finite number of terms, at which point the sequence $E_n(q)$ converges.
+
+\subsection{A Categorical Perspective}
+
+The construction in Notation~\ref{mutrec} can be appreciated via cones over and under the diagram $(\N,\le)^{\dual} \xrightarrow{E_{-} s} \mathcal{S}$, with summit $a \in \mathcal{S}$ and nadir $s = q\oplus\{\widehat{0}\}$:
+\begin{center}
+  \begin{tikzcd}[row sep=huge]
+    a \ar[d,"\supseteq" {description,rotate=-90}]
+    \ar[dr,"\supseteq" {description,rotate=-45}]
+    \ar[drr,"\supseteq" {description,rotate=-25}]
+    \ar[drrr,"\supseteq" {description,rotate=-17}] \\
+    \dots \ar[r,"\supseteq" description]
+    \ar[d,"\supseteq" {description,rotate=-90}]
+    & E_2s \ar[r,"\supseteq" description]
+    \ar[dl,"\subseteq" {description,rotate=45}]
+    & E_1s \ar[r,"\supseteq" description]
+    \ar[dll,"\subseteq" {description,rotate=25}]
+    & E_0s\equiv s \ar[dlll,"\subseteq" {description,rotate=17}] \\
+    s
+  \end{tikzcd}
+\end{center}
+This reveals Definition~\ref{rdegenbyie} as a limit,
+$$
+E^*(s) = \lim_{\longleftarrow} E_ns,
+$$
+the limit cone being
+\begin{center}
+  \begin{tikzcd}[row sep=huge]
+    \displaystyle{\lim_{\longleftarrow} E_ns} \ar[d,"\supseteq" {description,rotate=-90}]
+    \ar[dr,"\supseteq" {description,rotate=-45}]
+    \ar[drr,"\supseteq" {description,rotate=-27}]
+    \ar[drrr,"\supseteq" {description,rotate=-19}] \\
+    \dots \ar[r,"\supseteq" description]
+    & E_2s \ar[r,"\supseteq" description]
+    & E_1s \ar[r,"\subseteq" description]
+    & E_0s\equiv s,
+  \end{tikzcd}
+\end{center}
+with projections $E^*(s) \supseteq E_ns$ defining admissible cohorts of size $n$.
+
+\section{Conjectures}
+
+\begin{conj}\label{embed}
+  Many standard dose-escalation protocols, including $\mbox{3 + 3}$ and BOIN designs, will give rise implicitly to an enlargement of the preorder $(Q^D,\preceq)$ of Definition~\ref{lesaf^D}.  This preorder, in turn, will define uniquely a dose-monotone `correction' of the original protocol.
+\end{conj}
+
+\subsection{Rectification of the $\mbox{3+3}$ trial design}
+
+Let us examine Conjecture~\ref{embed} in the context of the $\mbox{3+3}$ trial.  The smallest nontrivial $\mbox{3+3}$ design considers $D = 2$ doses, and has 46 possible paths \cite{norris_executable_2024}.  These paths terminate in 29 possible tallies (some tallies can be reached by several paths), each with a dose-level recommendation in $\{0, 1, 2\}$ defined by the protocol.
+
+\begin{verbatim}
+% Using predicates defined in Norris & Triska (2024)
+:- use_module(library(format)).
+?- N+\(setof(FinalTally - Rec,
+             FinalTally^Rec+\(phrase(path([0/0]-[0/0]), Path),
+                              reverse(Path, [recommend_dose(Rec),stop,Endstate|_]),
+                              state_tallies(Endstate, FinalTally)
+                             ), TallyRecs),
+       maplist(portray_clause, TallyRecs),
+       length(TallyRecs, N)).
+% Output is verbatim, but reordered and tabulated for display:
+%@ [2/3,0/0]-0.   %@ [0/6,2/3]-1.   %@ [0/3,0/6]-2.
+%@ [2/6,0/0]-0.   %@ [0/6,2/6]-1.   %@ [0/3,1/6]-2.
+%@ [2/6,2/3]-0.   %@ [0/6,3/3]-1.   %@ [1/6,0/6]-2.
+%@ [2/6,2/6]-0.   %@ [0/6,3/6]-1.   %@ [1/6,1/6]-2.
+%@ [2/6,3/3]-0.   %@ [0/6,4/6]-1.
+%@ [2/6,3/6]-0.   %@ [1/6,2/3]-1.
+%@ [2/6,4/6]-0.   %@ [1/6,2/6]-1.
+%@ [3/3,0/0]-0.   %@ [1/6,3/3]-1.
+%@ [3/6,0/0]-0.   %@ [1/6,3/6]-1.
+%@ [3/6,2/3]-0.   %@ [1/6,4/6]-1.
+%@ [3/6,2/6]-0.
+%@ [3/6,3/3]-0.
+%@ [3/6,3/6]-0.
+%@ [3/6,4/6]-0.
+%@ [4/6,0/0]-0.
+%@    N = 29.
+\end{verbatim}
+
+Thus, the $\mbox{3+3}$ trial yields a mapping from a (29-element) subset of $Q^2$ to $\{0,1,2\}$.  In light of the foregoing, it is natural at this point to ask whether we might extend this mapping to an incremental enrollment $\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}$.  To be amenable to such extension, these dose recommendations would have to be {\em functorial}; let us check this:
+
+\begin{lstlisting}
+?- X^Dx^Y^Dy+\(setof(FinalTally - Rec,
+                     FinalTally^Rec+\(phrase(path([0/0]-[0/0]), Path),
+                                      reverse(Path, [recommend_dose(Rec),
+                                                     stop,Endstate|_]),
+                                      state_tallies(Endstate, FinalTally)),
+                     TallyRecs),
+               member(X-Dx, TallyRecs),
+               member(Y-Dy, TallyRecs),
+               #Dx #> #Dy,
+               X '$\preceq$' Y).
+%@    X = [1/6,1/6], Dx = 2, Y = [0/6,2/6], Dy = 1
+%@ ;  false.
+\end{lstlisting}
+
+Thus, interestingly, we discover that the dose recommendations of the \mbox{3+3} trial are not actually consistent with the basic pharmacologic intuition embodied in our dose-monotonicity condition of Definition~\ref{domon}: substituting $q = (\frac{0}{5},\frac{1}{5})$ into Equation~\eqref{xchg}, we see that $(\frac{1}{6},\frac{1}{6}) \preceq (\frac{0}{6},\frac{2}{6})$, yet the \mbox{3+3} design accords the {\em higher} dose to the {\em less safe} of the two tallies.  Adapting existing dose-escalation designs to the framework presented here will generally require an initial `rectification' step, in which nonmonotonicities implicit in existing designs are corrected.  A cautious approach to such rectification in this case might simply assign the dose recommendation of $D = 1$ to the tally $(\frac{1}{6},\frac{1}{6})$.
+
+Generally, we will want to extract as much information as possible from existing designs, and to this end we may consider not only {\em final} tallies with their dose recommendations, but also {\em interim} tallies and their associated next-dose recommendations.  In the \mbox{3+3} trial, there are a total of ...  
+
+\begin{defn}
+  A \textbf{Galois enrollment} $L \dashv E \dashv F$ is an IE $\IE$ for which both left (lower) and right (upper) adjoints $L$ and $F$ exist:
+  \begin{center}
+    \begin{tikzcd}
+      \mathcal{Q} \ar[rrr,"E"{name=E,description}]
+      & & & \mathcal{D}
+      \ar[lll,bend right,"F"'{name=F}]
+      \ar[lll,bend left,"L"{name=L,below}]
+      \arrow[phantom,from=E,to=L,"\dashv" rotate=90]
+      \arrow[phantom,from=F,to=E,"\dashv" rotate=90]
+    \end{tikzcd}
+  \end{center}
+\end{defn}
+(The name is suggested by the fact that an adjunction between preorders is called a Galois connection.  See Reihl p118 and Fong \& Spivak Definition~1.90, p27.)
+
+\begin{conj}
+  A Galois enrollment is too much to hope for, since it implies
+  $$
+  E^{-1} d = \{ q \mid L\,d \preceq q \preceq F d \}.
+  $$
+  But if this conjecture is wrong, we need to know!  If such IE's were available generally or even widely, they would have strong properties worth understanding.
+\end{conj}
+
+\bibliographystyle{unsrt}
+\bibliography{DTAT}
+
+\end{document}
