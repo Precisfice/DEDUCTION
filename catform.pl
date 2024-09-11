@@ -117,8 +117,64 @@ endtally_rec(FinalTally, Rec) :-
 %@    N = 29.
 */
 
-% Let's now expand the information extracted from the 3+3 design
-% to include all next-dose recommendations:
+% Clearly, some of these 29 final tallies must be shared
+% between several of the 46 distinct trial paths.
+% Let's demonstrate how!
+
+endtally_path(FinalTally, Path) :-
+    phrase(path([0/0]-[0/0]), Path),
+    phrase((..., [Endstate,stop,recommend_dose(_)]), Path),
+    state_tallies(Endstate, FinalTally).
+
+%?- endtally_path(Q, P).
+%@    Q = [0/3,0/6], P = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[0/6,0/3]-[],stop,recommend_dose(2)]
+%@ ;  Q = [0/3,1/6], P = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[1/6,0/3]-[],stop,recommend_dose(2)]
+%@ ;  ... .
+
+/*
+?- Tally^Npaths+\(setof(Q-Path, endtally_path(Q, Path), QPaths),
+                   group_pairs_by_key(QPaths, QGroups),
+                   maplist(\QP^QN^(QP=Qi-Pi, length(Pi,Ni), QN=Qi-Ni),
+                           QGroups, QNs),
+    member(Tally-Npaths, QNs)).
+%@    Tally = [0/3,0/6], Npaths = 1
+%@ ;  Tally = [0/3,1/6], Npaths = 2
+%@ ;  Tally = [0/6,2/3], Npaths = 1
+%@ ;  Tally = [0/6,2/6], Npaths = 2
+%@ ;  Tally = [0/6,3/3], Npaths = 1
+%@ ;  Tally = [0/6,3/6], Npaths = 2
+%@ ;  Tally = [0/6,4/6], Npaths = 1
+%@ ;  Tally = [1/6,0/6], Npaths = 1
+%@ ;  Tally = [1/6,1/6], Npaths = 2
+%@ ;  Tally = [1/6,2/3], Npaths = 2
+%@ ;  Tally = [1/6,2/6], Npaths = 4
+%@ ;  Tally = [1/6,3/3], Npaths = 2
+%@ ;  Tally = [1/6,3/6], Npaths = 4
+%@ ;  Tally = [1/6,4/6], Npaths = 2
+%@ ;  Tally = [2/3,0/0], Npaths = 1
+%@ ;  Tally = [2/6,0/0], Npaths = 1
+%@ ;  Tally = [2/6,2/3], Npaths = 1
+%@ ;  Tally = [2/6,2/6], Npaths = 2
+%@ ;  Tally = [2/6,3/3], Npaths = 1
+%@ ;  Tally = [2/6,3/6], Npaths = 2
+%@ ;  Tally = [2/6,4/6], Npaths = 1
+%@ ;  Tally = [3/3,0/0], Npaths = 1
+%@ ;  Tally = [3/6,0/0], Npaths = 1
+%@ ;  Tally = [3/6,2/3], Npaths = 1
+%@ ;  Tally = [3/6,2/6], Npaths = 2
+%@ ;  Tally = [3/6,3/3], Npaths = 1
+%@ ;  Tally = [3/6,3/6], Npaths = 2
+%@ ;  Tally = [3/6,4/6], Npaths = 1
+%@ ;  Tally = [4/6,0/0], Npaths = 1.
+*/
+% Thus, we fully account for 46 distinct paths by observing that
+% two final tallies obtain on 4 paths, 11 obtain on 2 paths,
+% and each of the remaining 16 obtains on a unique path:
+%?- #J #= 2*4 + 11*2 + 16.
+%@    J = 46.
+
+% What if we expand the information extracted from the 3+3 design
+% to include *all* next-dose recommendations?
 
 :- table tally_nextdose/2.
 
@@ -133,22 +189,70 @@ tally_nextdose(Tally, D) :-
     ),
     state_tallies(Ls-Hs, Tally).
 
+%?- tally_nextdose(Q, D).
+%@    Q = [0/0,0/0], D = 1
+%@ ;  Q = [0/3,0/0], D = 2
+%@ ;  Q = [0/3,0/3], D = 2
+%@ ;  Q = [0/3,1/3], D = 2
+%@ ;  Q = [0/3,2/3], D = 1
+%@ ;  Q = [0/3,2/6], D = 1
+%@ ;  Q = [0/3,3/3], D = 1
+%@ ;  Q = [0/3,3/6], D = 1
+%@ ;  Q = [0/3,4/6], D = 1
+%@ ;  Q = [1/3,0/0], D = 1
+%@ ;  Q = [1/6,0/0], D = 2
+%@ ;  Q = [1/6,0/3], D = 2
+%@ ;  Q = [1/6,1/3], D = 2
+%@ ;  false. % 13 answers if we exclude final tallies
+
+% Let us include all of the Final recs also:
+tally_nextdose(Tally, D) :- endtally_rec(Tally, D).
+
 /*
 %?- tally_nextdose(Tally, D).
 %@    Tally = [0/0,0/0], D = 1
 %@ ;  Tally = [0/3,0/0], D = 2
 %@ ;  Tally = [0/3,0/3], D = 2
+%@ ;  Tally = [0/3,0/6], D = 2
 %@ ;  Tally = [0/3,1/3], D = 2
+%@ ;  Tally = [0/3,1/6], D = 2
 %@ ;  Tally = [0/3,2/3], D = 1
 %@ ;  Tally = [0/3,2/6], D = 1
 %@ ;  Tally = [0/3,3/3], D = 1
 %@ ;  Tally = [0/3,3/6], D = 1
 %@ ;  Tally = [0/3,4/6], D = 1
+%@ ;  Tally = [0/6,2/3], D = 1
+%@ ;  Tally = [0/6,2/6], D = 1
+%@ ;  Tally = [0/6,3/3], D = 1
+%@ ;  Tally = [0/6,3/6], D = 1
+%@ ;  Tally = [0/6,4/6], D = 1
 %@ ;  Tally = [1/3,0/0], D = 1
 %@ ;  Tally = [1/6,0/0], D = 2
 %@ ;  Tally = [1/6,0/3], D = 2
+%@ ;  Tally = [1/6,0/6], D = 2
 %@ ;  Tally = [1/6,1/3], D = 2
-%@ ;  false. % Why only N=13 answers?
+%@ ;  Tally = [1/6,1/6], D = 2
+%@ ;  Tally = [1/6,2/3], D = 1
+%@ ;  Tally = [1/6,2/6], D = 1
+%@ ;  Tally = [1/6,3/3], D = 1
+%@ ;  Tally = [1/6,3/6], D = 1
+%@ ;  Tally = [1/6,4/6], D = 1
+%@ ;  Tally = [2/3,0/0], D = 0
+%@ ;  Tally = [2/6,0/0], D = 0
+%@ ;  Tally = [2/6,2/3], D = 0
+%@ ;  Tally = [2/6,2/6], D = 0
+%@ ;  Tally = [2/6,3/3], D = 0
+%@ ;  Tally = [2/6,3/6], D = 0
+%@ ;  Tally = [2/6,4/6], D = 0
+%@ ;  Tally = [3/3,0/0], D = 0
+%@ ;  Tally = [3/6,0/0], D = 0
+%@ ;  Tally = [3/6,2/3], D = 0
+%@ ;  Tally = [3/6,2/6], D = 0
+%@ ;  Tally = [3/6,3/3], D = 0
+%@ ;  Tally = [3/6,3/6], D = 0
+%@ ;  Tally = [3/6,4/6], D = 0
+%@ ;  Tally = [4/6,0/0], D = 0
+%@ ;  false. % NB: We get 29+13=42 answers.
 */
 
 /*
