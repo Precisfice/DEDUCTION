@@ -255,30 +255,25 @@ tally_nextdose(Tally, D) :- endtally_rec(Tally, D).
 %@ ;  false. % NB: We get 29+13=42 answers.
 */
 
+% Suppose we search again for all non-functoriality
+% implicit in these now-expanded tally-dose mappings.
 /*
-My hand-tabulated next-dose pairs in 'rectify.pl' were:
-
-/next3plus3([0/0,0/0], 1).
-/next3plus3([0/3,0/0], 2). % 1st cohort from ~,~
-/next3plus3([1/3,0/0], 1).
--next3plus3([2/3,0/0], 0).
--next3plus3([3/3,0/0], 0).
-/next3plus3([0/3,0/3], 2). % 2nd cohorts from 0,~
-/next3plus3([0/3,1/3], 2).
-/next3plus3([0/3,2/3], 1).
-/next3plus3([0/3,3/3], 1).
-/next3plus3([1/6,0/0], 2). % 2nd cohorts from 1,~
--next3plus3([2/6,0/0], 0).
--next3plus3([3/6,0/0], 0).
--next3plus3([4/6,0/0], 0).
-/next3plus3([1/6,0/3], 2). % 3rd cohorts from 1',~
-/next3plus3([1/6,1/3], 2).
--next3plus3([1/6,2/3], 1).
--next3plus3([1/6,3/3], 1).
-
-This goes to show that I do need Prolog's help here,
-even in the simplest case.
+?- tally_nextdose(Q1, D1),
+   tally_nextdose(Q2, D2),
+   Q1 =<$ Q2, % Q1 evidently no safer than Q2,
+   D1 #>  D2. % yet recommended D1 exceeds D2.
+%@    Q1 = [1/6,1/3], D1 = 2, Q2 = [0/6,2/3], D2 = 1 % <- 2 new
+%@ ;  Q1 = [1/6,1/3], D1 = 2, Q2 = [0/6,2/6], D2 = 1 % <- solutions
+%@ ;  Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
+%@ ;  false.
 */
+% The first 2 solutions are new, but notably they compare
+% an *interim* tally Q1 against a *final* tally Q2.
+% Because of how the consideration of interim tallies is
+% entangled with questions of trial progress, these new
+% solutions do not speak quite so clearly as our earlier
+% finding (the 3rd solution here) to the 3+3 protocol's
+% underlying pharmacologic intuitions.
 
 /*
 ?- J+\(setof(Path, (phrase(path([0/0]-[0/0]), Path)), Paths)
