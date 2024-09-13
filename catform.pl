@@ -276,6 +276,179 @@ tally_nextdose(Tally, D) :- endtally_rec(Tally, D).
 % underlying pharmacologic intuitions.
 
 /*
+It's time now to investigate what trial designs arise from
+a rectified tally-dose mapping.  We are looking for all
+incremental enrollments that are consistent with the
+preorder obtained 
+*/
+
+% Let us begin by producing a rectified, dose-monotone version
+% of endtally_rec/2.  While we /could/ do this by hard-coding
+% the exclusion of the DM-violating solution from endtally_rec/2,
+% I prefer to proceed using a more general approach.
+
+table dmtally_rec/2.
+dmtally_rec(Q, D) :- dmtally_rec(Q, D, _).
+
+dmtally_rec(Q, D, Ds) :- % "dm" for dose-monotone
+    endtally_rec(Q, D0),
+    findall(Di, (endtally_rec(Qi, Di),
+                 Q =<$ Qi,    % Q is no safer than Qi,
+                 #D0 #> #Di), % yet its rec exceeds Di.
+            Ds),
+    foldl(clpz:min_, Ds, D0, D).
+
+%?- dmtally_rec(Q, D, Ds).
+%@    Q = [0/3,0/6], D = 2, Ds = []
+%@ ;  Q = [0/3,1/6], D = 2, Ds = []
+%@ ;  Q = [0/6,2/3], D = 1, Ds = []
+%@ ;  Q = [0/6,2/6], D = 1, Ds = []
+%@ ;  Q = [0/6,3/3], D = 1, Ds = []
+%@ ;  Q = [0/6,3/6], D = 1, Ds = []
+%@ ;  Q = [0/6,4/6], D = 1, Ds = []
+%@ ;  Q = [1/6,0/6], D = 2, Ds = []
+%@ ;  Q = [1/6,1/6], D = 1, Ds = [1] % The lone rectification needed.
+%@ ;  Q = [1/6,2/3], D = 1, Ds = []
+%@ ;  Q = [1/6,2/6], D = 1, Ds = []
+%@ ;  Q = [1/6,3/3], D = 1, Ds = []
+%@ ;  Q = [1/6,3/6], D = 1, Ds = []
+%@ ;  Q = [1/6,4/6], D = 1, Ds = []
+%@ ;  Q = [2/3,0/0], D = 0, Ds = []
+%@ ;  Q = [2/6,0/0], D = 0, Ds = []
+%@ ;  Q = [2/6,2/3], D = 0, Ds = []
+%@ ;  Q = [2/6,2/6], D = 0, Ds = []
+%@ ;  Q = [2/6,3/3], D = 0, Ds = []
+%@ ;  Q = [2/6,3/6], D = 0, Ds = []
+%@ ;  Q = [2/6,4/6], D = 0, Ds = []
+%@ ;  Q = [3/3,0/0], D = 0, Ds = []
+%@ ;  Q = [3/6,0/0], D = 0, Ds = []
+%@ ;  Q = [3/6,2/3], D = 0, Ds = []
+%@ ;  Q = [3/6,2/6], D = 0, Ds = []
+%@ ;  Q = [3/6,3/3], D = 0, Ds = []
+%@ ;  Q = [3/6,3/6], D = 0, Ds = []
+%@ ;  Q = [3/6,4/6], D = 0, Ds = []
+%@ ;  Q = [4/6,0/0], D = 0, Ds = []
+%@ ;  false.
+
+/*
+?- dmtally_rec(Q1, D1),
+   dmtally_rec(Q2, D2),
+   Q1 =<$ Q2, % Q1 evidently no safer than Q2,
+   D1 #>  D2. % yet recommended D1 exceeds D2.
+%@    false. % Rectification was successful.
+*/
+
+% Now we are in position to explore something resembling a
+% 'converse' to our search for non-functorialities.
+% Specifically, instead of looking for arrows in 𝒬 that
+% force adjustment of dose recommendations yielded by 3+3,
+% we could look instead for 'missing' arrows which these
+% dose recommendations might be taken to 'suggest adding'.
+/*
+?- dmtally_rec(Q1, D1),
+   dmtally_rec(Q2, D2),
+   #D1 #< #D2,
+   \+ Q1 =<$ Q2. % <-- TODO: Avoid \+ by implementing ⋠
+%@    Q1 = [0/6,2/3], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [0/6,2/3], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [0/6,2/3], D1 = 1, Q2 = [1/6,0/6], D2 = 2
+%@ ;  Q1 = [0/6,2/6], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [0/6,2/6], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [0/6,2/6], D1 = 1, Q2 = [1/6,0/6], D2 = 2
+%@ ;  Q1 = [0/6,3/3], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [0/6,3/3], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [0/6,3/3], D1 = 1, Q2 = [1/6,0/6], D2 = 2
+%@ ;  Q1 = [0/6,3/6], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [0/6,3/6], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [0/6,3/6], D1 = 1, Q2 = [1/6,0/6], D2 = 2
+%@ ;  Q1 = [0/6,4/6], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [0/6,4/6], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [0/6,4/6], D1 = 1, Q2 = [1/6,0/6], D2 = 2
+%@ ;  Q1 = [1/6,1/6], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [1/6,1/6], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [1/6,2/3], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [1/6,2/3], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [1/6,2/6], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [1/6,2/6], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [1/6,3/3], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [1/6,3/3], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [1/6,3/6], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [1/6,3/6], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [1/6,4/6], D1 = 1, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [1/6,4/6], D1 = 1, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [2/3,0/0], D1 = 0, Q2 = [0/6,3/3], D2 = 1
+%@ ;  Q1 = [2/3,0/0], D1 = 0, Q2 = [0/6,3/6], D2 = 1
+%@ ;  Q1 = [2/3,0/0], D1 = 0, Q2 = [0/6,4/6], D2 = 1
+%@ ;  Q1 = [2/3,0/0], D1 = 0, Q2 = [1/6,2/3], D2 = 1
+%@ ;  Q1 = [2/3,0/0], D1 = 0, Q2 = [1/6,2/6], D2 = 1
+%@ ;  Q1 = [2/3,0/0], D1 = 0, Q2 = [1/6,3/3], D2 = 1
+%@ ;  Q1 = [2/3,0/0], D1 = 0, Q2 = [1/6,3/6], D2 = 1
+%@ ;  Q1 = [2/3,0/0], D1 = 0, Q2 = [1/6,4/6], D2 = 1
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [0/6,3/3], D2 = 1
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [0/6,3/6], D2 = 1
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [0/6,4/6], D2 = 1
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [1/6,2/3], D2 = 1
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [1/6,2/6], D2 = 1
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [1/6,3/3], D2 = 1
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [1/6,3/6], D2 = 1
+%@ ;  Q1 = [2/6,0/0], D1 = 0, Q2 = [1/6,4/6], D2 = 1
+%@ ;  Q1 = [2/6,2/3], D1 = 0, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [2/6,2/3], D1 = 0, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [2/6,2/3], D1 = 0, Q2 = [1/6,4/6], D2 = 1
+%@ ;  Q1 = [2/6,2/6], D1 = 0, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [2/6,2/6], D1 = 0, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [2/6,2/6], D1 = 0, Q2 = [0/6,2/3], D2 = 1
+%@ ;  Q1 = [2/6,2/6], D1 = 0, Q2 = [0/6,3/3], D2 = 1
+%@ ;  Q1 = [2/6,2/6], D1 = 0, Q2 = [1/6,2/3], D2 = 1
+%@ ;  Q1 = [2/6,2/6], D1 = 0, Q2 = [1/6,3/3], D2 = 1
+%@ ;  Q1 = [2/6,2/6], D1 = 0, Q2 = [1/6,4/6], D2 = 1
+%@ ;  Q1 = [2/6,3/3], D1 = 0, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [2/6,3/3], D1 = 0, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [2/6,3/6], D1 = 0, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [2/6,3/6], D1 = 0, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [2/6,3/6], D1 = 0, Q2 = [0/6,3/3], D2 = 1
+%@ ;  Q1 = [2/6,3/6], D1 = 0, Q2 = [1/6,2/3], D2 = 1
+%@ ;  Q1 = [2/6,3/6], D1 = 0, Q2 = [1/6,3/3], D2 = 1
+%@ ;  Q1 = [2/6,4/6], D1 = 0, Q2 = [0/3,0/6], D2 = 2
+%@ ;  Q1 = [2/6,4/6], D1 = 0, Q2 = [0/3,1/6], D2 = 2
+%@ ;  Q1 = [2/6,4/6], D1 = 0, Q2 = [1/6,3/3], D2 = 1
+%@ ;  Q1 = [3/3,0/0], D1 = 0, Q2 = [0/6,4/6], D2 = 1
+%@ ;  Q1 = [3/3,0/0], D1 = 0, Q2 = [1/6,3/3], D2 = 1
+%@ ;  Q1 = [3/3,0/0], D1 = 0, Q2 = [1/6,3/6], D2 = 1
+%@ ;  Q1 = [3/3,0/0], D1 = 0, Q2 = [1/6,4/6], D2 = 1
+%@ ;  Q1 = [3/6,0/0], D1 = 0, Q2 = [0/6,4/6], D2 = 1
+%@ ;  Q1 = [3/6,0/0], D1 = 0, Q2 = [1/6,3/3], D2 = 1
+%@ ;  Q1 = [3/6,0/0], D1 = 0, Q2 = [1/6,3/6], D2 = 1
+%@ ;  Q1 = [3/6,0/0], D1 = 0, Q2 = [1/6,4/6], D2 = 1
+%@ ;  Q1 = [3/6,2/6], D1 = 0, Q2 = [0/6,3/3], D2 = 1
+%@ ;  Q1 = [3/6,2/6], D1 = 0, Q2 = [1/6,2/3], D2 = 1
+%@ ;  Q1 = [3/6,2/6], D1 = 0, Q2 = [1/6,3/3], D2 = 1
+%@ ;  Q1 = [3/6,3/6], D1 = 0, Q2 = [1/6,3/3], D2 = 1
+%@ ;  Q1 = [4/6,0/0], D1 = 0, Q2 = [1/6,4/6], D2 = 1
+%@ ;  false. % 78 'missing' arrows!
+*/
+
+% So, for example:
+%?- [4/6,0/0] =<$ [1/6,4/6].
+%@    false.
+% While this may *feel* surprising at first, observe that
+%?- [4/6,0/0] =<$ [1/6,3/6].
+%@    true.
+
+% This underscores that the preorder ≼ is very much a 'bare minimum',
+% logically *necessary* content for any pharmacologically rational
+% ordering of tallies, but still _insufficient_ to express all of a
+% dose-escalation design's underlying intuitions.  (Such intuitions
+% generally may depend on the magnitudes and spacing of the doses,
+% relative to anticipated population-level variation in PKPD.)
+
+% Surely, not all 78 'missing' arrows would have to be explicitly
+% added to this monoidal preorder, either.  It could be interesting
+% to find some minimal set of additions that generates all 78.
+
+/*
 ?- J+\(setof(Path, (phrase(path([0/0]-[0/0]), Path)), Paths)
       , maplist(portray_clause, Paths), length(Paths, J)).
 %@ [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[0/6,0/3]-[],stop,recommend_dose(2)].
