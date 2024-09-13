@@ -448,6 +448,45 @@ dmtally_rec(Q, D, Ds) :- % "dm" for dose-monotone
 % added to this monoidal preorder, either.  It could be interesting
 % to find some minimal set of additions that generates all 78.
 
+% Does the existence of these 'missing' arrows tell us that there
+% can be no right adjoint to the incremental escalation defined by
+% dmtally_rec/2?  That is, if we take E:Q²⟶{0,1,2} to be any IE
+% obeying dmtally_rec(Q, E(Q)), then a right adjoint F:{0,1,2}⟶Q²
+% would obey E(q) ≤ d iff q ≼ F(d).  This would give us 3 elements
+% q₀,q₁,q₂ ∈ Q² that partition all accessible tallies in Q² into
+% 3 sets such that:
+%       q ≼ q₀ ⟹ E(q) = 0,
+%  else q ≼ q₁ ⟹ E(q) = 1,
+%  else q ≼ q₂ ⟹ E(q) = 2. (*)
+%
+% (Observe that q₂ would then be the safest tally accessible under
+% the trial protocol, corresponding to the trivial [0/6,0/6] case
+% of full enrollment with no observed toxicities.  Only the first
+% 2 elements q₀ and q₁ are really needed to effect the partition,
+% with the last case above (*) handled as an 'otherwise' clause.)
+%
+% Now I suspect that the fact of these 'missing' arrows shows that
+% we do not have enough arrows in the basic preorder to separate
+% the domain.  But let's just search overtly for q₀ and q₁.
+q0(Q) :-
+    dmtally_rec(Q, 0),
+    findall(Q0, dmtally_rec(Q0, 0), Q0s),
+    maplist(\Qi^(Q =<$ Qi), Q0s).
+
+%?- q0(Q).
+%@    false. % Too bad!
+
+q1(Q) :-
+    dmtally_rec(Q, 1),
+    findall(Q1, dmtally_rec(Q1, 1), Q1s),
+    maplist(\Qi^(Q =<$ Qi), Q1s).
+
+%?- q1(Q).
+%@    false.
+
+% Could I have *proven* that my suspicion was correct,
+% without having to run these queries?
+
 /*
 ?- J+\(setof(Path, (phrase(path([0/0]-[0/0]), Path)), Paths)
       , maplist(portray_clause, Paths), length(Paths, J)).
