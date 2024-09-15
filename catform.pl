@@ -484,8 +484,94 @@ q1(Q) :-
 %?- q1(Q).
 %@    false.
 
+% But what if I searched over all of Q², instead of just
+% the accessible part of it?
+q1A(Q) :-
+    % To begin, let's simply partition the accessible tallies:
+    findall(Q0, dmtally_rec(Q0, 0), Q0s),
+    findall(Q1, dmtally_rec(Q1, 1), Q1s),
+    %findall(Q2, dmtally_rec(Q2, 2), Q2s),
+    length(Q, 2),
+    maplist(\Qi^(Qi =<$ Q), Q0s),
+    maplist(\Qi^(\+ Qi =<$ Q), Q1s).
+
+%?- q1A(Q).
+%@    false. % As expected.
+
 % Could I have *proven* that my suspicion was correct,
 % without having to run these queries?
+% Perhaps not!  But instead of searching for counterexamples
+% to the supposed [but likely false] theorems here, let us
+% instead set out to identify *possible* adjunctions, and
+% then enlarge ≼ just enough to support them.
+
+% Some good visualizations would seem to be necessary now
+% to promote efficient progress.  What Hasse diagrams could
+% we draw for the partial order ≼ restricted to final tallies?
+% Note that it could be interesting to define Hasse diagrams
+% declaratively, and have Prolog find *all* of them for me.
+% But to begin, let's explore some special solutions yielded
+% by specific heuristics.
+
+% Suppose we take a list (qua set) of all final tallies, and
+% recursively peel off the minimal elements, i.e. those which
+% have no arrows into the remainder.
+minimal_in(M, Qs) :-
+    member(M, Qs),
+    maplist(\Q^(M = Q; \+ Q =<$ M), Qs).
+
+/*
+?- Ms+\(findall(Q, dmtally_rec(Q,_), FinalTallies),
+        findall(M, minimal_in(M, FinalTallies), Ms)).
+%@    Ms = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
+*/
+
+% Thus, these 4 final tallies are worst-case observations,
+% being at-least-as-safe-as *no* other final tally.
+% But what happens if I now *remove* these, and ask the
+% same question of the remaining tallies?
+% Or perhaps that's an overly procedural/imperative POV?
+% Why not state what holds for the Hasse diagram?
+hasse_t(Q1, Q2, Qi, Truth) :-
+    findall(Q, dmtally_rec(Q,_), Qs),
+    dmtally_rec(Q1, _),
+    dmtally_rec(Q2, _),
+    dif(Q1, Q2, true),
+    Q1 =<$ Q2,
+    if_((memberd_t(Qi, Qs),
+         Q1 =<$ Qi, Qi =<$ Q2, % NB: These invoke *reified* (=<$)/3
+         dif(Q1, Qi), dif(Qi, Q2)
+        ), Truth = false,
+        (Qi = nil, Truth = true)
+       ).
+
+%?- hasse_t(Q1, Q2, Qi, Atomic).
+%@    Q1 = [0/3,1/6], Q2 = [0/3,0/6], Qi = nil, Atomic = true
+%@ ;  Q1 = [0/6,2/3], Q2 = [0/6,2/6], Qi = nil, Atomic = true
+%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/3], Qi = nil, Atomic = true
+%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/6], Qi = [0/6,2/3], Atomic = false
+%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/6], Qi = [0/6,3/6], Atomic = false
+%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/6], Qi = nil, Atomic = true
+%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,3/6], Qi = nil, Atomic = true
+%@ ;  ... .
+
+%?- N+\(findall(Q1-Q2, hasse_t(Q1, Q2, nil, true), Arrows), length(Arrows, N)).
+%@    N = 249. % Ouch!  Could there really be SO MANY arrows in the transitive reduction?
+
+%?- N+\(findall(Q1-Q2, hasse_t(Q1, Q2, nil, true), Arrows), list_to_set(Arrows, UniqueArrows), length(UniqueArrows, N)).
+%@    N = 249. % So that N is real, not due to duplicate solutions.
+
+%?- N+\(findall(Q, dmtally_rec(Q,_), Qs), length(Qs, N)).
+%@    N = 29.
+
+%?- #MaxN*2 #= 29*(29-1).
+%@    MaxN = 406.
+
+%?- N+\(findall(Q1-Q2, hasse_t(Q1, Q2, _, _), Arrows), list_to_set(Arrows, UniqueArrows), length(UniqueArrows, N)).
+%@    N = 249. % Ah!  This nicely corroborates my other query.
+
+%?- N+\(findall(Q1-Q2, hasse_t(Q1, Q2, _, _), Arrows), length(Arrows, N)).
+%@    N = 1192. % CAUTION!  This might not even count anything sensible.
 
 /*
 ?- J+\(setof(Path, (phrase(path([0/0]-[0/0]), Path)), Paths)

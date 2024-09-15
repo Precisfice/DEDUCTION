@@ -9,7 +9,8 @@
               op(900, xfx, '≼'),
               %('≼')/2, % => syntax_error(invalid_module_declaration)
 	      op(900, xfx, =<$),
-	      (=<$)/2
+	      (=<$)/2,
+	      (=<$)/3
 	  ]).
 
 :- use_module(library(clpz)).
@@ -88,6 +89,10 @@ Xs '≤' Ys :-
 %@ ;  Xs = [_A,_B,0], clpz:(_A in 0..sup), clpz:(_B in 0..sup)
 %@ ;  false.
 
+% Observe now that, having done this, we obtain a reified version of ≤
+'≤'(Xs, Ys, true) :- Xs '≤' Ys.
+'≤'(Xs, Ys, false) :- Xs '≰' Ys.
+
 %% 1. Via Fact 2.13, define evident-$afety relation ≼ ⊂ 𝒬✕𝒬:
 :- op(900, xfx, =<$).
 :- op(900, xfx, =/<$). % negation of above
@@ -111,6 +116,11 @@ qs_Ts_Us(Qs, ΣTs, ΣUs) :-
     qs_Ts_Us(Q2s, ST2s, SU2s),
     ST2s '≰' ST1s,
     SU1s '≰' SU2s.
+
+% And now, importantly for (e.g.) pure construction of transitive reduction,
+% we obtain the reified version (=<$)/3:
+=<$(Q1s, Q2s, true) :- Q1s =<$ Q2s.
+=<$(Q1s, Q2s, false) :- Q1s =/<$ Q2s.
 
 %% Allow the notational convenience of a 'flippable' preorder symbol:
 :- op(900, xfx, $>=).
