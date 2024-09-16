@@ -574,6 +574,101 @@ hasse_t(Q1, Q2, Qi, Truth) :-
 %@    N = 1192. % CAUTION!  This might not even count anything sensible.
 
 /*
+Thus, it would seem that the 'obvious' visualization will be too complicated
+to yield new insight or intuition.  I may do better to search systematically
+for all possible enlargements of ≼ that would support an adjoint IE.
+
+If we call the enlargement ≼*, then we must search for (q₀, q₁) such that
+
+  q ≼ q₀ ⟹ E(q) = 0
+        and
+  q ≼ q₁ ⟹ E(q) ≤ 1,
+
+_and_ such that adding whatever new arrows are required by,
+
+  E(q) = 0 ⟹ q ≼* q₀
+         and
+  E(q) = 1 ⟹ q ≼* q₁
+
+doesn't 'break' anything.  (I'm not even sure what I mean by that yet!)
+
+What constraints does this put on (q₀, q₁)?  Let me not insist that they be
+drawn from the set of final tallies; they can be general elements of Q².
+To begin, q₀ would have to be no-less-safe-than all final tallies q that
+receive a dose recommendation of 0.  It would also not be allowed to be
+any safer than a final tally with rec = 1.
+
+Let's begin by exploring how many (if any!) such (q₀, q₁) exist.
+*/
+
+% candidate q0's ..
+cq0(Q) :-
+    findall(Q0, dmtally_rec(Q0, 0), Q0s),
+    findall(Q1, dmtally_rec(Q1, 1), Q1s),
+    Q = [T1/N1, T2/N2],
+    N1 in 0..6, N2 in 0..6, label([N1,N2]),
+    T1 in 0..N1, T2 in 0..N2, label([T1,T2]),
+    maplist(\Qi^(Qi =<$ Q), Q0s),
+    maplist(\Qi^(=<$(Qi, Q, false)), Q1s).
+
+%?- setof(Q0, cq0(Q0), Q0s).
+%@    Q0s = [[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+
+% Note that none of these is a reachable final tally.
+
+cq1(Q) :-
+    findall(Q1, dmtally_rec(Q1, 1), Q1s),
+    findall(Q2, dmtally_rec(Q2, 2), Q2s),
+    Q = [T1/N1, T2/N2],
+    N1 in 0..6, N2 in 0..6, label([N1,N2]),
+    T1 in 0..N1, T2 in 0..N2, label([T1,T2]),
+    maplist(\Qi^(Qi =<$ Q), Q1s),
+    *maplist(\Qi^(=<$(Qi, Q, false)), Q2s). % Projected away
+
+%?- setof(Q1, cq1(Q1), Q1s).
+%@    Q1s = [[0/6,0/4],[0/6,0/5],[0/6,0/6],[0/6,1/5],[0/6,1/6],[0/6,2/6]].
+%@    false. % (without projecting away 2nd condition)
+
+% What this means is that each of the above is at-least-as-safe-as every
+% final tally that receives Rec=1, but apparently that the 2nd condition
+% fails for each of these.  This means there is some final tally having
+% Rec=2 which is nevertheless actually no-safer-than one of these!
+
+/*
+?- member(CQ1, [[0/6,0/4],[0/6,0/5],[0/6,0/6],[0/6,1/5],[0/6,1/6],[0/6,2/6]]),
+   dmtally_rec(Q2, 2),
+   Q2 =<$ CQ1.
+%@    CQ1 = [0/6,0/4], Q2 = [0/3,0/6]
+%@ ;  CQ1 = [0/6,0/4], Q2 = [0/3,1/6]
+%@ ;  CQ1 = [0/6,0/5], Q2 = [0/3,0/6]
+%@ ;  CQ1 = [0/6,0/5], Q2 = [0/3,1/6]
+%@ ;  CQ1 = [0/6,0/5], Q2 = [1/6,0/6]
+%@ ;  CQ1 = [0/6,0/6], Q2 = [0/3,0/6]
+%@ ;  CQ1 = [0/6,0/6], Q2 = [0/3,1/6]
+%@ ;  CQ1 = [0/6,0/6], Q2 = [1/6,0/6]
+%@ ;  CQ1 = [0/6,1/5], Q2 = [0/3,1/6]
+%@ ;  CQ1 = [0/6,1/6], Q2 = [0/3,1/6]
+%@ ;  CQ1 = [0/6,1/6], Q2 = [1/6,0/6]
+%@ ;  false.
+*/
+
+% This is possibly interesting!  We learn from this that the 3+3
+% dose assignments are not right-adjoint to _any_ incremental
+% enrollment respecting the preorder (Q²,≼).
+% Or should I say rather that there is no IE (Q²,≼)⟶{0≤1≤2} that
+% is left-adjoint to _any_ mapping {0≤1≤2}⟶(Q²,≼) consistent with
+% the 3+3 dose assignments?
+
+% There are actually categorical notions that enable a clearer
+% exposition of what I've been after.  Specifically, I have been
+% looking for a *section* d:{0≤1≤2}⟶(Q²,≼) for the epimorphism
+% mapping final tallies to dose recommendations in {0≤1≤2}.
+% The formal discussion will best be worked out in the monograph,
+% then carried back here!
+
+% Let's see next whether the right-adjoint IE is similarly elusive.
+
+/*
 ?- J+\(setof(Path, (phrase(path([0/0]-[0/0]), Path)), Paths)
       , maplist(portray_clause, Paths), length(Paths, J)).
 %@ [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[0/6,0/3]-[],stop,recommend_dose(2)].
