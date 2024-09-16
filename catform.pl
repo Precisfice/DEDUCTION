@@ -287,52 +287,24 @@ preorder obtained
 % the exclusion of the DM-violating solution from endtally_rec/2,
 % I prefer to proceed using a more general approach.
 
-table dmtally_rec/2.
-dmtally_rec(Q, D) :- dmtally_rec(Q, D, _).
+table mendtally_rec/2.
+mendtally_rec(Q, D) :- mendtally_rec(Q, D, _).
 
-dmtally_rec(Q, D, Ds) :- % "dm" for dose-monotone
+mendtally_rec(Q, D, Ds) :- % prefixed "m" for (dose-)monotone
     endtally_rec(Q, D0),
     findall(Di, (endtally_rec(Qi, Di),
-                 Q =<$ Qi,    % Q is no safer than Qi,
-                 #D0 #> #Di), % yet its rec exceeds Di.
+                 Q =<$ Qi,  % Q is no safer than Qi,
+                 D0 #> Di), % yet its rec exceeds Di.
             Ds),
     foldl(clpz:min_, Ds, D0, D).
 
-%?- dmtally_rec(Q, D, Ds).
-%@    Q = [0/3,0/6], D = 2, Ds = []
-%@ ;  Q = [0/3,1/6], D = 2, Ds = []
-%@ ;  Q = [0/6,2/3], D = 1, Ds = []
-%@ ;  Q = [0/6,2/6], D = 1, Ds = []
-%@ ;  Q = [0/6,3/3], D = 1, Ds = []
-%@ ;  Q = [0/6,3/6], D = 1, Ds = []
-%@ ;  Q = [0/6,4/6], D = 1, Ds = []
-%@ ;  Q = [1/6,0/6], D = 2, Ds = []
-%@ ;  Q = [1/6,1/6], D = 1, Ds = [1] % The lone rectification needed.
-%@ ;  Q = [1/6,2/3], D = 1, Ds = []
-%@ ;  Q = [1/6,2/6], D = 1, Ds = []
-%@ ;  Q = [1/6,3/3], D = 1, Ds = []
-%@ ;  Q = [1/6,3/6], D = 1, Ds = []
-%@ ;  Q = [1/6,4/6], D = 1, Ds = []
-%@ ;  Q = [2/3,0/0], D = 0, Ds = []
-%@ ;  Q = [2/6,0/0], D = 0, Ds = []
-%@ ;  Q = [2/6,2/3], D = 0, Ds = []
-%@ ;  Q = [2/6,2/6], D = 0, Ds = []
-%@ ;  Q = [2/6,3/3], D = 0, Ds = []
-%@ ;  Q = [2/6,3/6], D = 0, Ds = []
-%@ ;  Q = [2/6,4/6], D = 0, Ds = []
-%@ ;  Q = [3/3,0/0], D = 0, Ds = []
-%@ ;  Q = [3/6,0/0], D = 0, Ds = []
-%@ ;  Q = [3/6,2/3], D = 0, Ds = []
-%@ ;  Q = [3/6,2/6], D = 0, Ds = []
-%@ ;  Q = [3/6,3/3], D = 0, Ds = []
-%@ ;  Q = [3/6,3/6], D = 0, Ds = []
-%@ ;  Q = [3/6,4/6], D = 0, Ds = []
-%@ ;  Q = [4/6,0/0], D = 0, Ds = []
+%?- mendtally_rec(Q, D, [_|_]).
+%@    Q = [1/6,1/6], D = 1
 %@ ;  false.
 
 /*
-?- dmtally_rec(Q1, D1),
-   dmtally_rec(Q2, D2),
+?- mendtally_rec(Q1, D1),
+   mendtally_rec(Q2, D2),
    Q1 =<$ Q2, % Q1 evidently no safer than Q2,
    D1 #>  D2. % yet recommended D1 exceeds D2.
 %@    false. % Rectification was successful.
@@ -345,8 +317,8 @@ dmtally_rec(Q, D, Ds) :- % "dm" for dose-monotone
 % we could look instead for 'missing' arrows which these
 % dose recommendations might be taken to 'suggest adding'.
 /*
-?- dmtally_rec(Q1, D1),
-   dmtally_rec(Q2, D2),
+?- mendtally_rec(Q1, D1),
+   mendtally_rec(Q2, D2),
    #D1 #< #D2,
    \+ Q1 =<$ Q2. % <-- TODO: Avoid \+ by implementing ⋠
 %@    Q1 = [0/6,2/3], D1 = 1, Q2 = [0/3,0/6], D2 = 2
@@ -450,8 +422,8 @@ dmtally_rec(Q, D, Ds) :- % "dm" for dose-monotone
 
 % Does the existence of these 'missing' arrows tell us that there
 % can be no right adjoint to the incremental escalation defined by
-% dmtally_rec/2?  That is, if we take E:Q²⟶{0,1,2} to be any IE
-% obeying dmtally_rec(Q, E(Q)), then a right adjoint F:{0,1,2}⟶Q²
+% mendtally_rec/2?  That is, if we take E:Q²⟶{0,1,2} to be any IE
+% obeying mendtally_rec(Q, E(Q)), then a right adjoint F:{0,1,2}⟶Q²
 % would obey E(q) ≤ d iff q ≼ F(d).  This would give us 3 elements
 % q₀,q₁,q₂ ∈ Q² that partition all accessible tallies in Q² into
 % 3 sets such that:
@@ -469,16 +441,16 @@ dmtally_rec(Q, D, Ds) :- % "dm" for dose-monotone
 % we do not have enough arrows in the basic preorder to separate
 % the domain.  But let's just search overtly for q₀ and q₁.
 q0(Q) :-
-    dmtally_rec(Q, 0),
-    findall(Q0, dmtally_rec(Q0, 0), Q0s),
+    mendtally_rec(Q, 0),
+    findall(Q0, mendtally_rec(Q0, 0), Q0s),
     maplist(\Qi^(Q =<$ Qi), Q0s).
 
 %?- q0(Q).
 %@    false. % Too bad!
 
 q1(Q) :-
-    dmtally_rec(Q, 1),
-    findall(Q1, dmtally_rec(Q1, 1), Q1s),
+    mendtally_rec(Q, 1),
+    findall(Q1, mendtally_rec(Q1, 1), Q1s),
     maplist(\Qi^(Q =<$ Qi), Q1s).
 
 %?- q1(Q).
@@ -488,9 +460,9 @@ q1(Q) :-
 % the accessible part of it?
 q1A(Q) :-
     % To begin, let's simply partition the accessible tallies:
-    findall(Q0, dmtally_rec(Q0, 0), Q0s),
-    findall(Q1, dmtally_rec(Q1, 1), Q1s),
-    %findall(Q2, dmtally_rec(Q2, 2), Q2s),
+    findall(Q0, mendtally_rec(Q0, 0), Q0s),
+    findall(Q1, mendtally_rec(Q1, 1), Q1s),
+    %findall(Q2, mendtally_rec(Q2, 2), Q2s),
     length(Q, 2),
     maplist(\Qi^(Qi =<$ Q), Q0s),
     maplist(\Qi^(\+ Qi =<$ Q), Q1s).
@@ -521,7 +493,7 @@ minimal_in(M, Qs) :-
     maplist(\Q^(M = Q; \+ Q =<$ M), Qs).
 
 /*
-?- Ms+\(findall(Q, dmtally_rec(Q,_), FinalTallies),
+?- Ms+\(findall(Q, mendtally_rec(Q,_), FinalTallies),
         findall(M, minimal_in(M, FinalTallies), Ms)).
 %@    Ms = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
 */
@@ -533,9 +505,9 @@ minimal_in(M, Qs) :-
 % Or perhaps that's an overly procedural/imperative POV?
 % Why not state what holds for the Hasse diagram?
 hasse_t(Q1, Q2, Qi, Truth) :-
-    findall(Q, dmtally_rec(Q,_), Qs),
-    dmtally_rec(Q1, _),
-    dmtally_rec(Q2, _),
+    findall(Q, mendtally_rec(Q,_), Qs),
+    mendtally_rec(Q1, _),
+    mendtally_rec(Q2, _),
     dif(Q1, Q2, true),
     Q1 =<$ Q2,
     if_((memberd_t(Qi, Qs),
@@ -561,7 +533,7 @@ hasse_t(Q1, Q2, Qi, Truth) :-
 %?- N+\(findall(Q1-Q2, hasse_t(Q1, Q2, nil, true), Arrows), list_to_set(Arrows, UniqueArrows), length(UniqueArrows, N)).
 %@    N = 249. % So that N is real, not due to duplicate solutions.
 
-%?- N+\(findall(Q, dmtally_rec(Q,_), Qs), length(Qs, N)).
+%?- N+\(findall(Q, mendtally_rec(Q,_), Qs), length(Qs, N)).
 %@    N = 29.
 
 %?- #MaxN*2 #= 29*(29-1).
@@ -603,8 +575,8 @@ Let's begin by exploring how many (if any!) such (q₀, q₁) exist.
 
 % candidate q0's ..
 cq0(Q) :-
-    findall(Q0, dmtally_rec(Q0, 0), Q0s),
-    findall(Q1, dmtally_rec(Q1, 1), Q1s),
+    findall(Q0, mendtally_rec(Q0, 0), Q0s),
+    findall(Q1, mendtally_rec(Q1, 1), Q1s),
     Q = [T1/N1, T2/N2],
     N1 in 0..6, N2 in 0..6, label([N1,N2]),
     T1 in 0..N1, T2 in 0..N2, label([T1,T2]),
@@ -617,8 +589,8 @@ cq0(Q) :-
 % Note that none of these is a reachable final tally.
 
 cq1(Q) :-
-    findall(Q1, dmtally_rec(Q1, 1), Q1s),
-    findall(Q2, dmtally_rec(Q2, 2), Q2s),
+    findall(Q1, mendtally_rec(Q1, 1), Q1s),
+    findall(Q2, mendtally_rec(Q2, 2), Q2s),
     Q = [T1/N1, T2/N2],
     N1 in 0..6, N2 in 0..6, label([N1,N2]),
     T1 in 0..N1, T2 in 0..N2, label([T1,T2]),
@@ -636,7 +608,7 @@ cq1(Q) :-
 
 /*
 ?- member(CQ1, [[0/6,0/4],[0/6,0/5],[0/6,0/6],[0/6,1/5],[0/6,1/6],[0/6,2/6]]),
-   dmtally_rec(Q2, 2),
+   mendtally_rec(Q2, 2),
    Q2 =<$ CQ1.
 %@    CQ1 = [0/6,0/4], Q2 = [0/3,0/6]
 %@ ;  CQ1 = [0/6,0/4], Q2 = [0/3,1/6]
