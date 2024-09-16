@@ -1,3 +1,4 @@
+
 \documentclass{article}
 
 \usepackage{amsmath}
@@ -657,9 +658,32 @@ Thus, the $\mbox{3+3}$ trial yields a mapping from a (29-element) subset of $Q^2
 %@ ;  false.
 \end{lstlisting}
 
-Thus, interestingly, we discover that the dose recommendations of the \mbox{3+3} trial are not actually consistent with the basic pharmacologic intuition embodied in our dose-monotonicity condition of Definition~\ref{domon}: substituting $q = (\frac{0}{5},\frac{1}{5})$ into Equation~\eqref{xchg}, we see that $(\frac{1}{6},\frac{1}{6}) \preceq (\frac{0}{6},\frac{2}{6})$, yet the \mbox{3+3} design accords the {\em higher} dose to the {\em less safe} of the two tallies.  Adapting existing dose-escalation designs to the framework presented here will generally require an initial `rectification' step, in which nonmonotonicities implicit in existing designs are corrected.  A cautious approach to such rectification in this case might simply assign the dose recommendation of $D = 1$ to the tally $(\frac{1}{6},\frac{1}{6})$.
+Thus, interestingly, we discover that the dose recommendations of the \mbox{3+3} trial are not actually consistent with the basic pharmacologic intuition embodied in our dose-monotonicity condition of Definition~\ref{domon}: substituting $q = (\frac{0}{5},\frac{1}{5})$ into Equation~\eqref{xchg}, we see that $(\frac{1}{6},\frac{1}{6}) \preceq (\frac{0}{6},\frac{2}{6})$, yet the \mbox{3+3} design accords the {\em higher} dose to the {\em less safe} of the two tallies.  Adapting existing dose-escalation designs to the framework presented here will generally require an initial `rectification' step, in which nonmonotonicities implicit in existing designs are corrected.
 
-Generally, we will want to extract as much information as possible from existing designs, and to this end we may consider not only {\em final} tallies with their dose recommendations, but also {\em interim} tallies and their associated next-dose recommendations.  In the \mbox{3+3} trial, there are a total of ...  
+\begin{lstlisting}
+table mendtally_rec/2.
+mendtally_rec(Q, D) :- mendtally_rec(Q, D, _).
+
+mendtally_rec(Q, D, Ds) :-
+    endtally_rec(Q, D0),
+    findall(Di, (endtally_rec(Qi, Di),
+                 Q $\preceq$ Qi,     % Q is no safer than Qi,
+                 D0 #> Di), % yet its rec exceeds Di.
+            Ds),
+    foldl(clpz:min_, Ds, D0, D).
+
+?- mendtally_rec(Q, D, [_|_]).
+   Q = [1/6,1/6], D = 1 % the sole rectification needed
+;  false.
+
+?- mendtally_rec(Q1, D1),
+   mendtally_rec(Q2, D2),
+   Q1 $\preceq$ Q2,
+   D1 #> D2.
+   false. % Rectification succeeded.
+\end{lstlisting}
+
+With the aim of extracting as much information as possible from existing designs, one might suppose it useful to consider not only {\em final} tallies with their dose recommendations, but also {\em interim} tallies and their associated {\em next}-dose recommendations.  But because the latter may be entangled with considerations of trial {\em progress}, they seem less readily interpretable as expressing the design's underlying pharmacologic intuitions.
 
 \begin{defn}
   A \textbf{Galois enrollment} $L \dashv E \dashv F$ is an IE $\IE$ for which both left (lower) and right (upper) adjoints $L$ and $F$ exist:
