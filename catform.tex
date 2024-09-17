@@ -673,40 +673,71 @@ mendtally_rec(Q, D, Ds) :-
     foldl(clpz:min_, Ds, D0, D).
 
 ?- mendtally_rec(Q, D, [_|_]).
-   Q = [1/6,1/6], D = 1 % the sole rectification needed
-;  false.
+%@    Q = [1/6,1/6], D = 1 % the sole rectification needed
+%@ ;  false.
 
 ?- mendtally_rec(Q1, D1),
    mendtally_rec(Q2, D2),
    Q1 $\preceq$ Q2,
    D1 #> D2.
-   false. % Rectification succeeded.
+%@    false. % Rectification succeeded.
 \end{lstlisting}
 
 With the aim of extracting as much information as possible from existing designs, one might suppose it useful to consider not only {\em final} tallies with their dose recommendations, but also {\em interim} tallies and their associated {\em next}-dose recommendations.  But because the latter may be entangled with considerations of trial {\em progress}, they seem less readily interpretable as expressing the design's underlying pharmacologic intuitions.
 
+\subsection{Extending the dose-recommendation functor to an IE}
+
+Rectification has yielded a final dose recommendation,
+$$
+\mathcal{Q}_f \xrightarrow{F} \mathcal{D} \equiv \{0 \leq 1 \leq 2\},
+$$
+that is {\em functorial} on the preorder of final tallies $\mathcal{Q}_f \subset \mathcal{Q}$.  If we could extend $F$ along the inclusion $\mathcal{Q}_f \xhookrightarrow{\iota} \mathcal{Q}$ to a functor $\mathcal{Q} \xrightarrow{E} \mathcal{D}$, then we would obtain an incremental enrollment (IE) consistent with the \mbox{3+3} design.
+
+\begin{center}
+  \begin{tikzcd}[row sep=large]
+    \mathcal{Q} \ar[rr,dashed,"E?"] & & \mathcal{D} \\
+    \;\mathcal{Q}_f \ar[u,"\iota"] \ar[urr,"F"']
+  \end{tikzcd}
+\end{center}
+
+Since many such extensions will generally exist, we may wish to focus on finding simple or otherwise optimal solutions.  One especially appealing form of enrollment would be one with an adjoint:
+
 \begin{defn}
-  A \textbf{Galois enrollment} $L \dashv E \dashv F$ is an IE $\IE$ for which both left (lower) and right (upper) adjoints $L$ and $F$ exist:
+  A \textbf{Galois enrollment} is an IE $\IE$ for which \underline{either} a right (upper) or left (lower) adjoint exists:
   \begin{center}
     \begin{tikzcd}
-      \mathcal{Q} \ar[rrr,"E"{name=E,description}]
+      \mathcal{Q}^*\! \ar[rrr,"E"{name=E,description}]
       & & & \mathcal{D}
-      \ar[lll,bend right,"F"'{name=F}]
-      \ar[lll,bend left,"L"{name=L,below}]
-      \arrow[phantom,from=E,to=L,"\dashv" rotate=90]
-      \arrow[phantom,from=F,to=E,"\dashv" rotate=90]
+      \ar[lll,bend right,"G"'{name=G}]
+      \arrow[phantom,from=G,to=E,"\dashv" rotate=90]
     \end{tikzcd}
   \end{center}
+  or
+  \begin{center}
+    \begin{tikzcd}
+      \mathcal{Q}^*\!\!\ar[rrr,"E"{name=E,description}]
+      & & & \mathcal{D}
+      \ar[lll,bend left,"L"{name=L,below}]
+      \arrow[phantom,from=E,to=L,"\dashv" rotate=90]
+    \end{tikzcd},
+  \end{center}
+  and where $\mathcal{Q}^* = (Q^D,\preceq^*,\langle\frac{0}{0}\rangle,+)$ represents generally an enlargement of the basic preorder \mathcal{Q}, with $\preceq \;\subset\; \preceq^*$.  (An adjunction between preorders is called a Galois connection, hence the name; see Reihl p118 and Fong \& Spivak Definition~1.90, p27.)
 \end{defn}
-(The name is suggested by the fact that an adjunction between preorders is called a Galois connection.  See Reihl p118 and Fong \& Spivak Definition~1.90, p27.)
 
-\begin{conj}
-  A Galois enrollment is too much to hope for, since it implies
-  $$
-  E^{-1} d = \{ q \mid L\,d \preceq q \preceq F d \}.
-  $$
-  But if this conjecture is wrong, we need to know!  If such IE's were available generally or even widely, they would have strong properties worth understanding.
-\end{conj}
+The appeal of a Galois enrollment is that it effectively embeds much of the enrollment protocol in the preorder $\preceq^*$.  In the case of a lower Galois enrollment $E \dashv G$, the upper adjoint $G$ provides the rule,
+$$
+E(q) \leq d \quad \iff \quad q \preceq^*\! G(d),
+$$
+and for an upper Galois enrollment $L \dashv E$ we have,
+$$
+d \leq E(q) \quad \iff \quad L(d) \preceq^*\! q.
+$$
+Writing $G(d) = g_d$, we thus obtain $\{g_0,...,g_D\} \subset \mathcal{Q}$ that partition $\mathcal{Q}$ in a bottom-up cascade, with $q \preceq^*\! g_0 \implies E(q)=0$, else $q \preceq^*\! g_1 \implies E(q)=1$, and so forth.  Similarly, $\{\ell_d = L(d)\} \subset \mathcal{Q}$ would generate a top-down cascade.
+
+\newpage
+A lower Galois enrollment for our 2-dose \mbox{3+3} trial would then take the form $\{g_0, g_1, g_2\} \subset \mathcal{Q}$, and probably require some enlargement of the basic preorder $\preceq$.  Although we do not have $\preceq^*\!$ immediately to hand, the implication $q \preceq q' \implies q \preceq^*\! q'$ does allow us to write some constraints on the $g_d$.
+
+Firstly, observe that $g_2$ here could be set to be some very safe tally such as $(\frac{0}{6},\frac{0}{6})$ that would serve as a `catchall' in our cascade.  The only nontrivial search is then for $\{g_0, g_1\}$.
 
 \bibliographystyle{unsrt}
 \bibliography{DTAT}
