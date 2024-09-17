@@ -54,7 +54,7 @@
 
 \title{DRAFT: A Categorical Formulation of Dose-Escalation Designs}
 \author{David C. Norris\\Precision Methodologies, LLC\\Wayland, MA}
-\date{8 Sep 2024}
+\date{\today{}}
 
 \maketitle
 
@@ -741,10 +741,11 @@ d \leq E(q) \quad \iff \quad L(d) \preceqx q.
 $$
 Writing $G(d) = g_d$, we thus obtain $\{g_0,...,g_D\} \subset \Q$ that partition $\Q$ in a bottom-up cascade, with $q \preceqx g_0 \implies E(q)=0$, else $q \preceqx g_1 \implies E(q)=1$, and so forth.  Similarly, $\{\ell_d = L(d)\} \subset \Q$ would generate a top-down cascade.
 
-\newpage
-A lower Galois enrollment for our 2-dose \mbox{3+3} trial would then take the form $\{g_0, g_1, g_2\} \subset \Q$, and probably require some enlargement of the basic preorder $\preceq$.  Although we do not have $\preceqx$ immediately to hand, the implication $q \preceq q' \implies q \preceqx q'$ does allow us to write some constraints on the $g_d$.
-
-Firstly, observe that $g_2$ here could be set to be some very safe tally such as $(\frac{0}{6},\frac{0}{6})$ that would serve as a `catchall' in our cascade.  The only nontrivial search is then for $\{g_0, g_1\}$.
+A lower Galois enrollment for our 2-dose \mbox{3+3} trial would then be determined by a tuple $(g_0, g_1, g_2) \in Q^{D+1}$ together with some enlargement $\preceqx$ of the basic preorder.  Indeed, since $g_2$ could be set to be some very safe tally such as $(\frac{0}{6},\frac{0}{6})$ that would serve as a `catchall' in our cascade, the only nontrivial search is then for $(g_0, g_1) \in Q^D$.  Although we do not (yet) have a suitably enlarged $\preceqx$ in hand, the implication $q \preceq q' \implies q \preceqx q'$ nevertheless does allow us to write down some constraints on the $g_d$.  Specifically, any candidate $g_d$ must satisfy,
+\begin{equation}
+q \preceq g_d \implies q \preceqx g_d \implies E(q) \leq d \implies F(q) \leq d \quad \forall q \in \Q_f, \label{gconstraint}
+\end{equation}
+in which the first implication follows from $\preceq\;\subseteq\;\preceqx$, the second from assuming that $E$ is lower-Galois, and the third from assuming that $E$ extends $F$.  Furthermore, if we are looking for {\em best} candidate $g_0$ and $g_1$, then we would like these to be safest-possible tallies satisfying \eqref{gconstraint}.
 
 \bibliographystyle{unsrt}
 \bibliography{DTAT}
