@@ -16,9 +16,16 @@
 
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\R}{\mathbb{R}}
-\newcommand{\IE}{\ensuremath{\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}}}
+\renewcommand{\S}{\ensuremath{\mathcal{S}}} % formerly §
+\newcommand{\A}{\ensuremath{\mathcal{A}}}
+\newcommand{\C}{\ensuremath{\mathcal{C}}}
+\newcommand{\D}{\ensuremath{\mathcal{D}}}
+\newcommand{\Q}{\ensuremath{\mathcal{Q}}}
+\newcommand{\IE}{\ensuremath{\Q \xrightarrow{\;\;E\;\;} \D}}
 \newcommand{\E}{\ensuremath{\widehat{E}}}
 \newcommand{\delihat}{\ensuremath{\surd\E}}
+\newcommand{\Qstar}{\ensuremath{\Q^*\!}}
+\newcommand{\preceqx}{\ensuremath{\preceq^*\!}}
 
 \DeclareMathOperator{\dual}{op}
 
@@ -204,21 +211,21 @@ is a commutative monoid, with identity $0/0$.  This property extends in the obvi
 \end{nota}
 
 \begin{nota}
-  Let $\mathcal{S} = (S,\supseteq)$ denote the preorder obtained as the (full) subcategory of $(2^{Q^D})^{\dual}$ defined by $\surd$ as an inclusion functor $\mathcal{S} \xhookrightarrow{\;\surd\;} (2^{Q^D})^{\dual}$.
+  Let $\S = (S,\supseteq)$ denote the preorder obtained as the (full) subcategory of $(2^{Q^D})^{\dual}$ defined by $\surd$ as an inclusion functor $\S \xhookrightarrow{\;\surd\;} (2^{Q^D})^{\dual}$.
 \end{nota}
 
-By choosing to embed $\mathcal{S}$ in the {\em opposite} (dual) category of $2^{Q^D}$ we obtain arrows $\supseteq$ that point {\em in the direction of time}, as pending evaluations resolve and {\em information increases}.
+By choosing to embed $\S$ in the {\em opposite} (dual) category of $2^{Q^D}$ we obtain arrows $\supseteq$ that point {\em in the direction of time}, as pending evaluations resolve and {\em information increases}.
 
 \begin{nota}
-  Let $\mathcal{A} = (A,\supseteq)$ denote the preorder obtained from the embedding of $A \subset 2^{Q^D}$.  Observe that $\mathcal{A}$ may be regarded as a subcategory of $\mathcal{S}$ via the inclusion functor $0 \oplus -$:
+  Let $\A = (A,\supseteq)$ denote the preorder obtained from the embedding of $A \subset 2^{Q^D}$.  Observe that $\A$ may be regarded as a subcategory of $\S$ via the inclusion functor $0 \oplus -$:
   \begin{align}
-    \mathcal{A} & \xhookrightarrow{0 \oplus -} \mathcal{S} \\
+    \A & \xhookrightarrow{0 \oplus -} \S \\
     \surd p & \mapsto (\frac{0}{0},...,\frac{0}{0}) \oplus \surd p.
   \end{align}
 \end{nota}
 
 \begin{nota}
-  We extend $\oplus$ to a bifunctor $\mathcal{S} \times \mathcal{A} \xrightarrow{\oplus} \mathcal{S}$:
+  We extend $\oplus$ to a bifunctor $\S \times \A \xrightarrow{\oplus} \S$:
   $$
   s \oplus \surd p = \underbar{s} \oplus \surd ( \bar{s} + p ),
   $$
@@ -226,11 +233,11 @@ By choosing to embed $\mathcal{S}$ in the {\em opposite} (dual) category of $2^{
 \end{nota}
 
 \begin{fact}
-  Augmenting $\mathcal{S}$ to include the initial object $U = Q^D$ and the terminal object $\emptyset$, we obtain obtain a symmetric monoidal preorder, $\mathcal{S}^* = (S^*,\supseteq,U,\cap)$ with set intersection as the monoidal product and $U$ as its unit.  The essence of the proof is showing that $S^* = \surd S \cup \{\emptyset,U\}$ is closed under set intersections.  This is readily appreciated from the geometry of the components $(\surd s \cap \surd s')_d$ as intersecting isosceles right-triangular subsets of $Q \subset \N^2$.  (The formal proof may be slightly easier in the plane of $R \cong \N^2$, where the elements $t\!:\!u$ admit a symmetrical treatment of their $t$ and $u$ parts.)
+  Augmenting $\S$ to include the initial object $U = Q^D$ and the terminal object $\emptyset$, we obtain obtain a symmetric monoidal preorder, $\S^* = (S^*,\supseteq,U,\cap)$ with set intersection as the monoidal product and $U$ as its unit.  The essence of the proof is showing that $S^* = \surd S \cup \{\emptyset,U\}$ is closed under set intersections.  This is readily appreciated from the geometry of the components $(\surd s \cap \surd s')_d$ as intersecting isosceles right-triangular subsets of $Q \subset \N^2$.  (The formal proof may be slightly easier in the plane of $R \cong \N^2$, where the elements $t\!:\!u$ admit a symmetrical treatment of their $t$ and $u$ parts.)
 \end{fact}
 
 \begin{fact}
-  The above holds true for any choice of $U \subset Q^D$, provided that we take the elements of $\mathcal{S}^*$ to be $\{s \cap U \mid s \in \surd S\}$.  This allows for $U$ to define a bounded set of \textbf{accessible tallies}, such as might arise from a fixed limit on trial enrollment.
+  The above holds true for any choice of $U \subset Q^D$, provided that we take the elements of $\S^*$ to be $\{s \cap U \mid s \in \surd S\}$.  This allows for $U$ to define a bounded set of \textbf{accessible tallies}, such as might arise from a fixed limit on trial enrollment.
 \end{fact}
 
 Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em actual} state $\frac{0}{0} \oplus 0$ which we might well regard as obtaining upon initiation of the trial.  The `universe' $U$ is likewise an abstraction which would never obtain as an actual trial state, except in the (pathological) case where the entire planned enrollment were achieved before any assessments completed.
@@ -327,7 +334,7 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
 \end{nota}
 
 \begin{defn}\label{lesaf^D}
-  Let $\mathcal{Q} = (Q^D,\preceq)$ be the free preorder generated by $\preceq_{ce} \cup \preceq_{dm}$.
+  Let $\Q = (Q^D,\preceq)$ be the free preorder generated by $\preceq_{ce} \cup \preceq_{dm}$.
 \end{defn}
 
 \begin{fact}
@@ -335,7 +342,7 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
 \end{fact}
 
 \begin{fact}\label{symon}
-  $\mathcal{Q} = (Q^D,\preceq,\langle\frac{0}{0}\rangle,+)$ is a symmetric monoidal preorder.
+  $\Q = (Q^D,\preceq,\langle\frac{0}{0}\rangle,+)$ is a symmetric monoidal preorder.
 \end{fact}
 
 \begin{nota}
@@ -379,7 +386,7 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
   \hfill --- Alan J. Perlis (Epigram \#65)
 \end{quote}
 
-Observe that the proof of Fact~\ref{symon} did not use the {\em symmetric monoidal} character of the $+$ operation on $\mathcal{Q}$.  By exploiting specifically the {\em commutativity} of $+$, however, we can obtain a more readily generalizable reformulation of \eqref{cond}.
+Observe that the proof of Fact~\ref{symon} did not use the {\em symmetric monoidal} character of the $+$ operation on $\Q$.  By exploiting specifically the {\em commutativity} of $+$, however, we can obtain a more readily generalizable reformulation of \eqref{cond}.
 
 \begin{fact}
   Every arrow of the preorder $\preceq$ may be obtained in the form,
@@ -410,20 +417,20 @@ A dose-escalation protocol (DEP) is generally situated in a queueing context, wh
   $$
   j \le k \implies \widehat{j} \unlhd \widehat{k} \quad\forall j,k \in \{0,...,D\}.
   $$
-  Let $\mathcal{C} = (\N^D,\unlhd)$ denote the resulting preorder, and call its objects `cohorts'.  Observe that the arrows $c \xrightarrow{\unlhd} c'$ in this category point in the direction of increasingly `ambitious' cohorts that enroll more participants, or at higher doses.
+  Let $\C = (\N^D,\unlhd)$ denote the resulting preorder, and call its objects `cohorts'.  Observe that the arrows $c \xrightarrow{\unlhd} c'$ in this category point in the direction of increasingly `ambitious' cohorts that enroll more participants, or at higher doses.
 \end{defn}
 
 \begin{nota}
-  Let $\downarrow : \mathcal{C} \rightarrow 2^\mathcal{C}$ denote the functor yielding the principal lower sets,
+  Let $\downarrow : \C \rightarrow 2^\C$ denote the functor yielding the principal lower sets,
   $$
-  \downarrow c = \{ c' \in \mathcal{C} \mid c' \unlhd c \}.
+  \downarrow c = \{ c' \in \C \mid c' \unlhd c \}.
   $$
 \end{nota}
 
 \begin{defn}\label{deprot}
   A \textbf{rolling dose escalation [RDE]} is a functor
   $$
-  \widetilde{E} : \mathcal{S} \rightarrow 2^\mathcal{C}
+  \widetilde{E} : \S \rightarrow 2^\C
   $$
   that in any trial state determines a set of admissible cohorts.  The functoriality here models a caution that underlies any reasonable approach to dose escalation:
   $$
@@ -431,21 +438,21 @@ A dose-escalation protocol (DEP) is generally situated in a queueing context, wh
   $$
   which is to say that in states with less information, enrollment options should be more restrictive.
 
-  The qualifier `rolling' applies on account of the set-valued domain $\mathcal{S}$, meant generally to allow for `rolling enrollment' (cite Skolnik et al, 2008) even from plural states with pending assessments.
+  The qualifier `rolling' applies on account of the set-valued domain $\S$, meant generally to allow for `rolling enrollment' (cite Skolnik et al, 2008) even from plural states with pending assessments.
   
   The set-valued codomain of $\widetilde{E}$ is intended to allow generally for servicing waiting queues of different sizes, and even for the arbitrary exercise of `clinical judgment' in dose assignments.
 
-  We will freely regard any functor $\widetilde{E} : \mathcal{S} \rightarrow \mathcal{C}$ as the RDE, $\downarrow\!\circ \widetilde{E} : \mathcal{S} \rightarrow 2^\mathcal{C}$.
+  We will freely regard any functor $\widetilde{E} : \S \rightarrow \C$ as the RDE, $\downarrow\!\circ \widetilde{E} : \S \rightarrow 2^\C$.
 \end{defn}
 
 The high generality of Definition~\ref{deprot} allows for development of a taxonomy that identifies and names various desirable properties which, at their intersection, may define a class of rational DEP's of practical interest.  But we now leap ahead to a highly restrictive class, in order to make concrete progress.
 
 \begin{nota}
-  For $D \in \N^+$, let $\mathcal{D}$ denote the preorder consisting of the set $\{0, 1, ..., D\}$ equipped with the (reflexive and transitive) relation $\le$ defined as usual on $\N$.  In order to use categorical language, we will regard $\mathcal{D}$ as the category freely generated by the graph, $0 \rightarrow 1 \rightarrow \dots \rightarrow D$.\footnote{More conventionally, the ordinal category with D+1 elements would be written $\mathbb{D}+\bbold{1}$; see Riehl Example 4.1.14.  But we trust no confusion will arise from our notation $\mathcal{D}$.}
+  For $D \in \N^+$, let $\D$ denote the preorder consisting of the set $\{0, 1, ..., D\}$ equipped with the (reflexive and transitive) relation $\le$ defined as usual on $\N$.  In order to use categorical language, we will regard $\D$ as the category freely generated by the graph, $0 \rightarrow 1 \rightarrow \dots \rightarrow D$.\footnote{More conventionally, the ordinal category with D+1 elements would be written $\mathbb{D}+\bbold{1}$; see Riehl Example 4.1.14.  But we trust no confusion will arise from our notation $\D$.}
 \end{nota}
 
 \begin{defn}
-  An \textbf{incremental enrollment [IE]} is a functor $\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}$.  Note that the functoriality here imposes the core intuition of dose-escalation,
+  An \textbf{incremental enrollment [IE]} is a functor $\Q \xrightarrow{\;\;E\;\;} \D$.  Note that the functoriality here imposes the core intuition of dose-escalation,
   $$
   q \preceq q' \implies E q \le E q',
   $$
@@ -453,15 +460,15 @@ The high generality of Definition~\ref{deprot} allows for development of a taxon
 \end{defn}
 
 \begin{nota}
-  Let $\mathcal{S} \xrightarrow{\bigwedge} \mathcal{Q}$ denote the functor defined by the worst-possible (most toxic) resolution,
+  Let $\S \xrightarrow{\bigwedge} \Q$ denote the functor defined by the worst-possible (most toxic) resolution,
   $$
   \bigwedge s = \bigwedge_{q \in s} q.
   $$
-  The right-hand side is well-defined, since any given state $s$ is finite, and $\mathcal{Q}$ is a strict preorder (i.e., partial order) by Corollary~\ref{partord}.  Functoriality holds because $s \supseteq s' \implies \bigwedge_{q \in s} q \preceq \bigwedge_{q \in s'} q$.
+  The right-hand side is well-defined, since any given state $s$ is finite, and $\Q$ is a strict preorder (i.e., partial order) by Corollary~\ref{partord}.  Functoriality holds because $s \supseteq s' \implies \bigwedge_{q \in s} q \preceq \bigwedge_{q \in s'} q$.
 \end{nota}
 
 \begin{nota}\label{hatfun}
-  Let $\mathcal{D} \xrightarrow{\widehat{-}} \mathcal{C}$ be the functor defined by $\widehat{d} = ([j = d])_{j\in\mathcal{D}}$, where $[-]$ represents the Iverson bracket,
+  Let $\D \xrightarrow{\widehat{-}} \C$ be the functor defined by $\widehat{d} = ([j = d])_{j\in\D}$, where $[-]$ represents the Iverson bracket,
   $$
   [P] = \begin{cases*}
     1 & if $P$ is true \\
@@ -475,10 +482,10 @@ The high generality of Definition~\ref{deprot} allows for development of a taxon
   Given IE $\IE$, define $\E = \widehat{-} \circ E \circ \bigwedge$:
   \begin{center}
     \begin{tikzcd}[column sep=large,row sep=large]
-      \mathcal{Q} \ar[r,"E"]
-      & \mathcal{D} \ar[d,"\widehat{-}"] \\
-      \mathcal{S} \ar[u,"\bigwedge"] \ar[r,"\E"']
-      & \mathcal{C}
+      \Q \ar[r,"E"]
+      & \D \ar[d,"\widehat{-}"] \\
+      \S \ar[u,"\bigwedge"] \ar[r,"\E"']
+      & \C
     \end{tikzcd}
   \end{center}
 \end{nota}
@@ -491,7 +498,7 @@ The high generality of Definition~\ref{deprot} allows for development of a taxon
 \end{fact}
 
 \begin{nota}\label{altmutrec}
-  Given IE $\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}$, define functors $\mathcal{S} \xrightarrow{\E_n} \mathcal{S}, n \in \N$ by,
+  Given IE $\Q \xrightarrow{\;\;E\;\;} \D$, define functors $\S \xrightarrow{\E_n} \S, n \in \N$ by,
   $$
   \begin{aligned}
     \E_0 s &= s \\
@@ -501,7 +508,7 @@ The high generality of Definition~\ref{deprot} allows for development of a taxon
 \end{nota}
 
 \begin{fact}
-  Given a state $s \in \mathcal{S}$, the sequence $(\E_n s)_{n\in\N}$ defines a diagram in $\mathcal{S}$ of shape $(\N,\le)^{\dual}$:
+  Given a state $s \in \S$, the sequence $(\E_n s)_{n\in\N}$ defines a diagram in $\S$ of shape $(\N,\le)^{\dual}$:
   $$
   \dots \supseteq \E_2s \supseteq \E_1s \supseteq \E_0s\equiv s,
   $$
@@ -509,25 +516,25 @@ for which the so-called `inverse limit' is $\displaystyle{\lim_{\longleftarrow} 
 \end{fact}
 
 \begin{nota}
-  Let $\E_\leftarrow : \mathcal{S} \rightarrow \mathcal{S}$ denote the functor defined by these limits,
+  Let $\E_\leftarrow : \S \rightarrow \S$ denote the functor defined by these limits,
   $$
   \E_\leftarrow s = \displaystyle{\lim_{\longleftarrow} \E_{-} s} = \bigcup_{n\in\N} \E_n s.
   $$
 \end{nota}
 
 \begin{defn}\label{rdegenbyie}
-  The \textbf{RDE generated by an IE} $\IE$ is the functor $\widetilde{E} : \mathcal{S} \rightarrow \mathcal{C}$ defined by the equation,
+  The \textbf{RDE generated by an IE} $\IE$ is the functor $\widetilde{E} : \S \rightarrow \C$ defined by the equation,
   $$
   \E_\leftarrow s = s \oplus \surd\widetilde{E} s.
   $$
   \begin{center}
     \begin{tikzcd}[column sep=large,row sep=large]
-      \mathcal{S} \ar[dr,"\E_\leftarrow"']
+      \S \ar[dr,"\E_\leftarrow"']
       \ar[rr,bend left,"\surd\widetilde{E}"]
-      & \;\mathcal{S}\times \mathcal{A}
-      \ar[l,"\pi_\mathcal{S}"] \ar[d,"\oplus"] \ar[r,"\pi_\mathcal{A}"']
-      & \mathcal{A} \\
-      & \mathcal{S}
+      & \;\S\times \A
+      \ar[l,"\pi_\S"] \ar[d,"\oplus"] \ar[r,"\pi_\A"']
+      & \A \\
+      & \S
     \end{tikzcd}
   \end{center}
 \end{defn}
@@ -537,7 +544,7 @@ for which the so-called `inverse limit' is $\displaystyle{\lim_{\longleftarrow} 
 In this subsection, we motivate and elucidate the rather abstract Definition~\ref{rdegenbyie} using a more concrete construction.
 
 \begin{nota}\label{mutrec}
-  Given IE $\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}$ and a tally $q \in \mathcal{Q}$, define sequences $e_n(q) \in \{0,...,D\}$ and $E_n(q) \in S$ inductively by the mutually recursive relations,
+  Given IE $\Q \xrightarrow{\;\;E\;\;} \D$ and a tally $q \in \Q$, define sequences $e_n(q) \in \{0,...,D\}$ and $E_n(q) \in S$ inductively by the mutually recursive relations,
   $$
   \begin{aligned}
     e_1(q) &= E q \\
@@ -545,20 +552,20 @@ In this subsection, we motivate and elucidate the rather abstract Definition~\re
     e_{n+1}(q) &= \bigwedge_{q' \in E_n(q)} E q'.
   \end{aligned}
   $$
-This defines how, from the standpoint of a singular trial state $q \oplus \{\widehat{0}\} \in \mathcal{S}$, one might proceed to enroll participants from a waiting queue: enroll a first participant at dose $e_1(q)$; then, from the standpoint of the resulting plural state $E_1(q) = q \oplus \surd\widehat{e_1(q)}$, the minimax principle suggests $e_2(q) = \bigwedge_{q' \in E_1(q)} E q'$ as a suitable dose for enrolling a second participant; this yields the even larger state $E_2(q)$, which may then admit further enrollment, and so on.
+This defines how, from the standpoint of a singular trial state $q \oplus \{\widehat{0}\} \in \S$, one might proceed to enroll participants from a waiting queue: enroll a first participant at dose $e_1(q)$; then, from the standpoint of the resulting plural state $E_1(q) = q \oplus \surd\widehat{e_1(q)}$, the minimax principle suggests $e_2(q) = \bigwedge_{q' \in E_1(q)} E q'$ as a suitable dose for enrolling a second participant; this yields the even larger state $E_2(q)$, which may then admit further enrollment, and so on.
 \end{nota}
 
 \begin{fact}
   The sequence $(e_n(q))_{n \in \N^+}$ is nonincreasing:
   $$
-  m < n \implies e_m(q) \ge e_n(q) \quad \forall\, q \in \mathcal{Q}.
+  m < n \implies e_m(q) \ge e_n(q) \quad \forall\, q \in \Q.
   $$
 \end{fact}
 
 \begin{fact}
   The sequence $(E_n(q))_{n \in \N^+}$ is nested:
   $$
-  m < n \implies E_m(q) \subseteq E_n(q) \quad \forall\, q \in \mathcal{Q}.
+  m < n \implies E_m(q) \subseteq E_n(q) \quad \forall\, q \in \Q.
   $$
 \end{fact}
 
@@ -566,7 +573,7 @@ Except in pathological cases (\textbf{TODO:} rule these out by some explicit pro
 
 \subsection{A Categorical Perspective}
 
-The construction in Notation~\ref{mutrec} can be appreciated via cones over and under the diagram $(\N,\le)^{\dual} \xrightarrow{E_{-} s} \mathcal{S}$, with summit $a \in \mathcal{S}$ and nadir $s = q\oplus\{\widehat{0}\}$:
+The construction in Notation~\ref{mutrec} can be appreciated via cones over and under the diagram $(\N,\le)^{\dual} \xrightarrow{E_{-} s} \S$, with summit $a \in \S$ and nadir $s = q\oplus\{\widehat{0}\}$:
 \begin{center}
   \begin{tikzcd}[row sep=huge]
     a \ar[d,"\supseteq" {description,rotate=-90}]
@@ -647,7 +654,7 @@ endtally_rec(FinalTally, Rec) :-
 %@    N = 29.
 \end{verbatim}
 
-Thus, the $\mbox{3+3}$ trial yields a mapping from a (29-element) subset of $Q^2$ to $\{0,1,2\}$.  In light of the foregoing, it is natural at this point to ask whether we might extend this mapping to an incremental enrollment $\mathcal{Q} \xrightarrow{\;\;E\;\;} \mathcal{D}$.  To be amenable to such extension, these dose recommendations would have to be {\em functorial}, so let us check for any violation of functoriality.  Any such violation must take the form of final tallies $q_1, q_2 \in Q^2$ with associated dose-level recommendations $d_1, d_2 \in {0,1,2}$ such that $q_1 \preceq q_2$ but $d_1 \not\leq d_2$:
+Thus, the $\mbox{3+3}$ trial yields a mapping from a (29-element) subset of $Q^2$ to $\{0,1,2\}$.  In light of the foregoing, it is natural at this point to ask whether we might extend this mapping to an incremental enrollment $\Q \xrightarrow{\;\;E\;\;} \D$.  To be amenable to such extension, these dose recommendations would have to be {\em functorial}, so let us check for any violation of functoriality.  Any such violation must take the form of final tallies $q_1, q_2 \in Q^2$ with associated dose-level recommendations $d_1, d_2 \in {0,1,2}$ such that $q_1 \preceq q_2$ but $d_1 \not\leq d_2$:
 
 \begin{lstlisting}
 ?- endtally_rec(Q1, D1),
@@ -689,14 +696,14 @@ With the aim of extracting as much information as possible from existing designs
 
 Rectification has yielded a final dose recommendation,
 $$
-\mathcal{Q}_f \xrightarrow{F} \mathcal{D} \equiv \{0 \leq 1 \leq 2\},
+\Q_f \xrightarrow{F} \D \equiv \{0 \leq 1 \leq 2\},
 $$
-that is {\em functorial} on the preorder of final tallies $\mathcal{Q}_f \subset \mathcal{Q}$.  If we could extend $F$ along the inclusion $\mathcal{Q}_f \xhookrightarrow{\iota} \mathcal{Q}$ to a functor $\mathcal{Q} \xrightarrow{E} \mathcal{D}$, then we would obtain an incremental enrollment (IE) consistent with the \mbox{3+3} design.
+that is {\em functorial} on the preorder of final tallies $\Q_f \subset \Q$.  If we could extend $F$ along the inclusion $\Q_f \xhookrightarrow{\iota} \Q$ to a functor $\Q \xrightarrow{E} \D$, then we would obtain an incremental enrollment (IE) consistent with the \mbox{3+3} design.
 
 \begin{center}
   \begin{tikzcd}[row sep=large]
-    \mathcal{Q} \ar[rr,dashed,"E?"] & & \mathcal{D} \\
-    \;\mathcal{Q}_f \ar[u,"\iota"] \ar[urr,"F"']
+    \Q \ar[rr,dashed,"E?"] & & \D \\
+    \;\Q_f \ar[u,"\iota"] \ar[urr,"F"']
   \end{tikzcd}
 \end{center}
 
@@ -706,8 +713,8 @@ Since many such extensions will generally exist, we may wish to focus on finding
   A \textbf{Galois enrollment} is an IE $\IE$ for which \underline{either} a right (upper) or left (lower) adjoint exists:
   \begin{center}
     \begin{tikzcd}
-      \mathcal{Q}^*\! \ar[rrr,"E"{name=E,description}]
-      & & & \mathcal{D}
+      \Qstar \ar[rrr,"E"{name=E,description}]
+      & & & \D
       \ar[lll,bend right,"G"'{name=G}]
       \arrow[phantom,from=G,to=E,"\dashv" rotate=90]
     \end{tikzcd}
@@ -715,27 +722,27 @@ Since many such extensions will generally exist, we may wish to focus on finding
   or
   \begin{center}
     \begin{tikzcd}
-      \mathcal{Q}^*\!\!\ar[rrr,"E"{name=E,description}]
-      & & & \mathcal{D}
+      \Qstar\!\ar[rrr,"E"{name=E,description}]
+      & & & \D
       \ar[lll,bend left,"L"{name=L,below}]
       \arrow[phantom,from=E,to=L,"\dashv" rotate=90]
     \end{tikzcd},
   \end{center}
-  and where $\mathcal{Q}^* = (Q^D,\preceq^*,\langle\frac{0}{0}\rangle,+)$ represents generally an enlargement of the basic preorder \mathcal{Q}, with $\preceq \;\subset\; \preceq^*$.  (An adjunction between preorders is called a Galois connection, hence the name; see Reihl p118 and Fong \& Spivak Definition~1.90, p27.)
+  and where $\Qstar = (Q^D,\preceqx,\langle\frac{0}{0}\rangle,+)$ represents generally an enlargement of the basic preorder $\Q$, with $\preceq \;\subset\; \preceqx$.  (An adjunction between preorders is called a Galois connection, hence the name; see Reihl p118 and Fong \& Spivak Definition~1.90, p27.)
 \end{defn}
 
-The appeal of a Galois enrollment is that it effectively embeds much of the enrollment protocol in the preorder $\preceq^*$.  In the case of a lower Galois enrollment $E \dashv G$, the upper adjoint $G$ provides the rule,
+The appeal of a Galois enrollment is that it effectively embeds much of the enrollment protocol in the preorder $\preceqx$.  In the case of a lower Galois enrollment $E \dashv G$, the upper adjoint $G$ provides the rule,
 $$
-E(q) \leq d \quad \iff \quad q \preceq^*\! G(d),
+E(q) \leq d \quad \iff \quad q \preceqx G(d),
 $$
 and for an upper Galois enrollment $L \dashv E$ we have,
 $$
-d \leq E(q) \quad \iff \quad L(d) \preceq^*\! q.
+d \leq E(q) \quad \iff \quad L(d) \preceqx q.
 $$
-Writing $G(d) = g_d$, we thus obtain $\{g_0,...,g_D\} \subset \mathcal{Q}$ that partition $\mathcal{Q}$ in a bottom-up cascade, with $q \preceq^*\! g_0 \implies E(q)=0$, else $q \preceq^*\! g_1 \implies E(q)=1$, and so forth.  Similarly, $\{\ell_d = L(d)\} \subset \mathcal{Q}$ would generate a top-down cascade.
+Writing $G(d) = g_d$, we thus obtain $\{g_0,...,g_D\} \subset \Q$ that partition $\Q$ in a bottom-up cascade, with $q \preceqx g_0 \implies E(q)=0$, else $q \preceqx g_1 \implies E(q)=1$, and so forth.  Similarly, $\{\ell_d = L(d)\} \subset \Q$ would generate a top-down cascade.
 
 \newpage
-A lower Galois enrollment for our 2-dose \mbox{3+3} trial would then take the form $\{g_0, g_1, g_2\} \subset \mathcal{Q}$, and probably require some enlargement of the basic preorder $\preceq$.  Although we do not have $\preceq^*\!$ immediately to hand, the implication $q \preceq q' \implies q \preceq^*\! q'$ does allow us to write some constraints on the $g_d$.
+A lower Galois enrollment for our 2-dose \mbox{3+3} trial would then take the form $\{g_0, g_1, g_2\} \subset \Q$, and probably require some enlargement of the basic preorder $\preceq$.  Although we do not have $\preceqx$ immediately to hand, the implication $q \preceq q' \implies q \preceqx q'$ does allow us to write some constraints on the $g_d$.
 
 Firstly, observe that $g_2$ here could be set to be some very safe tally such as $(\frac{0}{6},\frac{0}{6})$ that would serve as a `catchall' in our cascade.  The only nontrivial search is then for $\{g_0, g_1\}$.
 
