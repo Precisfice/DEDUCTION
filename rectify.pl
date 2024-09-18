@@ -30,15 +30,35 @@ clpz:monotonic.
 :- op(900, xfx, '≤'). % Mutually exclusive infix
 :- op(900, xfx, '≰'). % relations defined on ℕᴰ.
 
+% I am beginning to wonder whether I have pursued reification
+% from the wrong direction.  Should I rather have been treating
+% the reified predicate as the *primary* statement of what-holds,
+% and its several branches as *derived* entities?
+
+% TODO: Rename leq_t simply to ('≤')/3
+'≤'([], [], true). % trivial case makes general clause easier to implement
+'≤'([X|Xs], [Y|Ys], Truth) :- % ≤ extended to ℕᴰ, D≥1
+    if_(clpz_t(#X #=< #Y),
+        '≤'(Xs,Ys,Truth),
+        Truth = false
+       ).
+    
+%?- '≤'([], [], Truth).
+%@    Truth = true. % A quirk easily excluded from ('≤')/2
+
+%?- '≤'([2], [3], Truth).
+%@    Truth = true.
+
+%?- '≤'([2], [3], true).
+%@    true.
+
+%?- '≤'([2], [3], false).
+%@    false.
+
 Xs '≤' Ys :-
     same_length(Xs, Ys),
     length(Xs, D), D #> 0,
-    % TODO: Might I use must_be(list(integer), Xs) to avoid lambdas below?
-    %maplist(#=<(0), Xs), % I get instantiation_error's here, as if
-    %maplist(#=<(0), Ys), % each element demands to be #'ed separately.
-    maplist(\X^(#X #>= 0), Xs), % Why must I do these in monotonic mode, instead
-    maplist(\Y^(#Y #>= 0), Ys), % of the above?  I thought this used to work!
-    maplist(#=<, Xs, Ys). % NB: 0 ≤ Xs ≤ Ys ⟹ 0 ≤ Ys as well
+    '≤'(Xs, Ys, true).
 
 %?- [] '≤' [].
 %@    false. % CORRECT
@@ -55,9 +75,6 @@ Xs '≤' Ys :-
 %?- [2,3] '≤' [3,X].
 %@    clpz:(X in 3..sup).
 
-%?- [2,3] '≤' [3,#X]. % NB: This works fine with the maplist(#=<(0), _)'s above.
-%@    clpz:(X in 3..sup).
-
 %?- [0,0,0] '≤' Xs, Xs '≤' [1,1,1], label(Xs).
 %@    Xs = [0,0,0]
 %@ ;  Xs = [0,0,1]
@@ -71,27 +88,16 @@ Xs '≤' Ys :-
 
 % Note that we must provide a dedicated implementation for ≰
 % because we cannot *safely* apply negation-as-failure to ≤.
-'≰'([X|Xs], [Y|Ys]) :-
+Xs '≰' Ys :-
     same_length(Xs, Ys),
     length(Xs, D), D #> 0,
-    %maplist(#=<(0), Xs), % Same story
-    %maplist(#=<(0), Ys), % as above.
-    maplist(\Xi^(#Xi #>= 0), [X|Xs]),
-    maplist(\Yi^(#Yi #>= 0), [Y|Ys]),
-    % (The foregoing ensures both args are in ℕᴰ for some D≥1.)
-    (   #X #> #Y
-    ;   Xs '≰' Ys
-    ).
+    '≤'(Xs, Ys, false).
 
 %?- [1,1,1] '≰' Xs.
-%@    Xs = [0,_A,_B], clpz:(_A in 0..sup), clpz:(_B in 0..sup)
-%@ ;  Xs = [_A,0,_B], clpz:(_A in 0..sup), clpz:(_B in 0..sup)
-%@ ;  Xs = [_A,_B,0], clpz:(_A in 0..sup), clpz:(_B in 0..sup)
+%@    Xs = [_A,_B,_C], clpz:(_A in inf..0)
+%@ ;  Xs = [_A,_B,_C], clpz:(_A in 1..sup), clpz:(_B in inf..0)
+%@ ;  Xs = [_A,_B,_C], clpz:(_A in 1..sup), clpz:(_B in 1..sup), clpz:(_C in inf..0)
 %@ ;  false.
-
-% Observe now that, having done this, we obtain a reified version of ≤
-'≤'(Xs, Ys, true) :- Xs '≤' Ys.
-'≤'(Xs, Ys, false) :- Xs '≰' Ys.
 
 %% 1. Via Fact 2.13, define evident-$afety relation ≼ ⊂ 𝒬✕𝒬:
 :- op(900, xfx, =<$).
@@ -105,23 +111,17 @@ qs_Ts_Us(Qs, ΣTs, ΣUs) :-
 %?- qs_Ts_Us([1/6,2/6], Ts, Us).
 %@    Ts = [1,3], Us = [5,9].
 
-=<$(Q1s, Q2s) :-
+=<$(Q1s, Q2s, Truth) :-
     qs_Ts_Us(Q1s, ST1s, SU1s),
     qs_Ts_Us(Q2s, ST2s, SU2s),
-    ST2s '≤' ST1s, %maplist(#>=, ST1s, ST2s),
-    SU1s '≤' SU2s. %maplist(#=<, SU1s, SU2s).
+    if_((ST2s '≤' ST1s,
+         SU1s '≤' SU2s),
+        Truth = true,
+        Truth = false
+       ).
 
-=/<$(Q1s, Q2s) :-
-    qs_Ts_Us(Q1s, ST1s, SU1s),
-    qs_Ts_Us(Q2s, ST2s, SU2s),
-    (   ST2s '≰' ST1s -> true
-    ;   SU1s '≰' SU2s
-    ).
-
-% And now, importantly for (e.g.) pure construction of transitive reduction,
-% we obtain the reified version (=<$)/3:
-=<$(Q1s, Q2s, true) :- Q1s =<$ Q2s.
-=<$(Q1s, Q2s, false) :- Q1s =/<$ Q2s.
+=<$( Q1s, Q2s) :- =<$(Q1s, Q2s, true).
+=/<$(Q1s, Q2s) :- =<$(Q1s, Q2s, false).
 
 %% Allow the notational convenience of a 'flippable' preorder symbol:
 :- op(900, xfx, $>=).

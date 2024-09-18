@@ -552,23 +552,25 @@ for all possible enlargements of ≼ that would support an adjoint IE.
 
 If we call the enlargement ≼*, then we must search for (q₀, q₁) such that
 
-  q ≼ q₀ ⟹ E(q) = 0
+  q ≼ q₀ ⟹ E(q) = 0  ∀ final tallies q
         and
-  q ≼ q₁ ⟹ E(q) ≤ 1,
+  q ≼ q₁ ⟹ E(q) ≤ 1  ∀ final tallies q,
 
 _and_ such that adding whatever new arrows are required by,
 
-  E(q) = 0 ⟹ q ≼* q₀
+  E(q) = 0 ⟹ q ≼* q₀  ∀ final tallies q
          and
-  E(q) = 1 ⟹ q ≼* q₁
+  E(q) = 1 ⟹ q ≼* q₁  ∀ final tallies q
 
 doesn't 'break' anything.  (I'm not even sure what I mean by that yet!)
 
 What constraints does this put on (q₀, q₁)?  Let me not insist that they be
 drawn from the set of final tallies; they can be general elements of Q².
-To begin, q₀ would have to be no-less-safe-than all final tallies q that
-receive a dose recommendation of 0.  It would also not be allowed to be
-any safer than a final tally with rec = 1.
+To begin, the relation (— ≼ q₀) must not falsely hold for any final tally
+having a dose recommendation above 0.  It need NOT correctly identify ALL
+final tallies q with rec = 0, however; we expect that the enlargement of ≼
+to ≼* will be needed to achieve this.  Nevertheless, good candidate q₀'s
+will not be needlessly unsafe, and should be maximal among such.
 
 Let's begin by exploring how many (if any!) such (q₀, q₁) exist.
 */
@@ -576,67 +578,40 @@ Let's begin by exploring how many (if any!) such (q₀, q₁) exist.
 % candidate q0's ..
 cq0(Q) :-
     findall(Q0, mendtally_rec(Q0, 0), Q0s),
-    findall(Q1, mendtally_rec(Q1, 1), Q1s),
+    findall(Qp, (mendtally_rec(Qp, D), D #> 0), Qps),
     Q = [T1/N1, T2/N2],
     N1 in 0..6, N2 in 0..6, label([N1,N2]),
     T1 in 0..N1, T2 in 0..N2, label([T1,T2]),
-    maplist(\Qi^(Qi =<$ Q), Q0s),
-    maplist(\Qi^(=<$(Qi, Q, false)), Q1s).
+    tfilter(\Qi^(Qi =<$ Q), Qps, []), % no false identifications
+    %maplist(\Qi^(=<$(Qi,Q,false)), Qps),
+    % The tfilter/3 and maplist/2 above perform equivalently.
+    % Would there be any reason to prefer one over the other?
+    tpartition(\Qi^(Qi =<$ Q), Q0s, _, []).
 
-%?- setof(Q0, cq0(Q0), Q0s).
-%@    Q0s = [[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+%?- time(setof(Q0, cq0(Q0), Q0s)).
+%@    % CPU time: 12.790s, 63_221_526 inferences
+%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+%@    % CPU time: 14.067s, 66_314_481 inferences % using maplist/2 above
+%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+%@    % CPU time: 12.788s, 63_221_444 inferences % using tfilter/3 above
+%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+%@    % CPU time: 13.619s, 66_314_399 inferences % using tfilter/3 above
+%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+% Well, well!  Somewhat to my surprise, we do get some 'perfect' q₀ candidates.
 
-% Note that none of these is a reachable final tally.
-
+% candidate q1's ..
 cq1(Q) :-
     findall(Q1, mendtally_rec(Q1, 1), Q1s),
     findall(Q2, mendtally_rec(Q2, 2), Q2s),
     Q = [T1/N1, T2/N2],
     N1 in 0..6, N2 in 0..6, label([N1,N2]),
     T1 in 0..N1, T2 in 0..N2, label([T1,T2]),
-    maplist(\Qi^(Qi =<$ Q), Q1s),
-    *maplist(\Qi^(=<$(Qi, Q, false)), Q2s). % Projected away
+    tfilter(\Qi^(Qi =<$ Q), Q2s, []), % no false identifications
+    tpartition(\Qi^(Qi =<$ Q), Q1s, _, []).
 
 %?- setof(Q1, cq1(Q1), Q1s).
-%@    Q1s = [[0/6,0/4],[0/6,0/5],[0/6,0/6],[0/6,1/5],[0/6,1/6],[0/6,2/6]].
-%@    false. % (without projecting away 2nd condition)
-
-% What this means is that each of the above is at-least-as-safe-as every
-% final tally that receives Rec=1, but apparently that the 2nd condition
-% fails for each of these.  This means there is some final tally having
-% Rec=2 which is nevertheless actually no-safer-than one of these!
-
-/*
-?- member(CQ1, [[0/6,0/4],[0/6,0/5],[0/6,0/6],[0/6,1/5],[0/6,1/6],[0/6,2/6]]),
-   mendtally_rec(Q2, 2),
-   Q2 =<$ CQ1.
-%@    CQ1 = [0/6,0/4], Q2 = [0/3,0/6]
-%@ ;  CQ1 = [0/6,0/4], Q2 = [0/3,1/6]
-%@ ;  CQ1 = [0/6,0/5], Q2 = [0/3,0/6]
-%@ ;  CQ1 = [0/6,0/5], Q2 = [0/3,1/6]
-%@ ;  CQ1 = [0/6,0/5], Q2 = [1/6,0/6]
-%@ ;  CQ1 = [0/6,0/6], Q2 = [0/3,0/6]
-%@ ;  CQ1 = [0/6,0/6], Q2 = [0/3,1/6]
-%@ ;  CQ1 = [0/6,0/6], Q2 = [1/6,0/6]
-%@ ;  CQ1 = [0/6,1/5], Q2 = [0/3,1/6]
-%@ ;  CQ1 = [0/6,1/6], Q2 = [0/3,1/6]
-%@ ;  CQ1 = [0/6,1/6], Q2 = [1/6,0/6]
-%@ ;  false.
-*/
-
-% This is possibly interesting!  We learn from this that the 3+3
-% dose assignments are not right-adjoint to _any_ incremental
-% enrollment respecting the preorder (Q²,≼).
-% Or should I say rather that there is no IE (Q²,≼)⟶{0≤1≤2} that
-% is left-adjoint to _any_ mapping {0≤1≤2}⟶(Q²,≼) consistent with
-% the 3+3 dose assignments?
-
-% There are actually categorical notions that enable a clearer
-% exposition of what I've been after.  Specifically, I have been
-% looking for a *section* d:{0≤1≤2}⟶(Q²,≼) for the epimorphism
-% mapping final tallies to dose recommendations in {0≤1≤2}.
-% The formal discussion will best be worked out in the monograph,
-% then carried back here!
-
-% Let's see next whether the right-adjoint IE is similarly elusive.
+%@    Q1s = [[0/6,2/6]]. % Wow, non-empty!
 
