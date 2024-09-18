@@ -33,6 +33,7 @@ clpz:monotonic.
 Xs '≤' Ys :-
     same_length(Xs, Ys),
     length(Xs, D), D #> 0,
+    % TODO: Might I use must_be(list(integer), Xs) to avoid lambdas below?
     %maplist(#=<(0), Xs), % I get instantiation_error's here, as if
     %maplist(#=<(0), Ys), % each element demands to be #'ed separately.
     maplist(\X^(#X #>= 0), Xs), % Why must I do these in monotonic mode, instead
@@ -70,7 +71,6 @@ Xs '≤' Ys :-
 
 % Note that we must provide a dedicated implementation for ≰
 % because we cannot *safely* apply negation-as-failure to ≤.
-'≰'([X], [Y]) :- #X #> #Y, #Y #>= 0.
 '≰'([X|Xs], [Y|Ys]) :-
     same_length(Xs, Ys),
     length(Xs, D), D #> 0,
@@ -80,7 +80,7 @@ Xs '≤' Ys :-
     maplist(\Yi^(#Yi #>= 0), [Y|Ys]),
     % (The foregoing ensures both args are in ℕᴰ for some D≥1.)
     (   #X #> #Y
-    ;   Xs '≰' Ys % TODO: Render this more efficient with if_/3?
+    ;   Xs '≰' Ys
     ).
 
 %?- [1,1,1] '≰' Xs.
@@ -114,8 +114,9 @@ qs_Ts_Us(Qs, ΣTs, ΣUs) :-
 =/<$(Q1s, Q2s) :-
     qs_Ts_Us(Q1s, ST1s, SU1s),
     qs_Ts_Us(Q2s, ST2s, SU2s),
-    ST2s '≰' ST1s,
-    SU1s '≰' SU2s.
+    (   ST2s '≰' ST1s
+    ;   SU1s '≰' SU2s
+    ).
 
 % And now, importantly for (e.g.) pure construction of transitive reduction,
 % we obtain the reified version (=<$)/3:
