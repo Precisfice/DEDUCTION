@@ -114,7 +114,7 @@ qs_Ts_Us(Qs, ΣTs, ΣUs) :-
 =/<$(Q1s, Q2s) :-
     qs_Ts_Us(Q1s, ST1s, SU1s),
     qs_Ts_Us(Q2s, ST2s, SU2s),
-    (   ST2s '≰' ST1s
+    (   ST2s '≰' ST1s -> true
     ;   SU1s '≰' SU2s
     ).
 
