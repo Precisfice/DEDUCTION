@@ -747,6 +747,42 @@ q \preceq g_d \implies q \preceqx g_d \implies E(q) \leq d \implies F(q) \leq d 
 \end{equation}
 in which the first implication follows from $\preceq\;\subseteq\;\preceqx$, the second from assuming that $E$ is lower-Galois, and the third from assuming that $E$ extends $F$.  Furthermore, if we are looking for {\em best} candidate $g_0$ and $g_1$, then we would like these to be safest-possible tallies satisfying \eqref{gconstraint}.
 
+\subsection{Lower-Galois enrollments for the 2-dose \mbox{3+3} trial}
+
+\begin{lstlisting}
+qs_d_nmax(Qs, D, Nmax) :- % Enumerate $q \in Q^D$ with denominators up to Nmax
+  length(Qs, D),
+  maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
+  Ns ins 0..Nmax, label(Ns),
+  maplist(\T^N^(T in 0..N), Ts, Ns), label(Ts).
+
+% Qfs is the subset of $\Q_f$ with recommended dose in Range
+qfs_rec(Qfs, Range) :- findall(Qf, (mendtally_rec(Qf, D), D in Range), Qfs).
+
+g_rec(G, Rec) :- % G is a valid $g_\text{Rec}$ for the 2-dose 3+3 trial
+    Rec in 0..2, indomain(Rec),
+    qfs_rec(Qls, 0..Rec),
+    #Rec1 #= Rec + 1,
+    qfs_rec(Qhs, Rec1..2),
+    qs_d_nmax(G, 2, 6),
+    tfilter(\Q^(Q $\preceq$ G), Qhs, []), % no Qh falsely identified
+    tpartition(\Q^(Q $\preceq$ G), Qls, _, []). % no Ql gets missed
+
+?- setof(G0, g_rec(G0, 0), G0s).
+%@    G0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],
+%@           [1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+
+?- setof(G1, g_rec(G1, 1), G1s).
+%@    G1s = [[0/6,2/6]].
+
+?- setof(G2, g_rec(G2, 2), G2s).
+%@    G2s = [[0/6,0/5],[0/6,0/6]].
+\end{lstlisting}
+
+Thus, for the 2-dose \mbox{3+3} trial design, we find (somewhat remarkably) that solutions $(g_0, g_1, g_2)$ exist for the upper adjoint $G$ even without extending our basic preorder $\preceq$.  Indeed, we may have obtained as many as 18 distinct trial designs as a result, with properties worth comparing.
+
+One reason this result is of interest is that it may provide a formal and general basis for solving the problem of `rolling enrollment' \cite{skolnik_clinical_2007} for trial designs conceived in idealized terms which do not take account of practical realities such as unsynchronized arrivals of eligible trial participants, and pending toxicity evaluations \cite{frankel_model_2020}.
+
 \bibliographystyle{unsrt}
 \bibliography{DTAT}
 

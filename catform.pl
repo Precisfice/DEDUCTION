@@ -623,6 +623,15 @@ g_rec(G, Rec) :-
     tfilter(\Q^(Q =<$ G), Qhs, []), % no Qh falsely identified
     tpartition(\Q^(Q =<$ G), Qls, _, []). % no Ql gets missed
 
+%?- setof(G0, g_rec(G0, 0), G0s).
+%@    G0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+
+%?- setof(G1, g_rec(G1, 1), G1s).
+%@    G1s = [[0/6,2/6]].
+
+%?- setof(G2, g_rec(G2, 2), G2s).
+%@    G2s = [[0/6,0/5],[0/6,0/6]].
+
 %?- g_rec(G, 0).
 %@    G = [0/4,2/6]
 %@ ;  G = [1/5,0/4]
