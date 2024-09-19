@@ -550,68 +550,111 @@ Thus, it would seem that the 'obvious' visualization will be too complicated
 to yield new insight or intuition.  I may do better to search systematically
 for all possible enlargements of ≼ that would support an adjoint IE.
 
-If we call the enlargement ≼*, then we must search for (q₀, q₁) such that
+If we call the enlargement ≼*, then we must search for (g₀, g₁) such that
 
-  q ≼ q₀ ⟹ E(q) = 0  ∀ final tallies q
+  q ≼ g₀ ⟹ E(q) = 0  ∀ final tallies q
         and
-  q ≼ q₁ ⟹ E(q) ≤ 1  ∀ final tallies q,
+  q ≼ g₁ ⟹ E(q) ≤ 1  ∀ final tallies q,
 
 _and_ such that adding whatever new arrows are required by,
 
-  E(q) = 0 ⟹ q ≼* q₀  ∀ final tallies q
+  E(q) = 0 ⟹ q ≼* g₀  ∀ final tallies q
          and
-  E(q) = 1 ⟹ q ≼* q₁  ∀ final tallies q
+  E(q) = 1 ⟹ q ≼* g₁  ∀ final tallies q
 
-doesn't 'break' anything.  (I'm not even sure what I mean by that yet!)
+doesn't break 𝒬* = (Qᴰ, ≼*,〈0/0〉, +) as a monoidal preorder.
 
-What constraints does this put on (q₀, q₁)?  Let me not insist that they be
+What constraints does this put on (g₀, g₁)?  Let me not insist that they be
 drawn from the set of final tallies; they can be general elements of Q².
-To begin, the relation (— ≼ q₀) must not falsely hold for any final tally
+To begin, the relation (— ≼ g₀) must not falsely hold for any final tally
 having a dose recommendation above 0.  It need NOT correctly identify ALL
 final tallies q with rec = 0, however; we expect that the enlargement of ≼
-to ≼* will be needed to achieve this.  Nevertheless, good candidate q₀'s
+to ≼* will be needed to achieve this.  Nevertheless, good candidate g₀'s
 will not be needlessly unsafe, and should be maximal among such.
 
-Let's begin by exploring how many (if any!) such (q₀, q₁) exist.
+Let's begin by exploring how many (if any!) such (g₀, g₁) exist.
 */
 
-% candidate q0's ..
-cq0(Q) :-
-    findall(Q0, mendtally_rec(Q0, 0), Q0s),
-    findall(Qp, (mendtally_rec(Qp, D), D #> 0), Qps),
-    Q = [T1/N1, T2/N2],
-    N1 in 0..6, N2 in 0..6, label([N1,N2]),
-    T1 in 0..N1, T2 in 0..N2, label([T1,T2]),
-    tfilter(\Qi^(Qi =<$ Q), Qps, []), % no false identifications
-    %maplist(\Qi^(=<$(Qi,Q,false)), Qps),
-    % The tfilter/3 and maplist/2 above perform equivalently.
-    % Would there be any reason to prefer one over the other?
-    tpartition(\Qi^(Qi =<$ Q), Q0s, _, []).
+qs_d_nmax(Qs, D, Nmax) :-
+    length(Qs, D),
+    maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
+    Ns ins 0..Nmax, label(Ns),
+    maplist(\T^N^(T in 0..N), Ts, Ns), label(Ts).
 
-%?- time(setof(Q0, cq0(Q0), Q0s)).
-%@    % CPU time: 12.790s, 63_221_526 inferences
-%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
-%@    % CPU time: 14.067s, 66_314_481 inferences % using maplist/2 above
-%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
-%@    % CPU time: 12.788s, 63_221_444 inferences % using tfilter/3 above
-%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
-%@    % CPU time: 13.619s, 66_314_399 inferences % using tfilter/3 above
-%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
-%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
-%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
-%@    Q0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
-% Well, well!  Somewhat to my surprise, we do get some 'perfect' q₀ candidates.
+%?- N+\(setof(Q, qs_d_nmax(Q, 2, 3), Qs), length(Qs, N)).
+%@    N = 100.
 
-% candidate q1's ..
-cq1(Q) :-
-    findall(Q1, mendtally_rec(Q1, 1), Q1s),
-    findall(Q2, mendtally_rec(Q2, 2), Q2s),
-    Q = [T1/N1, T2/N2],
-    N1 in 0..6, N2 in 0..6, label([N1,N2]),
-    T1 in 0..N1, T2 in 0..N2, label([T1,T2]),
-    tfilter(\Qi^(Qi =<$ Q), Q2s, []), % no false identifications
-    tpartition(\Qi^(Qi =<$ Q), Q1s, _, []).
+% TODO: Generate the several relevant subsets of 𝒬f
+qfs_rec(Qfs, Range) :-
+    findall(Qf, (mendtally_rec(Qf, D), D in Range), Qfs).
 
-%?- setof(Q1, cq1(Q1), Q1s).
-%@    Q1s = [[0/6,2/6]]. % Wow, non-empty!
+%?- qfs_rec(Q0s, 0), length(Q0s, L0).
+%@    Q0s = [[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,3/3],[2/6,3/6],[2/6,4/6],[3/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,2/6],[3/6,3/3],[3/6,3/6],[3/6,4/6],[4/6,0/0]], L0 = 15.
 
+%?- qfs_rec(Q12s, 1..2), length(Q12s, L12).
+%@    Q12s = [[0/3,0/6],[0/3,1/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,0/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]], L12 = 14.
+
+% candidate g₀'s ..
+g0(G) :-
+    qfs_rec(Q0s, 0), qfs_rec(Qps, 1..2),
+    qs_d_nmax(G, 2, 6),
+    tfilter(\Q^(Q =<$ G), Qps, []), % no false identifications
+    tpartition(\Q^(Q =<$ G), Q0s, _, []).
+
+%?- setof(G0, g0(G0), G0s).
+%@    G0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
+
+% candidate g₁'s ..
+g1(G) :-
+    qfs_rec(Q1s, 1), qfs_rec(Q2s, 2),
+    qs_d_nmax(G, 2, 6),
+    tfilter(\Q^(Q =<$ G), Q2s, []), % no false identifications
+    tpartition(\Q^(Q =<$ G), Q1s, _, []).
+
+%?- setof(G1, g1(G1), G1s).
+%@    G1s = [[0/6,2/6]].
+
+g_rec(G, Rec) :-
+    Rec in 0..2, indomain(Rec),
+    qfs_rec(Qls, 0..Rec),
+    #Rec1 #= Rec + 1,
+    qfs_rec(Qhs, Rec1..2),
+    qs_d_nmax(G, 2, 6),
+    tfilter(\Q^(Q =<$ G), Qhs, []), % no Qh falsely identified
+    tpartition(\Q^(Q =<$ G), Qls, _, []). % no Ql gets missed
+
+%?- g_rec(G, 0).
+%@    G = [0/4,2/6]
+%@ ;  G = [1/5,0/4]
+%@ ;  G = [1/5,0/5]
+%@ ;  G = [1/5,1/5]
+%@ ;  G = [1/5,0/6]
+%@ ;  G = [1/5,1/6]
+%@ ;  G = [2/6,0/4]
+%@ ;  G = [2/6,0/5]
+%@ ;  G = [2/6,0/6]
+%@ ;  false.
+
+%?- g_rec(G, 1).
+%@    G = [0/6,2/6]
+%@ ;  false.
+
+%?- g_rec(G, 2).
+%@    G = [0/6,0/5]
+%@ ;  G = [0/6,0/6]
+%@ ;  false.
+
+%?- g_rec(Gd, D).
+%@    Gd = [0/4,2/6], D = 0
+%@ ;  Gd = [1/5,0/4], D = 0
+%@ ;  Gd = [1/5,0/5], D = 0
+%@ ;  Gd = [1/5,1/5], D = 0
+%@ ;  Gd = [1/5,0/6], D = 0
+%@ ;  Gd = [1/5,1/6], D = 0
+%@ ;  Gd = [2/6,0/4], D = 0
+%@ ;  Gd = [2/6,0/5], D = 0
+%@ ;  Gd = [2/6,0/6], D = 0
+%@ ;  Gd = [0/6,2/6], D = 1
+%@ ;  Gd = [0/6,0/5], D = 2
+%@ ;  Gd = [0/6,0/6], D = 2
+%@ ;  false.
