@@ -16,18 +16,19 @@
 :- use_module(rcpearl).
 :- use_module(rectify).
 
-:- table endtally_rec/2.
+:- table d_endtally_rec/3.
 
 % This predicate describes precisely the final tallies and dose recommendations
-% which terminate the paths of the 2-dose 3+3 design as described by our DCG.
+% which terminate the paths of the D-dose 3+3 design as described by our DCG.
 % Memoizing it via *tabling* supports a _complete_ description at the cost of
 % only a single comprehensive elaboration of the DCG.
-endtally_rec(FinalTally, Rec) :-
-    phrase(path([0/0]-[0/0]), Path),
+d_endtally_rec(D, FinalTally, Rec) :-
+    length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
+    phrase(path([I]-Is), Path),
     phrase((..., [Endstate,stop,recommend_dose(Rec)]), Path),
     state_tallies(Endstate, FinalTally).
     
-%?- endtally_rec(Q, D).
+%?- d_endtally_rec(2, Q, D).
 %@    Q = [0/3,0/6], D = 2
 %@ ;  Q = [0/3,1/6], D = 2
 %@ ;  Q = [0/6,2/3], D = 1
@@ -61,8 +62,8 @@ endtally_rec(FinalTally, Rec) :-
 
 % Now we readily "check the functoriality" of the dose recommendations
 /*
-?- endtally_rec(Q1, D1),
-   endtally_rec(Q2, D2),
+?- d_endtally_rec(2, Q1, D1),
+   d_endtally_rec(2, Q2, D2),
    Q1 =<$ Q2, % Q1 evidently no safer than Q2,
    D1 #>  D2. % yet recommended D1 exceeds D2.
 %@    Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
@@ -71,8 +72,8 @@ endtally_rec(FinalTally, Rec) :-
 
 % A different way to put this would be:
 /*
-?- endtally_rec(Q1, D1),
-   endtally_rec(Q2, D2),
+?- d_endtally_rec(2, Q1, D1),
+   d_endtally_rec(2, Q2, D2),
       Q1 =<$ Q2,  % Q1 is evidently no safer than Q2,
    #\(D1 #=< D2). % yet D1 is NOT likewise related to D2.
 %@    Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
@@ -82,7 +83,7 @@ endtally_rec(FinalTally, Rec) :-
 % That initial listing in Section 4.1 ought to have been done with
 % this predicate too!
 /*
-?- N+\(setof(Q-Rec, endtally_rec(Q, Rec), QRecs),
+?- N+\(setof(Q-Rec, d_endtally_rec(2, Q, Rec), QRecs),
        maplist(portray_clause, QRecs),
        length(QRecs, N)).
 %@ [0/3,0/6]-2.
@@ -206,7 +207,7 @@ tally_nextdose(Tally, D) :-
 %@ ;  false. % 13 answers if we exclude final tallies
 
 % Let us include all of the Final recs also:
-tally_nextdose(Tally, D) :- endtally_rec(Tally, D).
+tally_nextdose(Tally, D) :- d_endtally_rec(2, Tally, D).
 
 /*
 %?- tally_nextdose(Tally, D).
@@ -575,6 +576,62 @@ will not be needlessly unsafe, and should be maximal among such.
 Let's begin by exploring how many (if any!) such (g₀, g₁) exist.
 */
 
+% But first, let's check for non-functorialities in the D=3 trial:
+
+/*
+?- d_endtally_rec(3, Q1, D1),
+   d_endtally_rec(3, Q2, D2),
+   Q1 =<$ Q2, % Q1 evidently no safer than Q2,
+   D1 #>  D2. % yet recommended D1 exceeds D2.
+%@    Q1 = [0/3,1/6,1/6], D1 = 3, Q2 = [0/3,0/6,2/6], D2 = 2
+%@ ;  Q1 = [1/6,1/6,1/6], D1 = 3, Q2 = [1/6,0/6,2/6], D2 = 2
+%@ ;  Q1 = [1/6,1/6,2/3], D1 = 2, Q2 = [0/6,2/6,2/3], D2 = 1
+%@ ;  Q1 = [1/6,1/6,2/3], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,2/6], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,0/0], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,2/3], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,3/3], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,3/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/6], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/6], D1 = 2, Q2 = [0/6,2/6,3/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,4/6], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,4/6], D1 = 2, Q2 = [0/6,2/6,3/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,4/6], D1 = 2, Q2 = [0/6,2/6,4/6], D2 = 1
+%@ ;  false. % 15 non-functorial pairs in D=3 trial!
+*/
+
+% Are any of these pharmacologic non-monotonicities genuinely new?
+% How many reduce to the lone D=2 case of [1/6,1/6] vs [0/6,2/6],
+% after projecting off one dose?
+% All of them, in fact!  The first two solutions reduce thus upon
+% projecting off the lowest dose, and the remaining 13 do so when
+% the top dose is removed.
+
+%:- table d_mendtally_rec/3. % TODO: Understand why I cannot table this.
+% (I can hardly use tabling safely, if I don't understand why it failed here!)
+d_mendtally_rec(D, Q, X) :- d_mendtally_rec_(D, Q, X, _).
+
+d_mendtally_rec_(D, Q, X, Xls) :-
+    d_endtally_rec(D, Q, Xu), % Q-Xu is a final tally w/ *unrectified* rec, from a D-dose 3+3
+    findall(Xl, (d_endtally_rec(D, Ql, Xl),
+                 Xu #> Xl,  % Final tally Ql received a rec *lower* than Xu,
+                 Q =<$ Ql), % although it is evidently at least as safe as Q.
+            Xls),
+    foldl(clpz:min_, Xls, Xu, X).
+
+%?- d_mendtally_rec_(3, Q, D, [_|_]).
+%@    Q = [0/3,1/6,1/6], D = 2
+%@ ;  Q = [1/6,1/6,1/6], D = 2
+%@ ;  Q = [1/6,1/6,2/3], D = 1
+%@ ;  Q = [1/6,1/6,2/6], D = 1
+%@ ;  Q = [1/6,1/6,3/3], D = 1
+%@ ;  Q = [1/6,1/6,3/6], D = 1
+%@ ;  Q = [1/6,1/6,4/6], D = 1
+%@ ;  false.
+% NB: Indeed there were only 7 unique Q1's
+%     among the 15 solutions found above.
+
 qs_d_nmax(Qs, D, Nmax) :-
     length(Qs, D),
     maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
@@ -584,19 +641,19 @@ qs_d_nmax(Qs, D, Nmax) :-
 %?- N+\(setof(Q, qs_d_nmax(Q, 2, 3), Qs), length(Qs, N)).
 %@    N = 100.
 
-% TODO: Generate the several relevant subsets of 𝒬f
-qfs_rec(Qfs, Range) :-
-    findall(Qf, (mendtally_rec(Qf, D), D in Range), Qfs).
+% Generate the several relevant subsets of 𝒬f
+d_qfs_rec(D, Qfs, Xrange) :-
+    findall(Qf, (d_mendtally_rec(D, Qf, X), X in Xrange), Qfs).
 
-%?- qfs_rec(Q0s, 0), length(Q0s, L0).
+%?- d_qfs_rec(2, Q0s, 0), length(Q0s, L0).
 %@    Q0s = [[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,3/3],[2/6,3/6],[2/6,4/6],[3/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,2/6],[3/6,3/3],[3/6,3/6],[3/6,4/6],[4/6,0/0]], L0 = 15.
 
-%?- qfs_rec(Q12s, 1..2), length(Q12s, L12).
+%?- d_qfs_rec(2, Q12s, 1..2), length(Q12s, L12).
 %@    Q12s = [[0/3,0/6],[0/3,1/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,0/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]], L12 = 14.
 
-% candidate g₀'s ..
+% candidate g₀'s for D=2 case..
 g0(G) :-
-    qfs_rec(Q0s, 0), qfs_rec(Qps, 1..2),
+    d_qfs_rec(2, Q0s, 0), d_qfs_rec(2, Qps, 1..2),
     qs_d_nmax(G, 2, 6),
     tfilter(\Q^(Q =<$ G), Qps, []), % no false identifications
     tpartition(\Q^(Q =<$ G), Q0s, _, []).
@@ -606,7 +663,7 @@ g0(G) :-
 
 % candidate g₁'s ..
 g1(G) :-
-    qfs_rec(Q1s, 1), qfs_rec(Q2s, 2),
+    d_qfs_rec(2, Q1s, 1), d_qfs_rec(2, Q2s, 2),
     qs_d_nmax(G, 2, 6),
     tfilter(\Q^(Q =<$ G), Q2s, []), % no false identifications
     tpartition(\Q^(Q =<$ G), Q1s, _, []).
@@ -614,56 +671,55 @@ g1(G) :-
 %?- setof(G1, g1(G1), G1s).
 %@    G1s = [[0/6,2/6]].
 
-g_rec(G, Rec) :-
-    Rec in 0..2, indomain(Rec),
-    qfs_rec(Qls, 0..Rec),
-    #Rec1 #= Rec + 1,
-    qfs_rec(Qhs, Rec1..2),
-    qs_d_nmax(G, 2, 6),
-    tfilter(\Q^(Q =<$ G), Qhs, []), % no Qh falsely identified
-    tpartition(\Q^(Q =<$ G), Qls, _, []). % no Ql gets missed
+% Generalize to any D
+d_g_rec(D, G, X) :-
+    X in 0..D, indomain(X),
+    d_qfs_rec(D, Qls, 0..X),
+    #Xplus1 #= X + 1,
+    d_qfs_rec(D, Qhs, Xplus1..D),
+    % TODO: Consider trimming Qls and Qhs to smaller 'boundaries'
+    %       such that Bls ⊂ Qls and ∀ q∈Qls ∃ b∈Bls s.t. q ≼ b,
+    %       and likewise Bhs ⊂ Qhs, ∀ q∈Qhs ∃ b∈Bhs s.t. b ≼ q.
+    %       This will allow me to post smaller sets of constraints
+    %       without redundancy due to transitivity.
+    qs_d_nmax(G, D, 6),
+    maplist(\Ql^(Ql =<$ G), Qls),
+    maplist(\Qh^(=<$(Qh, G, false)), Qhs).
 
-%?- setof(G0, g_rec(G0, 0), G0s).
-%@    G0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
-
-%?- setof(G1, g_rec(G1, 1), G1s).
-%@    G1s = [[0/6,2/6]].
-
-%?- setof(G2, g_rec(G2, 2), G2s).
-%@    G2s = [[0/6,0/5],[0/6,0/6]].
-
-%?- g_rec(G, 0).
-%@    G = [0/4,2/6]
-%@ ;  G = [1/5,0/4]
-%@ ;  G = [1/5,0/5]
-%@ ;  G = [1/5,1/5]
-%@ ;  G = [1/5,0/6]
-%@ ;  G = [1/5,1/6]
-%@ ;  G = [2/6,0/4]
-%@ ;  G = [2/6,0/5]
-%@ ;  G = [2/6,0/6]
+%?- d_g_rec(2, Gd, X).
+%@    Gd = [0/4,2/6], X = 0
+%@ ;  Gd = [1/5,0/4], X = 0
+%@ ;  Gd = [1/5,0/5], X = 0
+%@ ;  Gd = [1/5,1/5], X = 0
+%@ ;  Gd = [1/5,0/6], X = 0
+%@ ;  Gd = [1/5,1/6], X = 0
+%@ ;  Gd = [2/6,0/4], X = 0
+%@ ;  Gd = [2/6,0/5], X = 0
+%@ ;  Gd = [2/6,0/6], X = 0
+%@ ;  Gd = [0/6,2/6], X = 1
+%@ ;  Gd = [0/6,0/5], X = 2
+%@ ;  Gd = [0/6,0/6], X = 2
 %@ ;  false.
 
-%?- g_rec(G, 1).
-%@    G = [0/6,2/6]
-%@ ;  false.
+% Might we find an adjunction (g₀, g₁, g₂) for the D=3 case as well?
 
-%?- g_rec(G, 2).
-%@    G = [0/6,0/5]
-%@ ;  G = [0/6,0/6]
-%@ ;  false.
+%?- time(N+\(setof(G0, d_g_rec(3, G0, 0), G0s), length(G0s, N))).
+%@    % CPU time: 77.161s, 374_863_642 inferences
+%@    N = 43.
 
-%?- g_rec(Gd, D).
-%@    Gd = [0/4,2/6], D = 0
-%@ ;  Gd = [1/5,0/4], D = 0
-%@ ;  Gd = [1/5,0/5], D = 0
-%@ ;  Gd = [1/5,1/5], D = 0
-%@ ;  Gd = [1/5,0/6], D = 0
-%@ ;  Gd = [1/5,1/6], D = 0
-%@ ;  Gd = [2/6,0/4], D = 0
-%@ ;  Gd = [2/6,0/5], D = 0
-%@ ;  Gd = [2/6,0/6], D = 0
-%@ ;  Gd = [0/6,2/6], D = 1
-%@ ;  Gd = [0/6,0/5], D = 2
-%@ ;  Gd = [0/6,0/6], D = 2
-%@ ;  false.
+/*
+?- X^N+\(X in 0..3, indomain(X),
+         time(setof(Gx, d_g_rec(3, Gx, X), Gxs)),
+         length(Gxs, N)).
+%@    % CPU time: 88.621s, 387_292_689 inferences
+%@    X = 0, N = 43
+%@ ;  % CPU time: 43.125s, 213_677_121 inferences
+%@    X = 1, N = 1
+%@ ;  % CPU time: 40.823s, 202_204_056 inferences
+%@    % CPU time: 38.725s, 187_284_005 inferences
+%@    X = 3, N = 5.
+*/
+
+%?- X^N+\(X = 2, time(setof(Gx, d_g_rec(3, Gx, X), Gxs)), length(Gxs, N)).
+%@    % CPU time: 45.099s, 214_633_039 inferences
+%@    false. % Aha!  There is no g₂ for the D=3 trial.
