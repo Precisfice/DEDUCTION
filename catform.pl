@@ -709,17 +709,42 @@ d_g_rec(D, G, X) :-
 
 /*
 ?- X^N+\(X in 0..3, indomain(X),
-         time(setof(Gx, d_g_rec(3, Gx, X), Gxs)),
+         time(findall(Gx, d_g_rec(3, Gx, X), Gxs)),
          length(Gxs, N)).
-%@    % CPU time: 88.621s, 387_292_689 inferences
+%@    % CPU time: 76.299s, 387_292_412 inferences
 %@    X = 0, N = 43
-%@ ;  % CPU time: 43.125s, 213_677_121 inferences
+%@ ;  % CPU time: 41.496s, 213_677_096 inferences
 %@    X = 1, N = 1
-%@ ;  % CPU time: 40.823s, 202_204_056 inferences
-%@    % CPU time: 38.725s, 187_284_005 inferences
+%@ ;  % CPU time: 39.156s, 202_204_038 inferences
+%@    X = 2, N = 0 % Aha! ∄ g₂ for the 3-dose 3+3 trial.
+%@ ;  % CPU time: 36.283s, 187_283_956 inferences
 %@    X = 3, N = 5.
 */
 
-%?- X^N+\(X = 2, time(setof(Gx, d_g_rec(3, Gx, X), Gxs)), length(Gxs, N)).
-%@    % CPU time: 45.099s, 214_633_039 inferences
-%@    false. % Aha!  There is no g₂ for the D=3 trial.
+/*
+?- X^N+\(D = 2, X in 0..D, indomain(X),
+         time(findall(Gx, d_g_rec(D, Gx, X), Gxs)),
+         length(Gxs, N)).
+%@    % CPU time: 3.333s, 16_694_246 inferences
+%@    X = 0, N = 9
+%@ ;  % CPU time: 1.406s, 7_240_467 inferences
+%@    X = 1, N = 1
+%@ ;  % CPU time: 1.291s, 6_545_161 inferences
+%@    X = 2, N = 2.
+*/
+
+/*
+?- X^N+\(D = 4, X in 0..D, indomain(X),
+         time(findall(Gx, d_g_rec(D, Gx, X), Gxs)),
+         length(Gxs, N)).
+%@    % CPU time: 1913.174s, 9_438_716_080 inferences
+%@    X = 0, N = 232
+%@ ;  % CPU time: 1193.057s, 6_100_909_536 inferences
+%@    X = 1, N = 0
+%@ ;  % CPU time: 1176.405s, 5_996_592_411 inferences
+%@    X = 2, N = 0
+%@ ;  % CPU time: 1096.823s, 5_749_106_680 inferences
+%@    X = 3, N = 0
+%@ ;  % CPU time: 1031.268s, 5_444_206_447 inferences
+%@    X = 4, N = 14.
+*/
