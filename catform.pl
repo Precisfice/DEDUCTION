@@ -671,20 +671,57 @@ g1(G) :-
 %?- setof(G1, g1(G1), G1s).
 %@    G1s = [[0/6,2/6]].
 
+qs_maxs(Qs, Maxs) :- qs_belows_maximals(Qs, _, Maxs).
+qs_mins(Qs, Mins) :- qs_minimals_aboves(Qs, Mins, _).
+
+% Although weam usually need only the *maximal* or *minimal* set,
+% let's declare initially an easier-to-test _partitioning_.
+qs_belows_maximals([], [], []).
+qs_belows_maximals([Q|Qs], Ls, Hs) :-
+    if_(tmember_t(=<$(Q), Qs), % ∃ Q' ∈ Qs such that Q ≼ Q' ?
+        (   Ls = [Q|Ls1], qs_belows_maximals(Qs, Ls1, Hs)),
+        (   Hs = [Q|Hs1], qs_belows_maximals(Qs, Ls, Hs1))
+       ).
+
+qs_minimals_aboves([], [], []).
+qs_minimals_aboves([Q|Qs], Ls, Hs) :-
+    if_(tmember_t(\Qi^(Qi =<$ Q), Qs),
+        (   Hs = [Q|Hs1], qs_minimals_aboves(Qs, Ls, Hs1)),
+        (   Ls = [Q|Ls1], qs_minimals_aboves(Qs, Ls1, Hs))
+       ).
+
+%@    Bs = [[1/6,1/6]], As = [[0/6,2/6]].
+% Let's test it now..
+%?- N+\(d_qfs_rec(3, Qls, 0..1), length(Qls, N)).
+%@    N = 70.
+
+/*
+?- Nb^Nm+\(d_qfs_rec(3, Qs, 0..1),
+           qs_belows_maximals(Qs, Bs, Ms),
+           length(Bs, Nb),
+           length(Ms, Nm)).
+%@    Nb = 28, Nm = 42.
+*/
+
+/*
+?- Nm^Na+\(d_qfs_rec(3, Qs, 0..1),
+           qs_minimals_aboves(Qs, Ms, As),
+           length(Ms, Nm),
+           length(As, Na)).
+%@    Nm = 6, Na = 64.
+*/
+
 % Generalize to any D
 d_g_rec(D, G, X) :-
     X in 0..D, indomain(X),
     d_qfs_rec(D, Qls, 0..X),
     #Xplus1 #= X + 1,
     d_qfs_rec(D, Qhs, Xplus1..D),
-    % TODO: Consider trimming Qls and Qhs to smaller 'boundaries'
-    %       such that Bls ⊂ Qls and ∀ q∈Qls ∃ b∈Bls s.t. q ≼ b,
-    %       and likewise Bhs ⊂ Qhs, ∀ q∈Qhs ∃ b∈Bhs s.t. b ≼ q.
-    %       This will allow me to post smaller sets of constraints
-    %       without redundancy due to transitivity.
+    qs_maxs(Qls, Qls1),
+    qs_mins(Qhs, Qhs1),
     qs_d_nmax(G, D, 6),
-    maplist(\Ql^(Ql =<$ G), Qls),
-    maplist(\Qh^(=<$(Qh, G, false)), Qhs).
+    maplist(\Ql^(Ql =<$ G), Qls1),
+    maplist(\Qh^(=<$(Qh, G, false)), Qhs1).
 
 %?- d_g_rec(2, Gd, X).
 %@    Gd = [0/4,2/6], X = 0
@@ -711,13 +748,13 @@ d_g_rec(D, G, X) :-
 ?- X^N+\(X in 0..3, indomain(X),
          time(findall(Gx, d_g_rec(3, Gx, X), Gxs)),
          length(Gxs, N)).
-%@    % CPU time: 76.299s, 387_292_412 inferences
+%@    % CPU time: 56.525s, 289_274_517 inferences
 %@    X = 0, N = 43
-%@ ;  % CPU time: 41.496s, 213_677_096 inferences
+%@ ;  % CPU time: 40.034s, 207_764_753 inferences
 %@    X = 1, N = 1
-%@ ;  % CPU time: 39.156s, 202_204_038 inferences
+%@ ;  % CPU time: 39.278s, 205_577_696 inferences
 %@    X = 2, N = 0 % Aha! ∄ g₂ for the 3-dose 3+3 trial.
-%@ ;  % CPU time: 36.283s, 187_283_956 inferences
+%@ ;  % CPU time: 38.145s, 200_324_442 inferences
 %@    X = 3, N = 5.
 */
 
@@ -725,11 +762,11 @@ d_g_rec(D, G, X) :-
 ?- X^N+\(D = 2, X in 0..D, indomain(X),
          time(findall(Gx, d_g_rec(D, Gx, X), Gxs)),
          length(Gxs, N)).
-%@    % CPU time: 3.333s, 16_694_246 inferences
+%@    % CPU time: 2.643s, 13_194_425 inferences
 %@    X = 0, N = 9
-%@ ;  % CPU time: 1.406s, 7_240_467 inferences
+%@ ;  % CPU time: 1.493s, 7_637_280 inferences
 %@    X = 1, N = 1
-%@ ;  % CPU time: 1.291s, 6_545_161 inferences
+%@ ;  % CPU time: 1.471s, 7_602_249 inferences
 %@    X = 2, N = 2.
 */
 
@@ -737,14 +774,14 @@ d_g_rec(D, G, X) :-
 ?- X^N+\(D = 4, X in 0..D, indomain(X),
          time(findall(Gx, d_g_rec(D, Gx, X), Gxs)),
          length(Gxs, N)).
-%@    % CPU time: 1913.174s, 9_438_716_080 inferences
+%@    % CPU time: 1398.781s, 7_361_539_491 inferences
 %@    X = 0, N = 232
-%@ ;  % CPU time: 1193.057s, 6_100_909_536 inferences
+%@ ;  % CPU time: 1103.711s, 5_832_391_140 inferences
 %@    X = 1, N = 0
-%@ ;  % CPU time: 1176.405s, 5_996_592_411 inferences
+%@ ;  % CPU time: 1101.191s, 5_795_248_680 inferences
 %@    X = 2, N = 0
-%@ ;  % CPU time: 1096.823s, 5_749_106_680 inferences
+%@ ;  % CPU time: 1080.091s, 5_690_686_505 inferences
 %@    X = 3, N = 0
-%@ ;  % CPU time: 1031.268s, 5_444_206_447 inferences
+%@ ;  % CPU time: 1040.222s, 5_536_587_379 inferences
 %@    X = 4, N = 14.
 */
