@@ -671,45 +671,29 @@ g1(G) :-
 %?- setof(G1, g1(G1), G1s).
 %@    G1s = [[0/6,2/6]].
 
-qs_maxs(Qs, Maxs) :- qs_belows_maximals(Qs, _, Maxs).
-qs_mins(Qs, Mins) :- qs_minimals_aboves(Qs, Mins, _).
-
-% Although weam usually need only the *maximal* or *minimal* set,
-% let's declare initially an easier-to-test _partitioning_.
-qs_belows_maximals([], [], []).
-qs_belows_maximals([Q|Qs], Ls, Hs) :-
-    if_(tmember_t(=<$(Q), Qs), % ∃ Q' ∈ Qs such that Q ≼ Q' ?
-        (   Ls = [Q|Ls1], qs_belows_maximals(Qs, Ls1, Hs)),
-        (   Hs = [Q|Hs1], qs_belows_maximals(Qs, Ls, Hs1))
+qs_maxs([], []).
+qs_maxs([Q|Qs], Maxs) :-
+    tpartition(\Qi^(Qi =<$ Q), Qs, _, Qs1),
+    if_(tmember_t(=<$(Q), Qs1), % ∃ Q' ∈ Qs s.t. Q ≼ Q' ?
+        qs_maxs(Qs1, Maxs), % if so, Q is not maximal
+        (   Maxs = [Q|Maxs1], % otherwise, it is
+            qs_maxs(Qs1, Maxs1)
+        )
        ).
 
-qs_minimals_aboves([], [], []).
-qs_minimals_aboves([Q|Qs], Ls, Hs) :-
-    if_(tmember_t(\Qi^(Qi =<$ Q), Qs),
-        (   Hs = [Q|Hs1], qs_minimals_aboves(Qs, Ls, Hs1)),
-        (   Ls = [Q|Ls1], qs_minimals_aboves(Qs, Ls1, Hs))
+qs_mins([], []).
+qs_mins([Q|Qs], Mins) :-
+    tpartition(=<$(Q), Qs, _, Qs1),
+    if_(tmember_t(\Ql^(Ql =<$ Q), Qs1), % ∃ Q' ∈ Qs s.t. Q' ≼ Q ?
+        qs_mins(Qs1, Mins), % if so, Q is not minimal
+        (   Mins = [Q|Mins1], % otherwise, it is
+            qs_mins(Qs1, Mins1)
+        )
        ).
 
-%@    Bs = [[1/6,1/6]], As = [[0/6,2/6]].
 % Let's test it now..
 %?- N+\(d_qfs_rec(3, Qls, 0..1), length(Qls, N)).
 %@    N = 70.
-
-/*
-?- Nb^Nm+\(d_qfs_rec(3, Qs, 0..1),
-           qs_belows_maximals(Qs, Bs, Ms),
-           length(Bs, Nb),
-           length(Ms, Nm)).
-%@    Nb = 28, Nm = 42.
-*/
-
-/*
-?- Nm^Na+\(d_qfs_rec(3, Qs, 0..1),
-           qs_minimals_aboves(Qs, Ms, As),
-           length(Ms, Nm),
-           length(As, Na)).
-%@    Nm = 6, Na = 64.
-*/
 
 % Generalize to any D
 d_g_rec(D, G, X) :-
@@ -741,20 +725,20 @@ d_g_rec(D, G, X) :-
 % Might we find an adjunction (g₀, g₁, g₂) for the D=3 case as well?
 
 %?- time(N+\(setof(G0, d_g_rec(3, G0, 0), G0s), length(G0s, N))).
-%@    % CPU time: 77.161s, 374_863_642 inferences
+%@    % CPU time: 46.689s, 239_030_535 inferences
 %@    N = 43.
 
 /*
 ?- X^N+\(X in 0..3, indomain(X),
          time(findall(Gx, d_g_rec(3, Gx, X), Gxs)),
          length(Gxs, N)).
-%@    % CPU time: 56.525s, 289_274_517 inferences
+%@    % CPU time: 46.731s, 239_030_248 inferences
 %@    X = 0, N = 43
-%@ ;  % CPU time: 40.034s, 207_764_753 inferences
+%@ ;  % CPU time: 35.628s, 184_445_551 inferences
 %@    X = 1, N = 1
-%@ ;  % CPU time: 39.278s, 205_577_696 inferences
+%@ ;  % CPU time: 35.139s, 182_183_755 inferences
 %@    X = 2, N = 0 % Aha! ∄ g₂ for the 3-dose 3+3 trial.
-%@ ;  % CPU time: 38.145s, 200_324_442 inferences
+%@ ;  % CPU time: 35.282s, 183_621_992 inferences
 %@    X = 3, N = 5.
 */
 
@@ -762,11 +746,11 @@ d_g_rec(D, G, X) :-
 ?- X^N+\(D = 2, X in 0..D, indomain(X),
          time(findall(Gx, d_g_rec(D, Gx, X), Gxs)),
          length(Gxs, N)).
-%@    % CPU time: 2.643s, 13_194_425 inferences
+%@    % CPU time: 2.309s, 11_426_733 inferences
 %@    X = 0, N = 9
-%@ ;  % CPU time: 1.493s, 7_637_280 inferences
+%@ ;  % CPU time: 1.247s, 6_371_451 inferences
 %@    X = 1, N = 1
-%@ ;  % CPU time: 1.471s, 7_602_249 inferences
+%@ ;  % CPU time: 1.300s, 6_523_869 inferences
 %@    X = 2, N = 2.
 */
 
@@ -774,14 +758,14 @@ d_g_rec(D, G, X) :-
 ?- X^N+\(D = 4, X in 0..D, indomain(X),
          time(findall(Gx, d_g_rec(D, Gx, X), Gxs)),
          length(Gxs, N)).
-%@    % CPU time: 1398.781s, 7_361_539_491 inferences
+%@    % CPU time: 1190.674s, 6_233_199_963 inferences
 %@    X = 0, N = 232
-%@ ;  % CPU time: 1103.711s, 5_832_391_140 inferences
+%@ ;  % CPU time: 1033.972s, 5_422_743_224 inferences
 %@    X = 1, N = 0
-%@ ;  % CPU time: 1101.191s, 5_795_248_680 inferences
+%@ ;  % CPU time: 1020.932s, 5_339_744_598 inferences
 %@    X = 2, N = 0
-%@ ;  % CPU time: 1080.091s, 5_690_686_505 inferences
+%@ ;  % CPU time: 1007.768s, 5_320_285_487 inferences
 %@    X = 3, N = 0
-%@ ;  % CPU time: 1040.222s, 5_536_587_379 inferences
+%@ ;  % CPU time: 1003.634s, 5_319_840_324 inferences
 %@    X = 4, N = 14.
 */
