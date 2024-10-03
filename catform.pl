@@ -696,16 +696,18 @@ qs_mins([Q|Qs], Mins) :-
 %@    N = 70.
 
 % Generalize to any D
-d_g_rec(D, G, X) :-
+d_g_rec(D, G, X, Nmax) :-
     X in 0..D, indomain(X),
     d_qfs_rec(D, Qls, 0..X),
     #Xplus1 #= X + 1,
     d_qfs_rec(D, Qhs, Xplus1..D),
     qs_maxs(Qls, Qls1),
     qs_mins(Qhs, Qhs1),
-    qs_d_nmax(G, D, 6),
+    qs_d_nmax(G, D, Nmax),
     maplist(\Ql^(Ql =<$ G), Qls1),
     maplist(\Qh^(=<$(Qh, G, false)), Qhs1).
+
+d_g_rec(D, G, X) :- d_g_rec(D, G, X, 6).
 
 %?- d_g_rec(2, Gd, X).
 %@    Gd = [0/4,2/6], X = 0
@@ -768,4 +770,191 @@ d_g_rec(D, G, X) :-
 %@    X = 3, N = 0
 %@ ;  % CPU time: 1003.634s, 5_319_840_324 inferences
 %@    X = 4, N = 14.
+*/
+
+% For the D=3 case, let us investigate how closely we approximate
+% an ideal g₂ value, both from above and below.
+
+/*
+Since every candidate g₂ will be a [possibly poor] approximation,
+We'll need some heuristic initially to focus on the best ones.
+To begin, then, let's find g₂ values that err only 'to one side'.
+
+Recall how we defined g₂:
+
+  q ≼ g₂ ⟺ Rec(q) ≤ 2.  (**)
+
+Best-approximations to gₓ from below bₓ and above aₓ will be
+(respectively) the maximal or minimal elements of the sets,
+
+    { bₓ ∈ Qᴰ | q ≼ bₓ ⟹ Rec(q) ≤ x }
+and
+    { aₓ ∈ Qᴰ | Rec(q) ≤ x ⟹ q ≼ aₓ }
+
+which support separately the (⟹) and (⟸) directions of (**).
+
+Given that we hope to enlarge ≼ as a way to improve our approximation,
+we should examine the half that may miss some q's for which Rec(q) = 2
+but that does not falsely capture any X=3 final tallies.  (Adding more
+arrows to ≼ will help it to 'catch' the missed q's, but cannot release
+any false captures.)
+
+Thus, we should be looking for values b₂ ≼ g₂ that might not be
+high enough up the ≼ ladder to catch every q with Rec(q) ≤ 2,
+but that don't mis-identify any q for which Rec(q) > 2.
+*/
+
+% bₓ ∈ Qᴰ, q ≼ bₓ ⟹ Rec(q) ≤ x
+% .. or /equivalently/ ..
+% bₓ ∈ Qᴰ, Rec(q) > x ⟹ q ⋠ bₓ.
+d_b_rec(D, B, X) :-
+    X in 0..D, indomain(X),
+    #Xplus1 #= X + 1,
+    d_qfs_rec(D, Qhs, Xplus1..D),
+    length(Qhs, Nqh), format("Nqh = ~d~n", [Nqh]),
+    qs_mins(Qhs, Qhs1),
+    length(Qhs1, Nqh1), format("Nqh1 = ~d~n", [Nqh1]),
+    qs_d_nmax(B, D, 6),
+    maplist(\Qh^(=<$(Qh, B, false)), Qhs1).
+
+/*
+?- N+\(findall(B, d_b_rec(3, B, 2), Bs),
+       length(Bs, NBs), format("#Bs = ~d~n", [NBs]),
+       qs_maxs(Bs, Bmaxs),
+       length(Bmaxs, N)).
+%@ Nqh = 6
+%@ Nqh1 = 4
+%@ #Bs = 21699
+% ~~ memory use starts growing unboundedly here ~~
+%@    error('$interrupt_thrown',repl/0).
+*/
+
+% This represents the vast bulk of the search-space,
+% since 7+6+...+1 = 28 and 28^3 = 21952 = 21699 + 253.
+% So only 253 (very safe) tallies don't qualify as b₂'s.
+% This shouldn't be terribly surprising, tho!  The X=3
+% final tallies are indeed rather exceptional, and we
+% should expect nearly all 'random' tallies must fall
+% below all of them.
+
+% Still, I would like to find the maximal b₂'s despite
+% this difficulty of unbounded memory usage.  Could I
+% possibly find a much smaller set to maximize?
+% Do I know anything /a priori/ about the maximal b₂'s?
+% Intuititvely, shouldn't any b₂ of interest exceed g₁?
+
+%?- d_g_rec(3, G1, 1).
+%@    G1 = [0/6,2/6,0/4]
+%@ ;  false.
+
+/*
+?- Bs^Bmaxs+\(findall(B, ( d_b_rec(3, B, 2),
+                         [0/6,2/6,0/4] =<$ B
+                         ), Bs),
+              qs_maxs(Bs, Bmaxs)).
+%@ Nqh = 6
+%@ Nqh1 = 4
+%@    Bs = [[0/6,2/6,0/4],[0/6,2/6,0/5]], Bmaxs = [[0/6,2/6,0/5]].
+*/
+
+% Thus we obtain a single, unambiguously best b₂ tally.
+% Note that it would not ever be admissible in a 3+3 trial,
+% although the question remains open whether it would be
+% reachable in the generalized (rolling-enrollment) trial
+% protocol obtained from the Galois incremental enrollment
+% we are trying to construct.
+
+% Now we must ask which final tallies get 'missed' by this b₂
+% value.
+
+/*
+?- B2 = [0/6,2/6,0/5], d_qfs_rec(3, Q2s, 2),
+   tpartition(\Q2^(Q2 =<$ B2), Q2s, U2s, M2s),
+   length(U2s, NU2), length(M2s, NM2).
+%@    B2 = [0/6,2/6,0/5], Q2s = [[0/3,0/6,2/3],[0/3,0/6,2/6],[0/3,0/6,3/3],[0/3,0/6,3/6],[0/3,0/6,4/6],[0/3,1/6,1/6],[0/3,1/6,2/3],[0/3,1/6,2/6],[0/3,1/6,3/3],[0/3,1/6,3/6],[0/3,1/6,4/6],[1/6,0/6,2/3],[1/6,0/6,2/6],[1/6,0/6,3/3],[1/6,0/6,3/6],[1/6,0/6,4/6],[1/6,1/6,1/6]], U2s = [[1/6,1/6,1/6]], M2s = [[0/3,0/6,2/3],[0/3,0/6,2/6],[0/3,0/6,3/3],[0/3,0/6,3/6],[0/3,0/6,4/6],[0/3,1/6,1/6],[0/3,1/6,2/3],[0/3,1/6,2/6],[0/3,1/6,3/3],[0/3,1/6,3/6],[0/3,1/6,4/6],[1/6,0/6,2/3],[1/6,0/6,2/6],[1/6,0/6,3/3],[1/6,0/6,3/6],[1/6,0/6,4/6]], NU2 = 1, NM2 = 16.
+*/
+
+% This suggests our 'single best' b₂ is not at all good!
+
+% What if we search beyond the dosewise enrollment cap of 6?
+% Intuitively, the 'finer mesh' created by higher denominators
+% might yield more resolving power.
+
+%?- X = 2, Nmax = 15, time(d_g_rec(3, Gx, X, Nmax)).
+%@    % CPU time: 2985.707s, 15_619_649_976 inferences
+%@    false. % Nmax = 15
+%@    % CPU time: 944.134s, 4_778_510_796 inferences
+%@    false. % Nmax = 12
+%@    % CPU time: 596.195s, 3_041_791_660 inferences
+%@    false. % Nmax = 11
+%@    % CPU time: 364.981s, 1_869_461_823 inferences
+%@    false. % Nmax = 10
+%@    % CPU time: 227.915s, 1_104_576_495 inferences
+%@    false. % Nmax = 9
+%@    % CPU time: 132.135s, 638_137_634 inferences
+%@    false. % Nmax = 8
+%@    false.
+
+% No luck here, either!
+
+% Even if it doesn't look logical right now, let me orient myself
+% by starting with a search for all q's that sit above all of the
+% rec-2 final tallies.
+% aₓ ∈ Qᴰ, Rec(q) ≤ x ⟹ q ≼ aₓ.
+d_a_rec(D, A, X) :-
+    X in 0..D, indomain(X),
+    d_qfs_rec(D, Qls, 0..X),
+    length(Qls, Nql), format("Nql = ~d~n", [Nql]),
+    qs_maxs(Qls, Qls1),
+    length(Qls1, Nql1), format("Nql1 = ~d~n", [Nql1]),
+    qs_d_nmax(A, D, 6),
+    maplist(\Ql^(Ql =<$ A), Qls1).
+
+%?- findall(A, d_a_rec(3, A, 2), As), qs_mins(As, MinAs).
+%@ Nql = 87
+%@ Nql1 = 4
+%@    As = [[0/6,0/5,0/4],[0/6,0/5,0/5],[0/6,0/5,1/5],[0/6,0/5,0/6],[0/6,0/5,1/6],[0/6,0/5,2/6],[0/6,0/6,0/3],[0/6,0/6,0/4],[0/6,0/6,1/4],[0/6,0/6,0/5],[0/6,0/6,1/5],[0/6,0/6,2/5],[0/6,0/6,0/6],[0/6,0/6,1/6],[0/6,0/6,2/6]], MinAs = [[0/6,0/5,2/6]].
+
+% This is at least a rather simple result: this single tally
+% is minimal among those that exceed all the X=2 final tallies.
+
+% What errors does this a₂ make?  Which final tallies q with Rec(q) = 3
+% sit below a₂?
+
+%?- A2 = [0/6,0/5,2/6], d_qfs_rec(3, Q3s, 3), tfilter(\Q^(Q =<$ A2), Q3s, Oops).
+%@    A2 = [0/6,0/5,2/6], Q3s = [[0/3,0/3,0/6],[0/3,0/3,1/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,0/3,1/6],[1/6,1/6,0/6]], Oops = [[1/6,0/3,1/6]].
+
+% Aha, so for Q3 = [1/6,0/3,1/6] we find that Q3 =<$ A2.
+%?- A2 = [0/6,0/5,2/6], Q3 = [1/6,0/3,1/6], Q3 =<$ A2.
+%@    A2 = [0/6,0/5,2/6], Q3 = [1/6,0/3,1/6].
+
+% This ordering looks worth examining for its reasonableness...
+% Indeed, it DOES make sense: one cannot simply 'take a mulligan'
+% on Q3's 1/6 toxicity at dose level 1!
+% Notice how A2 logs 11/11 non-toxicities across dose levels 1..2,
+% its 2 toxicities occurring only at the *top* dose.  By contrast,
+% Q3 demonstrates a toxicity already at the _bottom_ dose.  Thus
+% Q3 represents a 'worse showing' for the drug's safety than A2.
+
+% Considering that A2 'looks' unsuitable for Rec=3, one might think
+% that this vitiates our rectification step.  But notice that A2 is
+% not a FINAL 3+3 tally, so 'rectification' does not apply *directly*.
+% Rather, it applies *indirectly* through transitivity:
+%
+%   A2 ≽ Q3 and Rec(Q3)=3 ==> Rec(A2)=3.
+%
+% Any attempt to reverse the direction of this implication, say to
+% suggest that Rec(A2)=2 ==> Rec(Q3)≤2, amounts to a criticism of
+% the 3+3 final dose recommendations themselves.  While of course
+% a legitimate pursuit, that is out-of-scope for an attempt to
+% derive a Galois enrollment that captures the 3+3 design.
+% (Moreover, the fact that A2 *does* get a [next-dose] rec of 3
+% may help propel the generalized trial forward.)
+
+/*
+I do need to keep in mind, in all this, that especially
+in higher dimensions, this tally space may not admit
+simple partitioning by _≼q for any one fixed q.
+Thus, pace 'adjunct functors arise everywhere', perhaps
+there is good reason *not* to expect adjoint enrollments.
 */
