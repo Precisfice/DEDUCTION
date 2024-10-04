@@ -958,3 +958,105 @@ simple partitioning by _≼q for any one fixed q.
 Thus, pace 'adjunct functors arise everywhere', perhaps
 there is good reason *not* to expect adjoint enrollments.
 */
+
+% But in fact, I now see this has been a most fortunate development!
+% Contraray to the view expressed above, that criticizing the 3+3
+% final-dose recs was somehow "out-of-scope" (!), I now believe that
+% the very opposite is true.  The 3+3's assignment of X=3 to the
+% abovementioned Q3 = [1/6,0/3,1/6] really does look problematic!
+% If we allowed rectification not only of non-functoriality, but of
+% *non-adjointness* as well, then the process of 'squeezing' an
+% adjoint out of this design has served to correct it.
+
+% We may even obtain out of all this a simpler, more easily stated
+% procedure for obtaining a Galois enrollment _in a single step_.
+% A rectification step addressing specifically functoriality is no
+% longer needed, since this occurs along with possibly additional
+% downward shifts of dose recommendations as needed to achieve
+% adjointness.  It may be of some value to know which adjustments
+% were made for which reason, but presumably such information can
+% be recovered or reconstructed after-the-fact.
+
+% The process of discovery documented above, via aₓ, provides the
+% general recipe:
+% - We find minimal sets of aₓ's for each x in 0..D.
+% - For any tuple of (a₀, a₁, ..., a_D) chosen from the cross
+%   product of all the minimal sets, we obtain dose recs which
+%   may generally impose downward adjustments on some final
+%   dose recs.
+% - We may wish to account for all the adjustments needed, and
+%   perhaps even to select tuples that minimize some measure
+%   of these adjustments. 
+
+% Let's recapitulate the process for D=3, using d_a_rec/3:
+
+%?- findall(A, d_a_rec(3, A, 0), As), qs_mins(As, MinAs).
+%@ Nql = 35
+%@ Nql1 = 3
+%@    As = [[0/4,0/4,0/4],[0/4,0/4,0/5],[0/4,0/4,1/5],[0/4,0/4,0/6],[0/4,0/4,1/6],[0/4,0/4,2/6],[0/4,0/5,0/3],[0/4,0/5,0/4],[0/4,0/5,1/4],[0/4,1/5,0/4],[0/4,0/5,0/5],[0/4,0/5,1/5],[0/4,0/5,2/5],[0/4,1/5,0/5],[0/4,1/5,1/5],[0/4,0/5,0/6],[0/4,0/5,1/6],[0/4,0/5,... / ...],[0/4,... / ...|...],[... / ...|...]|...], MinAs = [[2/6,0/4,0/4]].
+
+%?- findall(A, d_a_rec(3, A, 1), As), qs_mins(As, MinAs).
+%@ Nql = 70
+%@ Nql1 = 2
+%@    As = [[0/6,0/4,0/4],[0/6,0/4,0/5],[0/6,0/4,1/5],[0/6,0/4,0/6],[0/6,0/4,1/6],[0/6,0/4,2/6],[0/6,0/5,0/3],[0/6,0/5,0/4],[0/6,0/5,1/4],[0/6,1/5,0/4],[0/6,0/5,0/5],[0/6,0/5,1/5],[0/6,0/5,2/5],[0/6,1/5,0/5],[0/6,1/5,1/5],[0/6,0/5,0/6],[0/6,0/5,1/6],[0/6,0/5,... / ...],[0/6,... / ...|...],[... / ...|...]|...], MinAs = [[0/6,2/6,0/4]].
+
+%?- findall(A, d_a_rec(3, A, 2), As), qs_mins(As, MinAs).
+%@ Nql = 87
+%@ Nql1 = 4
+%@    As = [[0/6,0/5,0/4],[0/6,0/5,0/5],[0/6,0/5,1/5],[0/6,0/5,0/6],[0/6,0/5,1/6],[0/6,0/5,2/6],[0/6,0/6,0/3],[0/6,0/6,0/4],[0/6,0/6,1/4],[0/6,0/6,0/5],[0/6,0/6,1/5],[0/6,0/6,2/5],[0/6,0/6,0/6],[0/6,0/6,1/6],[0/6,0/6,2/6]], MinAs = [[0/6,0/5,2/6]].
+
+%?- findall(A, d_a_rec(3, A, 3), As), qs_mins(As, MinAs).
+%@ Nql = 93
+%@ Nql1 = 8
+%@    As = [[0/6,0/5,0/5],[0/6,0/5,0/6],[0/6,0/6,0/4],[0/6,0/6,0/5],[0/6,0/6,0/6]], MinAs = [[0/6,0/5,0/5]].
+
+% Can I show that each of these minimal aₓ's coincides with a minimal gₓ
+% wherever the latter exists?
+%?- H0+\(findall(G0, d_g_rec(3, G0, 0), G0s), qs_mins(G0s, H0)).
+%@    H0 = [[2/6,0/4,0/4]]. % = minimal A0
+
+%?- H1+\(findall(G1, d_g_rec(3, G1, 1), G1s), qs_mins(G1s, H1)).
+%@    H1 = [[0/6,2/6,0/4]]. % = minimal A1
+
+%?- H2+\(findall(G2, d_g_rec(3, G2, 2), G2s), qs_mins(G2s, H2)).
+%@    H2 = []. % Correct - there is no g₂
+
+%?- H3+\(findall(G3, d_g_rec(3, G3, 3), G3s), qs_mins(G3s, H3)).
+%@    H3 = [[0/6,0/5,0/5]]. % = minimal A3
+
+% NEXT: Walk through the process for D=4, and then generalize.
+
+%?- X=4, time(findall(A, d_a_rec(4, A, X), As)), time(qs_mins(As, MinAs)).
+%@ Nql = 261
+%@ Nql1 = 19
+%@    % CPU time: 994.848s, 5_110_522_443 inferences
+%@    % CPU time: 0.037s, 179_657 inferences
+%@    X = 4, As = [[0/6,0/5,0/5,0/5],[0/6,0/5,0/5,0/6],[0/6,0/5,0/6,0/4],[0/6,0/5,0/6,0/5],[0/6,0/5,0/6,0/6],[0/6,0/6,0/4,0/5],[0/6,0/6,0/4,0/6],[0/6,0/6,0/5,0/4],[0/6,0/6,0/5,0/5],[0/6,0/6,0/5,0/6],[0/6,0/6,0/6,0/3],[0/6,0/6,0/6,0/4],[0/6,0/6,0/6,0/5],[0/6,0/6,0/6,0/6]], MinAs = [[0/6,0/5,0/5,0/5]].
+
+%?- X=3, time(findall(A, d_a_rec(4, A, X), As)), time(qs_mins(As, MinAs)).
+%@ Nql = 249
+%@ Nql1 = 11
+%@    % CPU time: 1021.487s, 5_109_174_815 inferences
+%@    % CPU time: 0.178s, 888_333 inferences
+%@    X = 3, As = [[0/6,0/5,0/5,0/4],[0/6,0/5,0/5,0/5],[0/6,0/5,0/5,1/5],[0/6,0/5,0/5,0/6],[0/6,0/5,0/5,1/6],[0/6,0/5,0/5,2/6],[0/6,0/5,0/6,0/3],[0/6,0/5,0/6,0/4],[0/6,0/5,0/6,1/4],[0/6,0/5,0/6,0/5],[0/6,0/5,0/6,1/5],[0/6,0/5,0/6,2/5],[0/6,0/5,0/6,0/6],[0/6,0/5,0/6,1/6],[0/6,0/5,0/6,2/6],[0/6,0/6,0/4,0/4],[0/6,0/6,0/4,... / ...],[0/6,0/6,... / ...|...],[0/6,... / ...|...],[... / ...|...]|...], MinAs = [[0/6,0/5,0/5,2/6]].
+
+%?- X=2, time(findall(A, d_a_rec(4, A, X), As)), time(qs_mins(As, MinAs)).
+%@ Nql = 215
+%@ Nql1 = 7
+%@    % CPU time: 1012.128s, 5_118_305_904 inferences
+%@    % CPU time: 0.799s, 3_605_051 inferences
+%@    X = 2, As = [[0/6,0/5,0/4,0/4],[0/6,0/5,0/4,0/5],[0/6,0/5,0/4,1/5],[0/6,0/5,0/4,0/6],[0/6,0/5,0/4,1/6],[0/6,0/5,0/4,2/6],[0/6,0/5,0/5,0/3],[0/6,0/5,0/5,0/4],[0/6,0/5,0/5,1/4],[0/6,0/5,1/5,0/4],[0/6,0/5,0/5,0/5],[0/6,0/5,0/5,1/5],[0/6,0/5,0/5,2/5],[0/6,0/5,1/5,0/5],[0/6,0/5,1/5,1/5],[0/6,0/5,0/5,0/6],[0/6,0/5,0/5,... / ...],[0/6,0/5,... / ...|...],[0/6,... / ...|...],[... / ...|...]|...], MinAs = [[0/6,0/5,2/6,0/4]].
+
+%?- X=1, time(findall(A, d_a_rec(4, A, X), As)), time(qs_mins(As, MinAs)).
+%@ Nql = 160
+%@ Nql1 = 3
+%@    % CPU time: 1018.258s, 5_168_392_977 inferences
+%@    % CPU time: 2.625s, 13_326_447 inferences
+%@    X = 1, As = [[0/6,0/4,0/4,0/4],[0/6,0/4,0/4,0/5],[0/6,0/4,0/4,1/5],[0/6,0/4,0/4,0/6],[0/6,0/4,0/4,1/6],[0/6,0/4,0/4,2/6],[0/6,0/4,0/5,0/3],[0/6,0/4,0/5,0/4],[0/6,0/4,0/5,1/4],[0/6,0/4,1/5,0/4],[0/6,0/4,0/5,0/5],[0/6,0/4,0/5,1/5],[0/6,0/4,0/5,2/5],[0/6,0/4,1/5,0/5],[0/6,0/4,1/5,1/5],[0/6,0/4,0/5,0/6],[0/6,0/4,0/5,... / ...],[0/6,0/4,... / ...|...],[0/6,... / ...|...],[... / ...|...]|...], MinAs = [[0/6,2/6,0/4,0/4]].
+
+%?- X=0, time(findall(A, d_a_rec(4, A, X), As)), time(qs_mins(As, MinAs)).
+%@ Nql = 75
+%@ Nql1 = 4
+%@    % CPU time: 1128.369s, 5_784_975_501 inferences
+%@    % CPU time: 24.496s, 125_359_027 inferences
+%@    X = 0, As = [[0/4,0/4,0/4,0/4],[0/4,0/4,0/4,0/5],[0/4,0/4,0/4,1/5],[0/4,0/4,0/4,0/6],[0/4,0/4,0/4,1/6],[0/4,0/4,0/4,2/6],[0/4,0/4,0/5,0/3],[0/4,0/4,0/5,0/4],[0/4,0/4,0/5,1/4],[0/4,0/4,1/5,0/4],[0/4,0/4,0/5,0/5],[0/4,0/4,0/5,1/5],[0/4,0/4,0/5,2/5],[0/4,0/4,1/5,0/5],[0/4,0/4,1/5,1/5],[0/4,0/4,0/5,0/6],[0/4,0/4,0/5,... / ...],[0/4,0/4,... / ...|...],[0/4,... / ...|...],[... / ...|...]|...], MinAs = [[2/6,0/4,0/4,0/4]].
