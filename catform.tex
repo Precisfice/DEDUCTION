@@ -655,12 +655,12 @@ endtally_rec(FinalTally, Rec) :-
 \end{verbatim}
 
        Thus, the $\mbox{3+3}$ trial defines a {\em partial} function $Q^2 \xrightharpoonup{F} \{0,1,2\}$ that maps a subset $|\Q_f| \subset Q^2$ of 29 final tallies to their respective dose recommendations.  In view of Conjecture~\ref{extend}, we would like to pose and solve the extension problem,
-\begin{center}
+\begin{equation}\label{extension-problem}
   \begin{tikzcd}[row sep=large]
     \Q_f \ar[dr,hook,"\iota"] \ar[rr,"F"] & & \D \\
     & \Q\, \ar[ur,dashed,"E?"']
   \end{tikzcd}
-\end{center}
+\end{equation}
 The subcategory inclusion $Q_f \xhookrightarrow{\iota} \Q_f$ is of course functorial, but what about $F$?  Any violation of functoriality by $F$ must take the form of final tallies $q_1, q_2 \in \Q_f$ with respective dose-level recommendations $d_1, d_2 \in \{0,1,2\}$ such that $q_1 \preceq q_2$ but $d_1 \not\leq d_2$:
 
 \begin{lstlisting}
@@ -705,16 +705,59 @@ Rectification has yielded a final dose recommendation,
 $$
 \Q_f \xrightarrow{F} \D \equiv \{0 \leq 1 \leq 2\},
 $$
-that is {\em functorial} on the preorder of final tallies $\Q_f \subset \Q$.  If we could extend $F$ along the inclusion $\Q_f \xhookrightarrow{\iota} \Q$ to a functor $\Q \xrightarrow{E} \D$, then we would obtain an incremental enrollment (IE) consistent with the \mbox{3+3} design.
-
-\begin{center}
+that is {\em functorial} on the preorder of final tallies $\Q_f \subset \Q$, thereby ensuring our diagram \eqref{extension-problem} is licensed.  At first sight, \eqref{extension-problem} looks like a typical set-up for seeking a Kan extension of $F$ along the inclusion functor $\iota$:
+\begin{equation}\label{Kan-nope}
   \begin{tikzcd}[row sep=large]
-    \Q \ar[rr,dashed,"E?"] & & \D \\
-    \;\Q_f \ar[u,"\iota"] \ar[urr,"F"']
+    \Q_f \ar[dr,hook,"\iota"'] \ar[rr,"F"{name=F},""{name=U,below}] & & \D \\
+    & \Q\, \ar[ur,dashed,"\text{Lan}_\iota F"']
+      \ar[Rightarrow,shorten=2.5mm,from=U,"\eta"]
   \end{tikzcd}
-\end{center}
+  \quad\quad\text{or}\quad\quad
+  \begin{tikzcd}[row sep=large]
+    \Q_f \ar[dr,hook,"\iota"'] \ar[rr,"F"{name=F},""{name=U,below}] & & \D \\
+    & \Q\, \ar[ur,dashed,"\text{Ran}_\iota F"']
+      \ar[Rightarrow,shorten=2.5mm,to=U,"\epsilon"']
+  \end{tikzcd}
+\end{equation}
+But the components of the natural transformation $\eta$ or $\epsilon$ would then have to operate in the cramped quarters of $\D$, allowing for only the coarsest possible approximation to the desired extension.
 
-Since many such extensions will generally exist, we may wish to focus on finding simple or otherwise optimal solutions.  One especially appealing form of enrollment would be one with an adjoint:
+By exchanging the roles of $\Q$ and $\D$, however, we create the opportunity for natural transformations operating in the finer granularity of $\Q$.  Consider therefore the left Kan extension of the inclusion functor $\iota$ along $F$:\footnote{See Riehl, p.190, from which these diagrams are drawn nearly verbatim.}
+\begin{equation}\label{Kan-yup}
+  \begin{tikzcd}[row sep=large,column sep=small]
+    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+    & \D\, \ar[ur,dashed,"G=\text{Lan}_F \iota"']
+      \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\eta"{pos=0.4}]
+  \end{tikzcd}
+  \begin{tikzcd}[row sep=large,column sep=small]
+    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+    & \D\, \ar[ur,"G'"']
+      \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\gamma"{pos=0.4}]
+  \end{tikzcd}
+  =
+  \begin{tikzcd}[row sep=large,column sep=small]
+    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+    & \D\, \ar[ur,bend left,"G"{pos=0.6,inner sep=0.2},""{name=H,below}]
+           \ar[ur,bend right,"G'"'{inner sep=0},""{pos=0.35,name=I,above}]
+           \ar[Rightarrow,from=H,to=I,"\exists !"{pos=0.4},"\alpha"'{pos=0.6}]
+    \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,shift right=2mm,"\eta"'{pos=0.4}]
+  \end{tikzcd}
+\end{equation}
+in which the so-called `pasting diagram' on the right states a universal mapping property of $G = \text{Kan}_F\iota$, that any other $\D \xrightarrow{G'} \Q$ with natural transformation $\iota \xRightarrow{\gamma} G'F$ must have $\gamma$ factoring uniquely through $\eta$.
+
+In this context specifically, the abovementioned natural transformations are simply finite collections of arrows `$\preceq$' of the preorder $\Q$, indexed either by $Q_f$ or (in the case of $\alpha$) by $\D$.  The diagrams above therefore reduce to `vectorized' statements about the images of $\Q_f$ under $\iota$ and $G F$.
+\begin{equation}\label{Kan-vectorized}
+  \Q_f \preceq G F \Q_f \preceq G' F \Q_f.
+\end{equation}
+
+By serially restricting \eqref{Kan-vectorized} to the nested sequence $\Q_{f\downarrow d} = F^{-1}(\downarrow\!d) \subset \Q_f$ of preimages of the lower sets of $\D$, we obtain equivalently that
+\begin{equation}\label{Kan-pointwise}
+  \Q_{f\downarrow d} \subseteq\; \downarrow\!G(d) \quad \forall d \in \D,
+\end{equation}
+the $G(d)$ being by definition the {\em lowest} such tallies for which this holds.  Now \eqref{Kan-pointwise} in turn can be translated as
+\begin{equation}\label{Kan-adjointly}
+  F(q) \leq d \Leftarrow q \preceq G(d),
+\end{equation}
+which suggests the following definition.
 
 \begin{defn}
   A \textbf{Galois enrollment} is an IE $\IE$ for which \underline{either} a right (upper) or left (lower) adjoint exists:
@@ -735,10 +778,10 @@ Since many such extensions will generally exist, we may wish to focus on finding
       \arrow[phantom,from=E,to=L,"\dashv" rotate=90]
     \end{tikzcd},
   \end{center}
-  and where $\Qstar = (Q^D,\preceqx,\langle\frac{0}{0}\rangle,+)$ represents generally an enlargement of the basic preorder $\Q$, with $\preceq \;\subset\; \preceqx$.  (An adjunction between preorders is called a Galois connection, hence the name; see Reihl p118 and Fong \& Spivak Definition~1.90, p27.)
+  and where $\Qstar = (Q^D,\preceqx,\langle\frac{0}{0}\rangle,+)$ represents generally an enlargement of the basic preorder $\Q$, with $\preceq \;\subset\; \preceqx$.  (An adjunction between preorders is called a Galois connection, hence the name.)
 \end{defn}
 
-The appeal of a Galois enrollment is that it effectively embeds much of the enrollment protocol in the preorder $\preceqx$.  In the case of a lower Galois enrollment $E \dashv G$, the upper adjoint $G$ provides the rule,
+One appeal of a Galois enrollment is that it effectively embeds much of the enrollment protocol in the preorder $\preceqx$.  In the case of a lower Galois enrollment $E \dashv G$, the upper adjoint $G$ provides the rule,
 $$
 E(q) \leq d \quad \iff \quad q \preceqx G(d),
 $$
