@@ -24,8 +24,6 @@
 \newcommand{\IE}{\ensuremath{\Q \xrightarrow{\;\;E\;\;} \D}}
 \newcommand{\E}{\ensuremath{\widehat{E}}}
 \newcommand{\delihat}{\ensuremath{\surd\E}}
-\newcommand{\Qstar}{\ensuremath{\Q^*\!}}
-\newcommand{\preceqx}{\ensuremath{\preceq^*\!}}
 
 \DeclareMathOperator{\dual}{op}
 
@@ -755,7 +753,7 @@ By serially restricting \eqref{Kan-vectorized} to the nested sequence $\Q_{f\dow
 \end{equation}
 the $G(d)$ being by definition the {\em lowest} such tallies for which this holds.  Now \eqref{Kan-pointwise} in turn can be translated as
 \begin{equation}\label{Kan-adjointly}
-  F(q) \leq d \Leftarrow q \preceq G(d),
+  F(q) \leq d \Longleftarrow q \preceq G(d),
 \end{equation}
 which suggests the following definition.
 
@@ -763,7 +761,7 @@ which suggests the following definition.
   A \textbf{Galois enrollment} is an IE $\IE$ for which \underline{either} a right (upper) or left (lower) adjoint exists:
   \begin{center}
     \begin{tikzcd}
-      \Qstar \ar[rrr,"E"{name=E,description}]
+      \Q \ar[rrr,"E"{name=E,description}]
       & & & \D
       \ar[lll,bend right,"G"'{name=G}]
       \arrow[phantom,from=G,to=E,"\dashv" rotate=90]
@@ -772,30 +770,34 @@ which suggests the following definition.
   or
   \begin{center}
     \begin{tikzcd}
-      \Qstar\!\ar[rrr,"E"{name=E,description}]
+      \Q \ar[rrr,"E"{name=E,description}]
       & & & \D
       \ar[lll,bend left,"L"{name=L,below}]
       \arrow[phantom,from=E,to=L,"\dashv" rotate=90]
     \end{tikzcd},
   \end{center}
-  and where $\Qstar = (Q^D,\preceqx,\langle\frac{0}{0}\rangle,+)$ represents generally an enlargement of the basic preorder $\Q$, with $\preceq \;\subset\; \preceqx$.  (An adjunction between preorders is called a Galois connection, hence the name.)
+  (An adjunction between preorders is called a Galois connection, hence the name.)
 \end{defn}
+Thus, in the case of a lower Galois enrollment $E \dashv G$, the upper adjoint $G$ provides the rule,
+$$
+E(q) \leq d \quad \iff \quad q \preceq G(d),
+$$
+whereas for an upper Galois enrollment $L \dashv E$ we would have,
+$$
+d \leq E(q) \quad \iff \quad L(d) \preceq q.
+$$
 
-One appeal of a Galois enrollment is that it effectively embeds much of the enrollment protocol in the preorder $\preceqx$.  In the case of a lower Galois enrollment $E \dashv G$, the upper adjoint $G$ provides the rule,
-$$
-E(q) \leq d \quad \iff \quad q \preceqx G(d),
-$$
-and for an upper Galois enrollment $L \dashv E$ we have,
-$$
-d \leq E(q) \quad \iff \quad L(d) \preceqx q.
-$$
-Writing $G(d) = g_d$, we thus obtain $\{g_0,...,g_D\} \subset \Q$ that partition $\Q$ in a bottom-up cascade, with $q \preceqx g_0 \implies E(q)=0$, else $q \preceqx g_1 \implies E(q)=1$, and so forth.  Similarly, $\{\ell_d = L(d)\} \subset \Q$ would generate a top-down cascade.
+One appeal of a Galois enrollment is that it yields a simple rule parametrized by a selection of $D+1$ tallies, and based on the easy calculation of `$\preceq$' via \eqref{cond}.  Writing $G(d) = g_d$, we have parameters $\{g_0,...,g_D\} \subset \Q$ defining a lower-Galois enrollment by partitioning $\Q$ in a bottom-up cascade: $q \preceq g_0 \implies E(q)=0$, else $q \preceq g_1 \implies E(q)=1$, and so forth.  Similarly, $\{\ell_d = L(d)\} \subset \Q$ would generate a top-down cascade defining a right-Galois enrollment.
 
-A lower Galois enrollment for our 2-dose \mbox{3+3} trial would then be determined by a tuple $(g_0, g_1, g_2) \in Q^{D+1}$ together with some enlargement $\preceqx$ of the basic preorder.  Indeed, since $g_2$ could be set to be some very safe tally such as $(\frac{0}{6},\frac{0}{6})$ that would serve as a `catchall' in our cascade, the only nontrivial search is then for $(g_0, g_1) \in Q^D$.  Although we do not (yet) have a suitably enlarged $\preceqx$ in hand, the implication $q \preceq q' \implies q \preceqx q'$ nevertheless does allow us to write down some constraints on the $g_d$.  Specifically, any candidate $g_d$ must satisfy,
+Now if we wish to proceed {\em cautiously} in approximating some given trial with final dose recommendations $\Q_f\!\xrightarrow{F} \D$, we must ensure $E(q) \leq F(q) \;\forall q \in \Q_f$.  For a lower-Galois approximation, this requires
 \begin{equation}
-q \preceq g_d \implies q \preceqx g_d \implies E(q) \leq d \implies F(q) \leq d \quad \forall q \in \Q_f, \label{gconstraint}
+F(q) \leq d \; \Longleftarrow \; q \preceq g_d \quad \forall q \in \Q_f,\; d \in \D, \label{gconstraint}
 \end{equation}
-in which the first implication follows from $\preceq\;\subseteq\;\preceqx$, the second from assuming that $E$ is lower-Galois, and the third from assuming that $E$ extends $F$.  Furthermore, if we are looking for {\em best} candidate $g_0$ and $g_1$, then we would like these to be safest-possible tallies satisfying \eqref{gconstraint}.
+and for an upper-Galois approximation,
+\begin{equation}
+d \leq F(q) \; \Longrightarrow \; \ell_d \preceq q \quad \forall q \in \Q_f,\; d \in \D. \label{gconstraint}
+\end{equation}
+{\em Closest} approximations will be had with minimal $g_d$ or maximal $\ell_d$, respectively.
 
 \subsection{Lower-Galois enrollments for the 2-dose \mbox{3+3} trial}
 
