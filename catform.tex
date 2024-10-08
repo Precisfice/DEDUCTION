@@ -374,6 +374,19 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
   $$
 \end{nota}
 
+\begin{corr}
+  Moreover, $\Q$ is indeed a \underline{lattice}, since it has all meets and joins, which are readily calculated from \eqref{cond}:
+  \begin{equation}
+    \begin{aligned}
+    q \wedge q' & \cong (t\!:\!u) \wedge (t'\!:\!u') \cong
+    (T\!:\!U) \wedge (T'\!:\!U') = (T\!\vee\!T'):(U\!\wedge\!U')
+    \\
+    q \vee q' & \cong (t\!:\!u) \vee (t'\!:\!u') \cong
+    (T\!:\!U) \vee (T'\!:\!U') = (T\!\wedge\!T'):(U\!\vee\!U').
+    \end{aligned}
+  \end{equation}
+\end{corr}
+
 \subsection{Further characterization of the monoidal preorder $\preceq$}
 
 \begin{quote}
@@ -394,7 +407,7 @@ Observe that the proof of Fact~\ref{symon} did not use the {\em symmetric monoid
   for some $q \in Q^D$ and $\lambda_i, \eta_{jk}, \gamma_i \in \N$.  This is a CLP($\mathbb{Z}$) constraint.
 \end{fact}
 \begin{proof}
-  It is clear that every statement of the form \eqref{clpz} is a valid arrow that we may build up by starting with the reflexive arrow $q \preceq q$, repeatedly applying $\preceq_{dm}$ (obtaining the paired $\eta_{jk}$ terms), then repeatedly applying $\preceq_{ce}$; the left-hand side of \eqref{lesafcond} generates the $\lambda_i$ terms, its right-hand side the $\gamma_i$ terms.
+  It is clear that every statement of the form \eqref{clpz} is a valid arrow which we may build up by starting with the reflexive arrow $q \preceq q$, repeatedly applying $\preceq_{dm}$ (obtaining the paired $\eta_{jk}$ terms), then repeatedly applying $\preceq_{ce}$; the left-hand side of \eqref{lesafcond} generates the $\lambda_i$ terms, its right-hand side the $\gamma_i$ terms.
   The converse, that all valid arrows must be of the form \eqref{clpz}, follows from considering strings of the form \eqref{string}, and exploiting the commutativity of $+$ to collect like terms.
 \end{proof}
 
