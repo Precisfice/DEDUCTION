@@ -429,6 +429,8 @@ Observe that the proof of Fact~\ref{symon} did not use the {\em symmetric monoid
   The converse, that all valid arrows must be of the form \eqref{clpz}, follows from considering strings of the form \eqref{string}, and exploiting the commutativity of $+$ to collect like terms.
 \end{proof}
 
+This proof indicates how one might proceed to {\em enlarge} the basic preorder $\preceq$ while retaining its monoidality.  While any sensible evident-safety order on dose-escalation tallies probably needs to be monoidal and dose-monotone, and therefore must {\em contain} $\preceq$, these concepts do not exhaust all pharmacologic intutions one might wish to model.
+
 \section{Dose-Escalation Protocols}
 
 A dose-escalation protocol (DEP) is generally situated in a queueing context, where it must service the {\em arrival process} of participants presenting available for enrollment.  At any time, there may be 0, 1, or many participants waiting to enroll.  It is the task of a dose-escalation protocol to decide at what doses (if any) to enroll the waiting participants, conditional on the trial's current state.
