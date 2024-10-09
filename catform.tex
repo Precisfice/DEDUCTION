@@ -21,6 +21,7 @@
 \newcommand{\C}{\ensuremath{\mathcal{C}}}
 \newcommand{\D}{\ensuremath{\mathcal{D}}}
 \newcommand{\Q}{\ensuremath{\mathcal{Q}}}
+\newcommand{\M}{\ensuremath{\mathcal{M}}}
 \newcommand{\IE}{\ensuremath{\Q \xrightarrow{\;\;E\;\;} \D}}
 \newcommand{\E}{\ensuremath{\widehat{E}}}
 \newcommand{\delihat}{\ensuremath{\surd\E}}
@@ -374,9 +375,9 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
   $$
 \end{nota}
 
-\begin{corr}
+\begin{corr}\label{lattice}
   Moreover, $\Q$ is indeed a \underline{lattice}, since it has all meets and joins, which are readily calculated from \eqref{cond}:
-  \begin{equation}
+  \begin{equation}\label{meetjoin}
     \begin{aligned}
     q \wedge q' & \cong (t\!:\!u) \wedge (t'\!:\!u') \cong
     (T\!:\!U) \wedge (T'\!:\!U') = (T\!\vee\!T'):(U\!\wedge\!U')
@@ -386,6 +387,23 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
     \end{aligned}
   \end{equation}
 \end{corr}
+
+Some additional orientation to Corrolary~\ref{lattice} can be gained as follows.  Write $\mathcal{N} = (\N^D,\le)$, and let $\M$ be the image of the partial-sums functor $\mathcal{N} \xrightarrow{\Sigma} \mathcal{N}$.  Thus, $\M \subset \mathcal{N}$ consists of the nondescending, length-$D$ sequences in $\N$ with the preorder inherited via the inclusion $\M \hookrightarrow \mathcal{N}$:
+\begin{center}
+  \begin{tikzcd}
+    \M \ar[rr,hook]
+    & & \mathcal{N}. \ar[ll,bend left,"\Sigma"]
+  \end{tikzcd}
+\end{center}
+Now because $\M$ is closed under the meet and join operations,
+$$
+m, m' \in \M \implies m \wedge m', m \vee m' \in \M,
+$$
+$\M$ also inherits these operations from $\mathcal{N}$, along with its lattice property.  Finally, \eqref{meetjoin} shows that
+$$
+\Q \cong \M^{\dual} \times \M,
+$$
+the product of two lattices, which is also a lattice.
 
 \subsection{Further characterization of the monoidal preorder $\preceq$}
 
@@ -475,7 +493,7 @@ The high generality of Definition~\ref{deprot} allows for development of a taxon
   $$
   \bigwedge s = \bigwedge_{q \in s} q.
   $$
-  The right-hand side is well-defined, since any given state $s$ is finite, and $\Q$ is a strict preorder (i.e., partial order) by Corollary~\ref{partord}.  Functoriality holds because $s \supseteq s' \implies \bigwedge_{q \in s} q \preceq \bigwedge_{q \in s'} q$.
+  The right-hand side is well-defined, since any given state $s$ is finite, and $\Q$ is a lattice.  Functoriality holds because $s \supseteq s' \implies \bigwedge_{q \in s} q \preceq \bigwedge_{q \in s'} q$.
 \end{nota}
 
 \begin{nota}\label{hatfun}
@@ -672,7 +690,7 @@ endtally_rec(FinalTally, Rec) :-
     & \Q\, \ar[ur,dashed,"E?"']
   \end{tikzcd}
 \end{equation}
-The subcategory inclusion $Q_f \xhookrightarrow{\iota} \Q_f$ is of course functorial, but what about $F$?  Any violation of functoriality by $F$ must take the form of final tallies $q_1, q_2 \in \Q_f$ with respective dose-level recommendations $d_1, d_2 \in \{0,1,2\}$ such that $q_1 \preceq q_2$ but $d_1 \not\leq d_2$:
+The subcategory inclusion $Q_f \xhookrightarrow{\iota} \Q_f$ is of course functorial, but what about $F$?  Any violation of functoriality by $F$ must take the form of final tallies $q_1, q_2 \in \Q_f$ with respective dose-level recommendations $d_1, d_2 \in \{0,1,2\}$ such that $q_1 \preceq q_2$ but $d_1 \not\le d_2$:
 
 \begin{lstlisting}
 ?- endtally_rec(Q1, D1),
@@ -714,7 +732,7 @@ With the aim of extracting as much information as possible from existing designs
 
 Rectification has yielded a final dose recommendation,
 $$
-\Q_f \xrightarrow{F} \D \equiv \{0 \leq 1 \leq 2\},
+\Q_f \xrightarrow{F} \D \equiv \{0 \le 1 \le 2\},
 $$
 that is {\em functorial} on the preorder of final tallies $\Q_f \subset \Q$, thereby ensuring our diagram \eqref{extension-problem} is licensed.  At first sight, \eqref{extension-problem} looks like a typical set-up for seeking a Kan extension of $F$ along the inclusion functor $\iota$:
 \begin{equation}\label{Kan-nope}
@@ -766,7 +784,7 @@ By serially restricting \eqref{Kan-vectorized} to the nested sequence $\Q_{f\dow
 \end{equation}
 the $G(d)$ being by definition the {\em lowest} such tallies for which this holds.  Now \eqref{Kan-pointwise} in turn can be translated as
 \begin{equation}\label{Kan-adjointly}
-  F(q) \leq d \Longleftarrow q \preceq G(d),
+  F(q) \le d \Longleftarrow q \preceq G(d),
 \end{equation}
 which suggests the following definition.
 
@@ -793,22 +811,22 @@ which suggests the following definition.
 \end{defn}
 Thus, in the case of a lower Galois enrollment $E \dashv G$, the upper adjoint $G$ provides the rule,
 $$
-E(q) \leq d \quad \iff \quad q \preceq G(d),
+E(q) \le d \quad \iff \quad q \preceq G(d),
 $$
 whereas for an upper Galois enrollment $L \dashv E$ we would have,
 $$
-d \leq E(q) \quad \iff \quad L(d) \preceq q.
+d \le E(q) \quad \iff \quad L(d) \preceq q.
 $$
 
 One appeal of a Galois enrollment is that it yields a simple rule parametrized by a selection of $D+1$ tallies, and based on the easy calculation of `$\preceq$' via \eqref{cond}.  Writing $G(d) = g_d$, we have parameters $\{g_0,...,g_D\} \subset \Q$ defining a lower-Galois enrollment by partitioning $\Q$ in a bottom-up cascade: $q \preceq g_0 \implies E(q)=0$, else $q \preceq g_1 \implies E(q)=1$, and so forth.  Similarly, $\{\ell_d = L(d)\} \subset \Q$ would generate a top-down cascade defining a right-Galois enrollment.
 
-Now if we wish to proceed {\em cautiously} in approximating some given trial with final dose recommendations $\Q_f\!\xrightarrow{F} \D$, we must ensure $E(q) \leq F(q) \;\forall q \in \Q_f$.  For a lower-Galois approximation, this requires
+Now if we wish to proceed {\em cautiously} in approximating some given trial with final dose recommendations $\Q_f\!\xrightarrow{F} \D$, we must ensure $E(q) \le F(q) \;\forall q \in \Q_f$.  For a lower-Galois approximation, this requires
 \begin{equation}
-F(q) \leq d \; \Longleftarrow \; q \preceq g_d \quad \forall q \in \Q_f,\; d \in \D, \label{gconstraint}
+F(q) \le d \; \Longleftarrow \; q \preceq g_d \quad \forall q \in \Q_f,\; d \in \D, \label{gconstraint}
 \end{equation}
 and for an upper-Galois approximation,
 \begin{equation}
-d \leq F(q) \; \Longrightarrow \; \ell_d \preceq q \quad \forall q \in \Q_f,\; d \in \D. \label{gconstraint}
+d \le F(q) \; \Longrightarrow \; \ell_d \preceq q \quad \forall q \in \Q_f,\; d \in \D. \label{gconstraint}
 \end{equation}
 {\em Closest} approximations will be had with minimal $g_d$ or maximal $\ell_d$, respectively.
 
