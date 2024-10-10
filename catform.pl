@@ -14,14 +14,165 @@
 :- use_module(library(tabling)).
 
 :- use_module(rcpearl).
-:- use_module(rectify).
+
+clpz:monotonic.
+
+:- op(900, xfx, '≤'). % Mutually exclusive infix
+:- op(900, xfx, '≰'). % relations defined on ℕᴰ.
+
+'≤'([], [], true). % trivial case makes general clause easier to implement
+'≤'([X|Xs], [Y|Ys], Truth) :- % ≤ extended to ℕᴰ, D≥1
+    if_(clpz_t(#X #=< #Y),
+        '≤'(Xs,Ys,Truth),
+        Truth = false
+       ).
+    
+%?- '≤'([], [], Truth).
+%@    Truth = true. % A quirk easily excluded from ('≤')/2
+
+%?- '≤'([2], [3], Truth).
+%@    Truth = true.
+
+%?- '≤'([2], [3], true).
+%@    true.
+
+%?- '≤'([2], [3], false).
+%@    false.
+
+Xs '≤' Ys :-
+    same_length(Xs, Ys),
+    length(Xs, D), D #> 0,
+    '≤'(Xs, Ys, true).
+
+%?- [] '≤' [].
+%@    false. % As desired
+
+%?- [2] '≤' [3].
+%@    true.
+
+%?- [3] '≤' [2].
+%@    false.
+
+%?- [2,3] '≤' [3,2].
+%@    false.
+
+%?- [2,3] '≤' [3,X].
+%@    clpz:(X in 3..sup).
+
+%?- [0,0,0] '≤' Xs, Xs '≤' [1,1,1], label(Xs).
+%@    Xs = [0,0,0]
+%@ ;  Xs = [0,0,1]
+%@ ;  Xs = [0,1,0]
+%@ ;  Xs = [0,1,1]
+%@ ;  Xs = [1,0,0]
+%@ ;  Xs = [1,0,1]
+%@ ;  Xs = [1,1,0]
+%@ ;  Xs = [1,1,1].
+
+
+Xs '≰' Ys :-
+    same_length(Xs, Ys),
+    length(Xs, D), D #> 0,
+    '≤'(Xs, Ys, false).
+
+%?- [1,1,1] '≰' Xs.
+%@    Xs = [_A,_B,_C], clpz:(_A in inf..0)
+%@ ;  Xs = [_A,_B,_C], clpz:(_A in 1..sup), clpz:(_B in inf..0)
+%@ ;  Xs = [_A,_B,_C], clpz:(_A in 1..sup), clpz:(_B in 1..sup), clpz:(_C in inf..0)
+%@ ;  false.
+
+%% 1. Via Fact 2.13, define evident-$afety relation ≼ ⊂ 𝒬✕𝒬:
+:- op(900, xfx, '≼').
+:- op(900, xfx, '⋠').
+:- op(900, xfx, '≽'). % TODO: If I don't eventually find good uses
+:- op(900, xfx, '⋡'). %       for these flipped ops, delete them.
+
+% TODO: Consider implementing also the *strict* orders '≺' and '≻',
+%       but watch out in case this introduces subtle misconceptions
+%       due to any 'excessive' suggestiveness of these symbols!
+:- op(900, xfx, '≺').
+:- op(900, xfx, '⊀').
+:- op(900, xfx, '≻').
+:- op(900, xfx, '⊁').
+
+q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= T + U.
+
+qs_Ts_Us(Qs, ΣTs, ΣUs) :-
+    maplist(\Q^T^U^(q_r(Q, T:U)), Qs, Ts, Us),
+    intlist_partsums(Ts, ΣTs),
+    intlist_partsums(Us, ΣUs).
+
+%?- qs_Ts_Us([1/6,2/6], Ts, Us).
+%@    Ts = [1,3], Us = [5,9].
+
+'≼'(Q1s, Q2s, Truth) :-
+    qs_Ts_Us(Q1s, ST1s, SU1s),
+    qs_Ts_Us(Q2s, ST2s, SU2s),
+    if_((ST2s '≤' ST1s,
+         SU1s '≤' SU2s),
+        Truth = true,
+        Truth = false
+       ).
+
+'≺'(Q1s, Q2s, Truth) :-
+    if_((Q1s '≼' Q2s, dif(Q1s, Q2s)),
+        Truth = true,
+        Truth = false
+        ).
+
+'≽'(Q2s, Q1s, Truth) :-'≼'(Q1s, Q2s, Truth).
+'≻'(Q2s, Q1s, Truth) :-'≺'(Q1s, Q2s, Truth).
+
+'≼'(Q1s, Q2s) :- '≼'(Q1s, Q2s, true).
+'⋠'(Q1s, Q2s) :- '≼'(Q1s, Q2s, false).
+'≽'(Q2s, Q1s) :- '≼'(Q1s, Q2s, true).
+'⋡'(Q2s, Q1s) :- '≼'(Q1s, Q2s, false).
+
+'≺'(Q1s, Q2s) :- '≺'(Q1s, Q2s, true).
+'⊀'(Q1s, Q2s) :- '≺'(Q1s, Q2s, false).
+'≻'(Q2s, Q1s) :- '≺'(Q1s, Q2s, true).
+'⊁'(Q2s, Q1s) :- '≺'(Q1s, Q2s, false).
+
+%% Utility predicates used above:
+
+intlist_partsums([X|Xs], [X|Ss]) :-
+    intlist_partsums_acc(Xs, Ss, X).
+
+intlist_partsums_acc([], [], _).
+intlist_partsums_acc([X|Xs], [S|Ss], A) :-
+    #S #= #X + #A,
+    intlist_partsums_acc(Xs, Ss, S).
+
+%?- [1/3, 1/2] '≼' [0/4, 0/1].
+%@    true.
+
+%?- [1/6,1/6] '≼' [0/6,2/6].
+%@    true.
+
+%?- [1/6,1/6] '≼' [0/6,2/5].
+%@    false.
+
+%?- [1/6,1/6] '≼' [0/6,2/7].
+%@    true.
+
+%?- [0/6,2/6] '≽' [1/6,1/6].
+%@    true.
+
+%?- [1/3,1/3] '≼' [1/3,1/3].
+%@    true.
+
+%?- [1/3,1/3] '≺' [1/3,1/3].
+%@    false.
+
+%?- [1/6,1/6] '≺' [0/6,2/6].
+%@    true.
 
 :- table d_endtally_rec/3.
 
 % This predicate describes precisely the final tallies and dose recommendations
 % which terminate the paths of the D-dose 3+3 design as described by our DCG.
 % Memoizing it via *tabling* supports a _complete_ description at the cost of
-% only a single comprehensive elaboration of the DCG.
+% only a single, one-off comprehensive elaboration of the DCG.
 d_endtally_rec(D, FinalTally, Rec) :-
     length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
     phrase(path([I]-Is), Path),
@@ -64,7 +215,7 @@ d_endtally_rec(D, FinalTally, Rec) :-
 /*
 ?- d_endtally_rec(2, Q1, D1),
    d_endtally_rec(2, Q2, D2),
-   Q1 =<$ Q2, % Q1 evidently no safer than Q2,
+   Q1 '≼' Q2, % Q1 evidently no safer than Q2,
    D1 #>  D2. % yet recommended D1 exceeds D2.
 %@    Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
 %@ ;  false.
@@ -74,7 +225,7 @@ d_endtally_rec(D, FinalTally, Rec) :-
 /*
 ?- d_endtally_rec(2, Q1, D1),
    d_endtally_rec(2, Q2, D2),
-      Q1 =<$ Q2,  % Q1 is evidently no safer than Q2,
+      Q1 '≼' Q2,  % Q1 is evidently no safer than Q2,
    #\(D1 #=< D2). % yet D1 is NOT likewise related to D2.
 %@    Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
 %@ ;  false.
@@ -261,7 +412,7 @@ tally_nextdose(Tally, D) :- d_endtally_rec(2, Tally, D).
 /*
 ?- tally_nextdose(Q1, D1),
    tally_nextdose(Q2, D2),
-   Q1 =<$ Q2, % Q1 evidently no safer than Q2,
+   Q1 '≼' Q2, % Q1 evidently no safer than Q2,
    D1 #>  D2. % yet recommended D1 exceeds D2.
 %@    Q1 = [1/6,1/3], D1 = 2, Q2 = [0/6,2/3], D2 = 1 % <- 2 new
 %@ ;  Q1 = [1/6,1/3], D1 = 2, Q2 = [0/6,2/6], D2 = 1 % <- solutions
@@ -294,7 +445,7 @@ mendtally_rec(Q, D) :- mendtally_rec(Q, D, _).
 mendtally_rec(Q, D, Ds) :- % prefixed "m" for (dose-)monotone
     endtally_rec(Q, D0),
     findall(Di, (endtally_rec(Qi, Di),
-                 Q =<$ Qi,  % Q is no safer than Qi,
+                 Q '≼' Qi,  % Q is no safer than Qi,
                  D0 #> Di), % yet its rec exceeds Di.
             Ds),
     foldl(clpz:min_, Ds, D0, D).
@@ -304,9 +455,9 @@ mendtally_rec(Q, D, Ds) :- % prefixed "m" for (dose-)monotone
 %@ ;  false.
 
 /*
-?- mendtally_rec(Q1, D1),
-   mendtally_rec(Q2, D2),
-   Q1 =<$ Q2, % Q1 evidently no safer than Q2,
+?- d_mendtally_rec(2, Q1, D1),
+   d_mendtally_rec(2, Q2, D2),
+   Q1 '≼' Q2, % Q1 evidently no safer than Q2,
    D1 #>  D2. % yet recommended D1 exceeds D2.
 %@    false. % Rectification was successful.
 */
@@ -318,10 +469,10 @@ mendtally_rec(Q, D, Ds) :- % prefixed "m" for (dose-)monotone
 % we could look instead for 'missing' arrows which these
 % dose recommendations might be taken to 'suggest adding'.
 /*
-?- mendtally_rec(Q1, D1),
-   mendtally_rec(Q2, D2),
+?- d_mendtally_rec(2, Q1, D1),
+   d_mendtally_rec(2, Q2, D2),
    #D1 #< #D2,
-   \+ Q1 =<$ Q2. % <-- TODO: Avoid \+ by implementing ⋠
+   Q1 '⋠' Q2.
 %@    Q1 = [0/6,2/3], D1 = 1, Q2 = [0/3,0/6], D2 = 2
 %@ ;  Q1 = [0/6,2/3], D1 = 1, Q2 = [0/3,1/6], D2 = 2
 %@ ;  Q1 = [0/6,2/3], D1 = 1, Q2 = [1/6,0/6], D2 = 2
@@ -404,10 +555,10 @@ mendtally_rec(Q, D, Ds) :- % prefixed "m" for (dose-)monotone
 */
 
 % So, for example:
-%?- [4/6,0/0] =<$ [1/6,4/6].
+%?- [4/6,0/0] '≼' [1/6,4/6].
 %@    false.
 % While this may *feel* surprising at first, observe that
-%?- [4/6,0/0] =<$ [1/6,3/6].
+%?- [4/6,0/0] '≼' [1/6,3/6].
 %@    true.
 
 % This underscores that the preorder ≼ is very much a 'bare minimum',
@@ -442,41 +593,20 @@ mendtally_rec(Q, D, Ds) :- % prefixed "m" for (dose-)monotone
 % we do not have enough arrows in the basic preorder to separate
 % the domain.  But let's just search overtly for q₀ and q₁.
 q0(Q) :-
-    mendtally_rec(Q, 0),
-    findall(Q0, mendtally_rec(Q0, 0), Q0s),
-    maplist(\Qi^(Q =<$ Qi), Q0s).
+    d_mendtally_rec(2, Q, 0),
+    findall(Q0, d_mendtally_rec(2, Q0, 0), Q0s),
+    maplist('≼'(Q), Q0s).
 
 %?- q0(Q).
 %@    false. % Too bad!
 
 q1(Q) :-
-    mendtally_rec(Q, 1),
-    findall(Q1, mendtally_rec(Q1, 1), Q1s),
-    maplist(\Qi^(Q =<$ Qi), Q1s).
+    d_mendtally_rec(2, Q, 1),
+    findall(Q1, d_mendtally_rec(2, Q1, 1), Q1s),
+    maplist('≼'(Q), Q1s).
 
 %?- q1(Q).
 %@    false.
-
-% But what if I searched over all of Q², instead of just
-% the accessible part of it?
-q1A(Q) :-
-    % To begin, let's simply partition the accessible tallies:
-    findall(Q0, mendtally_rec(Q0, 0), Q0s),
-    findall(Q1, mendtally_rec(Q1, 1), Q1s),
-    %findall(Q2, mendtally_rec(Q2, 2), Q2s),
-    length(Q, 2),
-    maplist(\Qi^(Qi =<$ Q), Q0s),
-    maplist(\Qi^(\+ Qi =<$ Q), Q1s).
-
-%?- q1A(Q).
-%@    false. % As expected.
-
-% Could I have *proven* that my suspicion was correct,
-% without having to run these queries?
-% Perhaps not!  But instead of searching for counterexamples
-% to the supposed [but likely false] theorems here, let us
-% instead set out to identify *possible* adjunctions, and
-% then enlarge ≼ just enough to support them.
 
 % Some good visualizations would seem to be necessary now
 % to promote efficient progress.  What Hasse diagrams could
@@ -491,10 +621,10 @@ q1A(Q) :-
 % have no arrows into the remainder.
 minimal_in(M, Qs) :-
     member(M, Qs),
-    maplist(\Q^(M = Q; \+ Q =<$ M), Qs).
+    maplist('⊁'(M), Qs).
 
 /*
-?- Ms+\(findall(Q, mendtally_rec(Q,_), FinalTallies),
+?- Ms+\(findall(Q, d_mendtally_rec(2,Q,_), FinalTallies),
         findall(M, minimal_in(M, FinalTallies), Ms)).
 %@    Ms = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
 */
@@ -506,13 +636,13 @@ minimal_in(M, Qs) :-
 % Or perhaps that's an overly procedural/imperative POV?
 % Why not state what holds for the Hasse diagram?
 hasse_t(Q1, Q2, Qi, Truth) :-
-    findall(Q, mendtally_rec(Q,_), Qs),
-    mendtally_rec(Q1, _),
-    mendtally_rec(Q2, _),
+    findall(Q, d_mendtally_rec(2,Q,_), Qs),
+    d_mendtally_rec(2,Q1, _),
+    d_mendtally_rec(2,Q2, _),
     dif(Q1, Q2, true),
-    Q1 =<$ Q2,
+    Q1 '≼' Q2,
     if_((memberd_t(Qi, Qs),
-         Q1 =<$ Qi, Qi =<$ Q2, % NB: These invoke *reified* (=<$)/3
+         Q1 '≼' Qi, Qi '≼' Q2, % NB: These invoke *reified* ('≼')/3
          dif(Q1, Qi), dif(Qi, Q2)
         ), Truth = false,
         (Qi = nil, Truth = true)
@@ -581,7 +711,7 @@ Let's begin by exploring how many (if any!) such (g₀, g₁) exist.
 /*
 ?- d_endtally_rec(3, Q1, D1),
    d_endtally_rec(3, Q2, D2),
-   Q1 =<$ Q2, % Q1 evidently no safer than Q2,
+   Q1 '≼' Q2, % Q1 evidently no safer than Q2,
    D1 #>  D2. % yet recommended D1 exceeds D2.
 %@    Q1 = [0/3,1/6,1/6], D1 = 3, Q2 = [0/3,0/6,2/6], D2 = 2
 %@ ;  Q1 = [1/6,1/6,1/6], D1 = 3, Q2 = [1/6,0/6,2/6], D2 = 2
@@ -616,7 +746,7 @@ d_mendtally_rec_(D, Q, X, Xls) :-
     d_endtally_rec(D, Q, Xu), % Q-Xu is a final tally w/ *unrectified* rec, from a D-dose 3+3
     findall(Xl, (d_endtally_rec(D, Ql, Xl),
                  Xu #> Xl,  % Final tally Ql received a rec *lower* than Xu,
-                 Q =<$ Ql), % although it is evidently at least as safe as Q.
+                 Q '≼' Ql), % although it is evidently at least as safe as Q.
             Xls),
     foldl(clpz:min_, Xls, Xu, X).
 
@@ -655,8 +785,8 @@ d_qfs_rec(D, Qfs, Xrange) :-
 g0(G) :-
     d_qfs_rec(2, Q0s, 0), d_qfs_rec(2, Qps, 1..2),
     qs_d_nmax(G, 2, 6),
-    tfilter(\Q^(Q =<$ G), Qps, []), % no false identifications
-    tpartition(\Q^(Q =<$ G), Q0s, _, []).
+    tfilter('≽'(G), Qps, []), % no false identifications
+    tpartition('≽'(G), Q0s, _, []).
 
 %?- setof(G0, g0(G0), G0s).
 %@    G0s = [[0/4,2/6],[1/5,0/4],[1/5,0/5],[1/5,0/6],[1/5,1/5],[1/5,1/6],[2/6,0/4],[2/6,0/5],[2/6,0/6]].
@@ -665,16 +795,16 @@ g0(G) :-
 g1(G) :-
     d_qfs_rec(2, Q1s, 1), d_qfs_rec(2, Q2s, 2),
     qs_d_nmax(G, 2, 6),
-    tfilter(\Q^(Q =<$ G), Q2s, []), % no false identifications
-    tpartition(\Q^(Q =<$ G), Q1s, _, []).
+    tfilter('≽'(G), Q2s, []), % no false identifications
+    tpartition('≽'(G), Q1s, _, []).
 
 %?- setof(G1, g1(G1), G1s).
 %@    G1s = [[0/6,2/6]].
 
 qs_maxs([], []).
 qs_maxs([Q|Qs], Maxs) :-
-    tpartition(\Qi^(Qi =<$ Q), Qs, _, Qs1),
-    if_(tmember_t(=<$(Q), Qs1), % ∃ Q' ∈ Qs s.t. Q ≼ Q' ?
+    tpartition('≽'(Q), Qs, _, Qs1),
+    if_(tmember_t('≼'(Q), Qs1), % ∃ Q' ∈ Qs s.t. Q ≼ Q' ?
         qs_maxs(Qs1, Maxs), % if so, Q is not maximal
         (   Maxs = [Q|Maxs1], % otherwise, it is
             qs_maxs(Qs1, Maxs1)
@@ -683,8 +813,8 @@ qs_maxs([Q|Qs], Maxs) :-
 
 qs_mins([], []).
 qs_mins([Q|Qs], Mins) :-
-    tpartition(=<$(Q), Qs, _, Qs1),
-    if_(tmember_t(\Ql^(Ql =<$ Q), Qs1), % ∃ Q' ∈ Qs s.t. Q' ≼ Q ?
+    tpartition('≼'(Q), Qs, _, Qs1),
+    if_(tmember_t('≽'(Q), Qs1), % ∃ Q' ∈ Qs s.t. Q' ≼ Q ?
         qs_mins(Qs1, Mins), % if so, Q is not minimal
         (   Mins = [Q|Mins1], % otherwise, it is
             qs_mins(Qs1, Mins1)
@@ -704,8 +834,8 @@ d_g_rec(D, G, X, Nmax) :-
     qs_maxs(Qls, Qls1),
     qs_mins(Qhs, Qhs1),
     qs_d_nmax(G, D, Nmax),
-    maplist(\Ql^(Ql =<$ G), Qls1),
-    maplist(\Qh^(=<$(Qh, G, false)), Qhs1).
+    maplist(\Ql^(Ql '≼' G), Qls1),
+    maplist(\Qh^('≼'(Qh, G, false)), Qhs1).
 
 d_g_rec(D, G, X) :- d_g_rec(D, G, X, 6).
 
@@ -815,7 +945,7 @@ d_b_rec(D, B, X) :-
     qs_mins(Qhs, Qhs1),
     length(Qhs1, Nqh1), format("Nqh1 = ~d~n", [Nqh1]),
     qs_d_nmax(B, D, 6),
-    maplist(\Qh^(=<$(Qh, B, false)), Qhs1).
+    maplist('⋡'(B), Qhs1).
 
 /*
 ?- N+\(findall(B, d_b_rec(3, B, 2), Bs),
@@ -849,7 +979,7 @@ d_b_rec(D, B, X) :-
 
 /*
 ?- Bs^Bmaxs+\(findall(B, ( d_b_rec(3, B, 2),
-                         [0/6,2/6,0/4] =<$ B
+                         [0/6,2/6,0/4] '≼' B
                          ), Bs),
               qs_maxs(Bs, Bmaxs)).
 %@ Nqh = 6
@@ -869,7 +999,7 @@ d_b_rec(D, B, X) :-
 
 /*
 ?- B2 = [0/6,2/6,0/5], d_qfs_rec(3, Q2s, 2),
-   tpartition(\Q2^(Q2 =<$ B2), Q2s, U2s, M2s),
+   tpartition('≽'(B2), Q2s, U2s, M2s),
    length(U2s, NU2), length(M2s, NM2).
 %@    B2 = [0/6,2/6,0/5], Q2s = [[0/3,0/6,2/3],[0/3,0/6,2/6],[0/3,0/6,3/3],[0/3,0/6,3/6],[0/3,0/6,4/6],[0/3,1/6,1/6],[0/3,1/6,2/3],[0/3,1/6,2/6],[0/3,1/6,3/3],[0/3,1/6,3/6],[0/3,1/6,4/6],[1/6,0/6,2/3],[1/6,0/6,2/6],[1/6,0/6,3/3],[1/6,0/6,3/6],[1/6,0/6,4/6],[1/6,1/6,1/6]], U2s = [[1/6,1/6,1/6]], M2s = [[0/3,0/6,2/3],[0/3,0/6,2/6],[0/3,0/6,3/3],[0/3,0/6,3/6],[0/3,0/6,4/6],[0/3,1/6,1/6],[0/3,1/6,2/3],[0/3,1/6,2/6],[0/3,1/6,3/3],[0/3,1/6,3/6],[0/3,1/6,4/6],[1/6,0/6,2/3],[1/6,0/6,2/6],[1/6,0/6,3/3],[1/6,0/6,3/6],[1/6,0/6,4/6]], NU2 = 1, NM2 = 16.
 */
@@ -908,7 +1038,7 @@ d_a_rec(D, A, X) :-
     qs_maxs(Qls, Qls1),
     length(Qls1, Nql1), format("Nql1 = ~d~n", [Nql1]),
     qs_d_nmax(A, D, 6),
-    maplist(\Ql^(Ql =<$ A), Qls1).
+    maplist('≽'(A), Qls1).
 
 %?- findall(A, d_a_rec(3, A, 2), As), qs_mins(As, MinAs).
 %@ Nql = 87
@@ -921,11 +1051,11 @@ d_a_rec(D, A, X) :-
 % What errors does this a₂ make?  Which final tallies q with Rec(q) = 3
 % sit below a₂?
 
-%?- A2 = [0/6,0/5,2/6], d_qfs_rec(3, Q3s, 3), tfilter(\Q^(Q =<$ A2), Q3s, Oops).
+%?- A2 = [0/6,0/5,2/6], d_qfs_rec(3, Q3s, 3), tfilter('≽'(A2), Q3s, Oops).
 %@    A2 = [0/6,0/5,2/6], Q3s = [[0/3,0/3,0/6],[0/3,0/3,1/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,0/3,1/6],[1/6,1/6,0/6]], Oops = [[1/6,0/3,1/6]].
 
-% Aha, so for Q3 = [1/6,0/3,1/6] we find that Q3 =<$ A2.
-%?- A2 = [0/6,0/5,2/6], Q3 = [1/6,0/3,1/6], Q3 =<$ A2.
+% Aha, so for Q3 = [1/6,0/3,1/6] we find that Q3 '≼' A2.
+%?- A2 = [0/6,0/5,2/6], Q3 = [1/6,0/3,1/6], Q3 '≼' A2.
 %@    A2 = [0/6,0/5,2/6], Q3 = [1/6,0/3,1/6].
 
 % This ordering looks worth examining for its reasonableness...
@@ -960,7 +1090,7 @@ there is good reason *not* to expect adjoint enrollments.
 */
 
 % But in fact, I now see this has been a most fortunate development!
-% Contraray to the view expressed above, that criticizing the 3+3
+% Contrary to the view expressed above, that criticizing the 3+3
 % final-dose recs was somehow "out-of-scope" (!), I now believe that
 % the very opposite is true.  The 3+3's assignment of X=3 to the
 % abovementioned Q3 = [1/6,0/3,1/6] really does look problematic!
@@ -1060,3 +1190,40 @@ there is good reason *not* to expect adjoint enrollments.
 %@    % CPU time: 1128.369s, 5_784_975_501 inferences
 %@    % CPU time: 24.496s, 125_359_027 inferences
 %@    X = 0, As = [[0/4,0/4,0/4,0/4],[0/4,0/4,0/4,0/5],[0/4,0/4,0/4,1/5],[0/4,0/4,0/4,0/6],[0/4,0/4,0/4,1/6],[0/4,0/4,0/4,2/6],[0/4,0/4,0/5,0/3],[0/4,0/4,0/5,0/4],[0/4,0/4,0/5,1/4],[0/4,0/4,1/5,0/4],[0/4,0/4,0/5,0/5],[0/4,0/4,0/5,1/5],[0/4,0/4,0/5,2/5],[0/4,0/4,1/5,0/5],[0/4,0/4,1/5,1/5],[0/4,0/4,0/5,0/6],[0/4,0/4,0/5,... / ...],[0/4,0/4,... / ...|...],[0/4,... / ...|...],[... / ...|...]|...], MinAs = [[2/6,0/4,0/4,0/4]].
+
+/*
+TODO:
+
+1. I must take stock of the foregoing efforts in light of the clearer view
+afforded by the monograph's Kan-extension motivation for Galois enrollments.
+Where the foregoing now seem in retrospect ill-considered or doomed to fail,
+let me expunge them with suitably commented git commits.
+
+- One major distraction above relates to my now-abandoned speculation about
+  needing to extend ≼.
+
+- Another distracting technicality is the special code for early exploration
+  of the D=2 case.
+
+- All discussion around approximating from above/below via aₓ & bₓ can go,
+  now that I have a well-developed theory grounded in the Kan extension
+  and properly defined gₓ & ℓₓ.
+
+2. Revisit the feasibility of Hasse diagrams.
+
+- Try implementing the https://en.wikipedia.org/wiki/Covering_relation.
+
+- Shouldn't a Hasse diagram for 𝒬f be possible, at least in D=2 case,
+  and maybe even for D=3 as well?
+
+3. Simulate and visualize rolling-enrollment trials.
+
+4. In Prolog code, explore the possibility of implementing join & meet
+   operations.  Are these well-defined?  Does that make 𝒬 a _lattice_,
+   or even a _complete lattice_?
+
+   - It is interesting to note how abandoning the idea of enlarging ≼
+     has directly enabled these considerations.  There may well be a
+     role for calling 𝒬 a lattice!
+
+*/
