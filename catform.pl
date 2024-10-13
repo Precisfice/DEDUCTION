@@ -629,52 +629,223 @@ minimal_in(M, Qs) :-
 %@    Ms = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
 */
 
-% Thus, these 4 final tallies are worst-case observations,
-% being at-least-as-safe-as *no* other final tally.
-% But what happens if I now *remove* these, and ask the
-% same question of the remaining tallies?
-% Or perhaps that's an overly procedural/imperative POV?
-% Why not state what holds for the Hasse diagram?
-hasse_t(Q1, Q2, Qi, Truth) :-
-    findall(Q, d_mendtally_rec(2,Q,_), Qs),
-    d_mendtally_rec(2,Q1, _),
-    d_mendtally_rec(2,Q2, _),
-    dif(Q1, Q2, true),
-    Q1 '≼' Q2,
-    if_((memberd_t(Qi, Qs),
-         Q1 '≼' Qi, Qi '≼' Q2, % NB: These invoke *reified* ('≼')/3
-         dif(Q1, Qi), dif(Qi, Q2)
-        ), Truth = false,
-        (Qi = nil, Truth = true)
+% The https://en.wikipedia.org/wiki/Covering_relation is
+% fundamental, and surely warrants a dedicated predicate.
+in_cover_t(Qs, Q1, Q2, Truth) :-
+    member(Q1, Qs),
+    member(Q2, Qs),
+    Q1 '≺' Q2,
+    if_(tmember_t(between_t(Q1,Q2), Qs),
+        Truth = false,
+        Truth = true
        ).
 
-%?- hasse_t(Q1, Q2, Qi, Atomic).
-%@    Q1 = [0/3,1/6], Q2 = [0/3,0/6], Qi = nil, Atomic = true
-%@ ;  Q1 = [0/6,2/3], Q2 = [0/6,2/6], Qi = nil, Atomic = true
-%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/3], Qi = nil, Atomic = true
-%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/6], Qi = [0/6,2/3], Atomic = false
-%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/6], Qi = [0/6,3/6], Atomic = false
-%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/6], Qi = nil, Atomic = true
-%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,3/6], Qi = nil, Atomic = true
-%@ ;  ... .
+between_t(Q1, Q2, Q, Truth) :-
+    if_((Q1 '≺' Q, Q '≺' Q2),
+        Truth = true,
+        Truth = false
+       ).
 
-%?- N+\(findall(Q1-Q2, hasse_t(Q1, Q2, nil, true), Arrows), length(Arrows, N)).
-%@    N = 249. % Ouch!  Could there really be SO MANY arrows in the transitive reduction?
+in_cover(Qs, Q1, Q2) :- in_cover_t(Qs, Q1, Q2, true).
 
-%?- N+\(findall(Q1-Q2, hasse_t(Q1, Q2, nil, true), Arrows), list_to_set(Arrows, UniqueArrows), length(UniqueArrows, N)).
-%@    N = 249. % So that N is real, not due to duplicate solutions.
+d_cover(D, Q1, Q2, Truth) :-
+    findall(Q, d_mendtally_rec(D,Q,_), Qs),
+    in_cover_t(Qs, Q1, Q2, Truth).
 
-%?- N+\(findall(Q, mendtally_rec(Q,_), Qs), length(Qs, N)).
-%@    N = 29.
+d_ncovers(D, N) :-
+    findall(Q, d_mendtally_rec(D,Q,_), Qs),
+    findall(Q1-Q2, in_cover(Qs, Q1, Q2), Covers),
+    length(Covers, N).
 
-%?- #MaxN*2 #= 29*(29-1).
-%@    MaxN = 406.
+%?- time(d_ncovers(2, N)).
+%@    % CPU time: 8.545s, 43_559_874 inferences
+%@    N = 50.
 
-%?- N+\(findall(Q1-Q2, hasse_t(Q1, Q2, _, _), Arrows), list_to_set(Arrows, UniqueArrows), length(UniqueArrows, N)).
-%@    N = 249. % Ah!  This nicely corroborates my other query.
+%?- time(d_ncovers(3, N)).
+%@    % CPU time: 236.477s, 1_228_314_914 inferences
+%@    N = 194.
 
-%?- N+\(findall(Q1-Q2, hasse_t(Q1, Q2, _, _), Arrows), length(Arrows, N)).
-%@    N = 1192. % CAUTION!  This might not even count anything sensible.
+% At least for the D=2 case, a useful Hasse diagram for 𝒬f seems within reach.
+% One thing that could be of special help would be finding small sets of q's
+% that share the same covered and covering elements, since these could be
+% collected into single nodes of the Hasse diagram.
+% As a step toward finding any such little collections, let me partition 𝒬f
+% into a list of recursively peeled-off minimal sets.
+
+%?- findall(Q, d_mendtally_rec(2, Q, _), Qs), findall(Qm, minimal_in(Qm, Qs), Qms).
+%@    Qs = [[0/3,0/6],[0/3,1/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,0/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6],[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,... / ...],[... / ...|...]|...], Qms = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
+
+% By embedding the partial order ≼ into a *complete* order,
+% I could sort 𝒬f so that all arrows of ≼ point left-to-right.
+% Then, minimal sets would be in contiguous stretches of this
+% sorted list, and identifying the partitions could be done
+% potentially quite efficiently.
+
+% I would expect that this list of (recursively) minimal sets
+% would itself be useful for computing the covering relation.
+% (Exactly *how* it would help remains to be discovered.)
+
+% One way to obtain a complete order would be to arithmetize
+% the tallies.
+
+% d_n_qs_int(+D, +N, ?Qs, ?K)
+d_n_qs_int(D, N, Qs, K) :-
+    #B #= #D * #N, % K is a base-DN number
+    #M #= #B ^ #D, % M-1 is maximum D-digit, base-B number
+    length(Qs, D),
+    qs_Ts_Us(Qs, Ts, Us),
+    base_digits_int(B, Ts, TK),
+    base_digits_int(B, Us, UK),
+    #CK #= (#M-1) - #TK, % Think (999) - 123 = 876, e.g.
+    #K #= #M * #CK + #UK. % A (2*D)-digit number
+
+horner(X, A, P0, P) :- #P #= #A + #X * #P0. % https://en.wikipedia.org/wiki/Horner%27s_method
+
+base_digits_int(B, Ds, K) :-
+    #Bminus1 #= #B-1,
+    Ds ins 0..Bminus1,
+    foldl(horner(B), Ds, 0, K).
+
+%?- base_digits_int(10, [9,8,7,6], K).
+%@    K = 9876.
+
+%?- length(Ds, 4), base_digits_int(10, Ds, 9876).
+%@    Ds = [9,8,7,6].
+
+d_sortedQfs(D, SQs) :-
+    N = 6, % TODO: Generalize
+    findall(Q, d_mendtally_rec(D,Q,_), Qs),
+    maplist(d_n_qs_int(D,N), Qs, Ks),
+    sort(Ks, SKs),
+    same_length(SQs, Qs),
+    maplist(same_length, SQs, Qs),
+    maplist(d_n_qs_int(D,N), SQs, SKs).
+
+%?- d_sortedQfs(2, SQs), length(SQs, L).
+%@    SQs = [[4/6,0/0],[3/6,4/6],[3/6,3/3],[3/6,3/6],[3/6,2/3],[3/6,2/6],[3/3,0/0],[3/6,0/0],[2/6,4/6],[2/6,3/3],[2/6,3/6],[2/6,2/3],[2/6,2/6],[2/3,0/0],[2/6,0/0],[1/6,4/6],[1/6,3/3],[1/6,3/6],[1/6,... / ...],[... / ...|...]|...], L = 29.
+
+%?- d_sortedQfs(3, SQs), length(SQs, L).
+%@    SQs = [[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6],[3/6,3/6,3/3],[3/6,3/6,3/6],[3/6,3/6,2/3],[3/6,3/6,2/6],[3/6,3/3,0/0],[3/6,3/6,0/0],[3/6,2/6,4/6],[3/6,2/6,3/3],[3/6,2/6,3/6],[3/6,2/6,2/3],[3/6,2/6,2/6],[3/6,2/3,0/0],[3/6,2/6,0/0],[3/3,0/0,0/0],[3/6,0/0,... / ...],[2/6,... / ...|...],[... / ...|...]|...], L = 93.
+
+%?- d_sortedQfs(4, SQs), length(SQs, L).
+%@    SQs = [[4/6,0/0,0/0,0/0],[3/6,4/6,0/0,0/0],[3/6,3/6,4/6,0/0],[3/6,3/6,3/6,4/6],[3/6,3/6,3/6,3/3],[3/6,3/6,3/6,3/6],[3/6,3/6,3/6,2/3],[3/6,3/6,3/6,2/6],[3/6,3/6,3/3,0/0],[3/6,3/6,3/6,0/0],[3/6,3/6,2/6,4/6],[3/6,3/6,2/6,3/3],[3/6,3/6,2/6,3/6],[3/6,3/6,2/6,2/3],[3/6,3/6,2/6,2/6],[3/6,3/6,2/3,0/0],[3/6,3/6,2/6,... / ...],[3/6,3/3,... / ...|...],[3/6,... / ...|...],[... / ...|...]|...], L = 261.
+
+% The guarantee I have regarding such sorted a Qf list is that,
+% if I process its elements front-to-back, each next element
+% cannot be below any of those previously processed.
+% In particular, I do NOT have a guarantee that all minimal
+% elements are contiguous in the front of the list!
+% Nevertheless, this weaker guarantee is able to support
+% an efficient stratification of the list into recursively
+% peeled-off minimal sets.
+
+stratadd(Q, [], [[Q]]).
+stratadd(Q, [Top|Lower], Mss) :-
+    if_(tmember_t('≽'(Q), Top),
+        Mss = [[Q],Top|Lower],
+        Mss = [[Q|Top]|Lower]
+       ).
+
+d_strata(D, Qss) :-
+    d_sortedQfs(D, Qfs),
+    foldl(stratadd, Qfs, [], Qss).
+
+%?- S+\(d_strata(2, Qss), maplist(portray_clause, Qss), length(Qss, S)).
+%@ [[0/3,0/6]].
+%@ [[0/3,1/6],[0/6,2/6]].
+%@ [[0/6,2/3],[0/6,3/6]].
+%@ [[0/6,3/3],[0/6,4/6],[1/6,0/6]].
+%@ [[1/6,1/6]].
+%@ [[1/6,2/6]].
+%@ [[1/6,2/3],[1/6,3/6]].
+%@ [[1/6,3/3],[1/6,4/6],[2/6,0/0]].
+%@ [[2/3,0/0],[2/6,2/6]].
+%@ [[2/6,2/3],[2/6,3/6]].
+%@ [[2/6,3/3],[2/6,4/6],[3/6,0/0]].
+%@ [[3/3,0/0],[3/6,2/6]].
+%@ [[3/6,2/3],[3/6,3/6]].
+%@ [[3/6,3/3],[3/6,4/6],[4/6,0/0]].
+%@    S = 14. % More strata (∴ more _structure_) than I expected!
+
+%?- Q1^Q2+\(findall(Q, d_mendtally_rec(2,Q,_), Qfs), in_cover(Qfs, Q1, Q2)).
+%@    Q1 = [0/3,1/6], Q2 = [0/3,0/6]
+%@ ;  Q1 = [0/6,2/3], Q2 = [0/6,2/6]
+%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/3]
+%@ ;  Q1 = [0/6,3/3], Q2 = [0/6,3/6]
+%@ ;  Q1 = [0/6,3/6], Q2 = [0/6,2/6]
+%@ ;  Q1 = [0/6,4/6], Q2 = [0/6,3/6]
+%@ ;  Q1 = [1/6,1/6], Q2 = [0/6,2/6]
+%@ ;  Q1 = [1/6,1/6], Q2 = [1/6,0/6]
+%@ ;  Q1 = [1/6,2/3], Q2 = [0/6,3/3]
+%@ ;  Q1 = [1/6,2/3], Q2 = [1/6,2/6]
+%@ ;  Q1 = [1/6,2/6], Q2 = [0/6,3/6]
+%@ ;  Q1 = [1/6,2/6], Q2 = [1/6,1/6]
+%@ ;  Q1 = [1/6,3/3], Q2 = [1/6,2/3]
+%@ ;  Q1 = [1/6,3/3], Q2 = [1/6,3/6]
+%@ ;  Q1 = [1/6,3/6], Q2 = [0/6,4/6]
+%@ ;  Q1 = [1/6,3/6], Q2 = [1/6,2/6]
+%@ ;  Q1 = [1/6,4/6], Q2 = [0/6,2/3]
+%@ ;  Q1 = [1/6,4/6], Q2 = [1/6,3/6]
+%@ ;  Q1 = [2/3,0/0], Q2 = [0/3,1/6]
+%@ ;  Q1 = [2/3,0/0], Q2 = [2/6,0/0]
+%@ ;  Q1 = [2/6,0/0], Q2 = [0/6,2/3]
+%@ ;  Q1 = [2/6,0/0], Q2 = [1/6,1/6]
+%@ ;  Q1 = [2/6,2/3], Q2 = [1/6,3/3]
+%@ ;  Q1 = [2/6,2/3], Q2 = [2/6,2/6]
+%@ ;  Q1 = [2/6,2/6], Q2 = [1/6,3/6]
+%@ ;  Q1 = [2/6,3/3], Q2 = [2/6,0/0]
+%@ ;  Q1 = [2/6,3/3], Q2 = [2/6,2/3]
+%@ ;  Q1 = [2/6,3/3], Q2 = [2/6,3/6]
+%@ ;  Q1 = [2/6,3/6], Q2 = [1/6,4/6]
+%@ ;  Q1 = [2/6,3/6], Q2 = [2/6,2/6]
+%@ ;  Q1 = [2/6,4/6], Q2 = [1/6,2/3]
+%@ ;  Q1 = [2/6,4/6], Q2 = [2/6,3/6]
+%@ ;  Q1 = [3/3,0/0], Q2 = [2/3,0/0]
+%@ ;  Q1 = [3/3,0/0], Q2 = [3/6,0/0]
+%@ ;  Q1 = [3/6,0/0], Q2 = [0/3,1/6]
+%@ ;  Q1 = [3/6,0/0], Q2 = [1/6,2/3]
+%@ ;  Q1 = [3/6,0/0], Q2 = [2/6,0/0]
+%@ ;  Q1 = [3/6,2/3], Q2 = [2/6,3/3]
+%@ ;  Q1 = [3/6,2/3], Q2 = [3/6,2/6]
+%@ ;  Q1 = [3/6,2/6], Q2 = [0/3,1/6]
+%@ ;  Q1 = [3/6,2/6], Q2 = [2/6,3/6]
+%@ ;  Q1 = [3/6,3/3], Q2 = [3/6,0/0]
+%@ ;  Q1 = [3/6,3/3], Q2 = [3/6,2/3]
+%@ ;  Q1 = [3/6,3/3], Q2 = [3/6,3/6]
+%@ ;  Q1 = [3/6,3/6], Q2 = [2/6,4/6]
+%@ ;  Q1 = [3/6,3/6], Q2 = [3/6,2/6]
+%@ ;  Q1 = [3/6,4/6], Q2 = [2/6,2/3]
+%@ ;  Q1 = [3/6,4/6], Q2 = [3/6,3/6]
+%@ ;  Q1 = [4/6,0/0], Q2 = [2/6,2/3]
+%@ ;  Q1 = [4/6,0/0], Q2 = [3/6,0/0]
+%@ ;  false. % Covering relation in 𝒬f (D=2 case) has just 50 pairs.
+
+% stratadd/3 inserts Q into a list of strata Mss0, yielding Mss.
+% Each Mss is of the form [Msk,..Ms1,Ms0], with Ms0 being minimal
+% in the set 𝒬f, Ms1 being minimal in 𝒬f ∖ Ms0, and so forth.
+% Thus, Mss has higher-up strata toward the front, and lower-down
+% strata deeper in the list.  Also, within each stratum, no pair
+% of elements is ordered.  (But remember that being non-ordered
+% within a partial order is NOT an equivalence relation!)
+% Any given Q will always be not-below any existing tally in Mss0.
+% But it is by no means guaranteed to be above any of them either!
+% Relative to such a stratification, it makes sense to speak of
+% a Q being above or below the whole stratum, according to whether
+% Q is above or below any element of the stratum.  (Note that this
+% is a property of *this* stratification, and would not reasonably
+% apply to arbitrarily partitioned sets.)
+% We want to add Q in an appropriate stratum.  If Q happens to be
+% above the top (ie, front) stratum, then [Q] becomes the new top
+% stratum.  Otherwise, since we have the guarantee that none of
+% the elements of the top stratum is above Q, we know Q belongs
+% in that stratum.
+% So each new element processed goes into the top stratum of Mss;
+% the only question is whether this is Mss0's existing top stratum,
+% or a new one.
+% We want to add Q to the lowest-down stratum for which it is not
+% above any element of the stratum.  If it is above any element
+% of the top (front) stratum, then we prepend a new top stratum [Q]
+% to the list.
 
 /*
 Thus, it would seem that the 'obvious' visualization will be too complicated
