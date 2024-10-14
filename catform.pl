@@ -8,6 +8,7 @@
 :- use_module(library(si)).
 :- use_module(library(lambda)).
 :- use_module(library(pairs)).
+:- use_module(library(assoc)).
 :- use_module(library(time)).
 :- use_module(library(format)).
 :- use_module(library(debug)).
@@ -782,33 +783,40 @@ d_writehassedot(D) :-
     format("Opening file ~q...~n", [File]), % feedback to console
     setup_call_cleanup(open(File, write, OS),
 		       (   format("Collecting final tallies ..", []),
-                           findall(Q, d_mendtally_rec(D,Q,_), Qfs),
-                           length(Qfs, Nf),
+                           % NB: We use _unrectified_ d_endtally_rec/3 to exhibit
+                           %     the non-functoriality of default 3+3 dose recs.
+                           findall(Q-X, d_endtally_rec(D,Q,X), QXs),
+                           pairs_keys(QXs, Qs),
+                           length(Qs, Nf),
                            format("~n sorting ~d final tallies ..", [Nf]),
-                           qs_sorted(Qfs, SQs),
+                           qs_sorted(Qs, SQs),
                            format("~n stratifying ..~n", []),
                            foldl(stratadd, SQs, [], Qss),
                            maplist(portray_clause, Qss),
-                           format(OS, "digraph hasseD~d {~n", [D]),
-                           format(OS, "  rankdir = \"~a\";~n", ['BT']),
+                           format(OS, "strict digraph hasseD~d {~n", [D]),
+                           format(OS, "  rankdir=~a;~n", ['BT']),
+                           format(OS, "  node [colorscheme=~w, fontname=\"~w\"];~n",
+                                  ['set14','Helvetica:bold']),
                            format("Writing strata to DOT file ..", []),
-                           maplist(write_stratum(OS), Qss),
+                           list_to_assoc(QXs, QXassoc),
+                           maplist(write_stratum(OS,QXassoc), Qss),
                            format("~n writing covering relation ..", []) ->
-			   time((   in_cover(Qfs, Q1, Q2),
+			   time((   in_cover(SQs, Q1, Q2),
 			            format(OS, "  \"~w\" -> \"~w\";~n", [Q1,Q2]),
 			            fail % exhaust all (Q1 -> Q2) arrows
 			        ;   true
 			        )),
-                           format(OS, "}", [])
+                           format(OS, "}~n", [])
 		       ),
 		       close(OS)
 		      ),
     format(".. done.~n", []).
 
-write_stratum(OS, Qs) :-
-    format(OS, "  {~n", []),
-    format(OS, "    rank = same;~n", []),
-    maplist(\Q^(format(OS, "    \"~w\";~n", [Q])), Qs),
+write_stratum(OS, QXassoc, Qs) :-
+    format(OS, "  { rank=same;~n", []),
+    maplist(\Q^(get_assoc(Q, QXassoc, X), #Color #= #X + 1,
+                format(OS, "    \"~w\" [fontcolor=~d];~n", [Q,Color])),
+            Qs),
     format(OS, "  }~n", []).
 
 %?- d_writehassedot(2).
@@ -831,7 +839,7 @@ write_stratum(OS, Qs) :-
 %@ [[3/6,2/3],[3/6,3/6]].
 %@ [[3/6,3/3],[3/6,4/6],[4/6,0/0]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 7.761s, 39_360_411 inferences
+%@  writing covering relation ..   % CPU time: 5.639s, 28_764_431 inferences
 %@ .. done.
 %@    true.
 
@@ -882,7 +890,7 @@ write_stratum(OS, Qs) :-
 %@ [[3/6,3/6,2/3],[3/6,3/6,3/6]].
 %@ [[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 233.663s, 1_197_019_031 inferences
+%@  writing covering relation ..   % CPU time: 127.513s, 594_315_268 inferences
 %@ .. done.
 %@    true.
 
