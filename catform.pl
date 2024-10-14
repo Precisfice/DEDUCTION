@@ -12,6 +12,7 @@
 :- use_module(library(format)).
 :- use_module(library(debug)).
 :- use_module(library(tabling)).
+:- use_module(library(iso_ext)).
 
 :- use_module(rcpearl).
 
@@ -631,6 +632,10 @@ minimal_in(M, Qs) :-
 
 % The https://en.wikipedia.org/wiki/Covering_relation is
 % fundamental, and surely warrants a dedicated predicate.
+% NB: The time-complexity of in_cover_t/3 could be reduced
+%     by exploiting the arithmetized sort behind d_strata/2.
+%     But we retain this implementation for the time being,
+%     since its simplicity renders it 'obviously' correct.
 in_cover_t(Qs, Q1, Q2, Truth) :-
     member(Q1, Qs),
     member(Q2, Qs),
@@ -713,8 +718,11 @@ base_digits_int(B, Ds, K) :-
 %@    Ds = [9,8,7,6].
 
 d_sortedQfs(D, SQs) :-
-    N = 6, % TODO: Generalize
     findall(Q, d_mendtally_rec(D,Q,_), Qs),
+    qs_sorted(Qs, SQs).
+
+qs_sorted(Qs, SQs) :-
+    N = 6, % TODO: Generalize
     maplist(d_n_qs_int(D,N), Qs, Ks),
     sort(Ks, SKs),
     same_length(SQs, Qs),
@@ -766,6 +774,117 @@ d_strata(D, Qss) :-
 %@ [[3/6,2/3],[3/6,3/6]].
 %@ [[3/6,3/3],[3/6,4/6],[4/6,0/0]].
 %@    S = 14. % More strata (∴ more _structure_) than I expected!
+
+% Write out Hasse diagram as (GraphViz) DOT file.
+d_writehassedot(D) :-
+    phrase(format_("HasseD~d.dot", [D]), Filename),
+    atom_chars(File, Filename),
+    format("Opening file ~q...~n", [File]), % feedback to console
+    setup_call_cleanup(open(File, write, OS),
+		       (   format("Collecting final tallies ..", []),
+                           findall(Q, d_mendtally_rec(D,Q,_), Qfs),
+                           length(Qfs, Nf),
+                           format("~n sorting ~d final tallies ..", [Nf]),
+                           qs_sorted(Qfs, SQs),
+                           format("~n stratifying ..~n", []),
+                           foldl(stratadd, SQs, [], Qss),
+                           maplist(portray_clause, Qss),
+                           format(OS, "digraph hasseD~d {~n", [D]),
+                           format(OS, "  rankdir = \"~a\";~n", ['BT']),
+                           format("Writing strata to DOT file ..", []),
+                           maplist(write_stratum(OS), Qss),
+                           format("~n writing covering relation ..", []) ->
+			   time((   in_cover(Qfs, Q1, Q2),
+			            format(OS, "  \"~w\" -> \"~w\";~n", [Q1,Q2]),
+			            fail % exhaust all (Q1 -> Q2) arrows
+			        ;   true
+			        )),
+                           format(OS, "}", [])
+		       ),
+		       close(OS)
+		      ),
+    format(".. done.~n", []).
+
+write_stratum(OS, Qs) :-
+    format(OS, "  {~n", []),
+    format(OS, "    rank = same;~n", []),
+    maplist(\Q^(format(OS, "    \"~w\";~n", [Q])), Qs),
+    format(OS, "  }~n", []).
+
+%?- d_writehassedot(2).
+%@ Opening file 'HasseD2.dot'...
+%@ Collecting final tallies ..
+%@  sorting 29 final tallies ..
+%@  stratifying ..
+%@ [[0/3,0/6]].
+%@ [[0/3,1/6],[0/6,2/6]].
+%@ [[0/6,2/3],[0/6,3/6]].
+%@ [[0/6,3/3],[0/6,4/6],[1/6,0/6]].
+%@ [[1/6,1/6]].
+%@ [[1/6,2/6]].
+%@ [[1/6,2/3],[1/6,3/6]].
+%@ [[1/6,3/3],[1/6,4/6],[2/6,0/0]].
+%@ [[2/3,0/0],[2/6,2/6]].
+%@ [[2/6,2/3],[2/6,3/6]].
+%@ [[2/6,3/3],[2/6,4/6],[3/6,0/0]].
+%@ [[3/3,0/0],[3/6,2/6]].
+%@ [[3/6,2/3],[3/6,3/6]].
+%@ [[3/6,3/3],[3/6,4/6],[4/6,0/0]].
+%@ Writing strata to DOT file ..
+%@  writing covering relation ..   % CPU time: 7.761s, 39_360_411 inferences
+%@ .. done.
+%@    true.
+
+%?- d_writehassedot(3).
+%@ Opening file 'HasseD3.dot'...
+%@ Collecting final tallies ..
+%@  sorting 93 final tallies ..
+%@  stratifying ..
+%@ [[0/3,0/3,0/6]].
+%@ [[0/3,0/3,1/6],[0/3,0/6,2/6]].
+%@ [[0/3,0/6,2/3],[0/3,0/6,3/6]].
+%@ [[0/3,0/6,3/3],[0/3,0/6,4/6],[0/3,1/6,0/6]].
+%@ [[0/3,1/6,1/6]].
+%@ [[0/3,1/6,2/6]].
+%@ [[0/3,1/6,2/3],[0/3,1/6,3/6]].
+%@ [[0/3,1/6,3/3],[0/3,1/6,4/6],[0/6,2/6,0/0]].
+%@ [[0/6,2/3,0/0],[0/6,2/6,2/6]].
+%@ [[0/6,2/6,2/3],[0/6,2/6,3/6]].
+%@ [[0/6,2/6,3/3],[0/6,2/6,4/6],[0/6,3/6,0/0]].
+%@ [[0/6,3/3,0/0],[0/6,3/6,2/6]].
+%@ [[0/6,3/6,2/3],[0/6,3/6,3/6]].
+%@ [[0/6,3/6,3/3],[0/6,3/6,4/6],[0/6,4/6,0/0],[1/6,0/3,0/6]].
+%@ [[1/6,0/3,1/6],[1/6,0/6,2/6]].
+%@ [[1/6,0/6,2/3],[1/6,0/6,3/6]].
+%@ [[1/6,0/6,3/3],[1/6,0/6,4/6],[1/6,1/6,0/6]].
+%@ [[1/6,1/6,1/6]].
+%@ [[1/6,1/6,2/6]].
+%@ [[1/6,1/6,2/3],[1/6,1/6,3/6]].
+%@ [[1/6,1/6,3/3],[1/6,1/6,4/6],[1/6,2/6,0/0]].
+%@ [[1/6,2/3,0/0],[1/6,2/6,2/6]].
+%@ [[1/6,2/6,2/3],[1/6,2/6,3/6]].
+%@ [[1/6,2/6,3/3],[1/6,2/6,4/6],[1/6,3/6,0/0]].
+%@ [[1/6,3/3,0/0],[1/6,3/6,2/6]].
+%@ [[1/6,3/6,2/3],[1/6,3/6,3/6]].
+%@ [[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0],[2/6,0/0,0/0]].
+%@ [[2/3,0/0,0/0],[2/6,2/6,0/0]].
+%@ [[2/6,2/3,0/0],[2/6,2/6,2/6]].
+%@ [[2/6,2/6,2/3],[2/6,2/6,3/6]].
+%@ [[2/6,2/6,3/3],[2/6,2/6,4/6],[2/6,3/6,0/0]].
+%@ [[2/6,3/3,0/0],[2/6,3/6,2/6]].
+%@ [[2/6,3/6,2/3],[2/6,3/6,3/6]].
+%@ [[2/6,3/6,3/3],[2/6,3/6,4/6],[2/6,4/6,0/0],[3/6,0/0,0/0]].
+%@ [[3/3,0/0,0/0],[3/6,2/6,0/0]].
+%@ [[3/6,2/3,0/0],[3/6,2/6,2/6]].
+%@ [[3/6,2/6,2/3],[3/6,2/6,3/6]].
+%@ [[3/6,2/6,3/3],[3/6,2/6,4/6],[3/6,3/6,0/0]].
+%@ [[3/6,3/3,0/0],[3/6,3/6,2/6]].
+%@ [[3/6,3/6,2/3],[3/6,3/6,3/6]].
+%@ [[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]].
+%@ Writing strata to DOT file ..
+%@  writing covering relation ..   % CPU time: 233.663s, 1_197_019_031 inferences
+%@ .. done.
+%@    true.
 
 %?- Q1^Q2+\(findall(Q, d_mendtally_rec(2,Q,_), Qfs), in_cover(Qfs, Q1, Q2)).
 %@    Q1 = [0/3,1/6], Q2 = [0/3,0/6]
