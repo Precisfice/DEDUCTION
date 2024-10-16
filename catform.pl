@@ -327,134 +327,12 @@ endtally_path(FinalTally, Path) :-
 %?- #J #= 2*4 + 11*2 + 16.
 %@    J = 46.
 
-% What if we expand the information extracted from the 3+3 design
-% to include *all* next-dose recommendations?
-
-:- table tally_nextdose/2.
-
-tally_nextdose(Tally, D) :-
-    Init = [0/0]-[0/0],
-    phrase(path(Init), Path),
-    phrase((..., [Ls-Hs,E], ...), [Init|Path]),
-    length(Ls, D0),
-    (   E = esc, #D #= D0 + 1
-    ;   E = sta, #D #= D0
-    ;   E = des, #D #= D0 - 1
-    ),
-    state_tallies(Ls-Hs, Tally).
-
-%?- tally_nextdose(Q, D).
-%@    Q = [0/0,0/0], D = 1
-%@ ;  Q = [0/3,0/0], D = 2
-%@ ;  Q = [0/3,0/3], D = 2
-%@ ;  Q = [0/3,1/3], D = 2
-%@ ;  Q = [0/3,2/3], D = 1
-%@ ;  Q = [0/3,2/6], D = 1
-%@ ;  Q = [0/3,3/3], D = 1
-%@ ;  Q = [0/3,3/6], D = 1
-%@ ;  Q = [0/3,4/6], D = 1
-%@ ;  Q = [1/3,0/0], D = 1
-%@ ;  Q = [1/6,0/0], D = 2
-%@ ;  Q = [1/6,0/3], D = 2
-%@ ;  Q = [1/6,1/3], D = 2
-%@ ;  false. % 13 answers if we exclude final tallies
-
-% Let us include all of the Final recs also:
-tally_nextdose(Tally, D) :- d_endtally_rec(2, Tally, D).
-
-/*
-%?- tally_nextdose(Tally, D).
-%@    Tally = [0/0,0/0], D = 1
-%@ ;  Tally = [0/3,0/0], D = 2
-%@ ;  Tally = [0/3,0/3], D = 2
-%@ ;  Tally = [0/3,0/6], D = 2
-%@ ;  Tally = [0/3,1/3], D = 2
-%@ ;  Tally = [0/3,1/6], D = 2
-%@ ;  Tally = [0/3,2/3], D = 1
-%@ ;  Tally = [0/3,2/6], D = 1
-%@ ;  Tally = [0/3,3/3], D = 1
-%@ ;  Tally = [0/3,3/6], D = 1
-%@ ;  Tally = [0/3,4/6], D = 1
-%@ ;  Tally = [0/6,2/3], D = 1
-%@ ;  Tally = [0/6,2/6], D = 1
-%@ ;  Tally = [0/6,3/3], D = 1
-%@ ;  Tally = [0/6,3/6], D = 1
-%@ ;  Tally = [0/6,4/6], D = 1
-%@ ;  Tally = [1/3,0/0], D = 1
-%@ ;  Tally = [1/6,0/0], D = 2
-%@ ;  Tally = [1/6,0/3], D = 2
-%@ ;  Tally = [1/6,0/6], D = 2
-%@ ;  Tally = [1/6,1/3], D = 2
-%@ ;  Tally = [1/6,1/6], D = 2
-%@ ;  Tally = [1/6,2/3], D = 1
-%@ ;  Tally = [1/6,2/6], D = 1
-%@ ;  Tally = [1/6,3/3], D = 1
-%@ ;  Tally = [1/6,3/6], D = 1
-%@ ;  Tally = [1/6,4/6], D = 1
-%@ ;  Tally = [2/3,0/0], D = 0
-%@ ;  Tally = [2/6,0/0], D = 0
-%@ ;  Tally = [2/6,2/3], D = 0
-%@ ;  Tally = [2/6,2/6], D = 0
-%@ ;  Tally = [2/6,3/3], D = 0
-%@ ;  Tally = [2/6,3/6], D = 0
-%@ ;  Tally = [2/6,4/6], D = 0
-%@ ;  Tally = [3/3,0/0], D = 0
-%@ ;  Tally = [3/6,0/0], D = 0
-%@ ;  Tally = [3/6,2/3], D = 0
-%@ ;  Tally = [3/6,2/6], D = 0
-%@ ;  Tally = [3/6,3/3], D = 0
-%@ ;  Tally = [3/6,3/6], D = 0
-%@ ;  Tally = [3/6,4/6], D = 0
-%@ ;  Tally = [4/6,0/0], D = 0
-%@ ;  false. % NB: We get 29+13=42 answers.
-*/
-
-% Suppose we search again for all non-functoriality
-% implicit in these now-expanded tally-dose mappings.
-/*
-?- tally_nextdose(Q1, D1),
-   tally_nextdose(Q2, D2),
-   Q1 '≼' Q2, % Q1 evidently no safer than Q2,
-   D1 #>  D2. % yet recommended D1 exceeds D2.
-%@    Q1 = [1/6,1/3], D1 = 2, Q2 = [0/6,2/3], D2 = 1 % <- 2 new
-%@ ;  Q1 = [1/6,1/3], D1 = 2, Q2 = [0/6,2/6], D2 = 1 % <- solutions
-%@ ;  Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
-%@ ;  false.
-*/
-% The first 2 solutions are new, but notably they compare
-% an *interim* tally Q1 against a *final* tally Q2.
-% Because of how the consideration of interim tallies is
-% entangled with questions of trial progress, these new
-% solutions do not speak quite so clearly as our earlier
-% finding (the 3rd solution here) to the 3+3 protocol's
-% underlying pharmacologic intuitions.
-
 /*
 It's time now to investigate what trial designs arise from
 a rectified tally-dose mapping.  We are looking for all
 incremental enrollments that are consistent with the
 preorder obtained 
 */
-
-% Let us begin by producing a rectified, dose-monotone version
-% of endtally_rec/2.  While we /could/ do this by hard-coding
-% the exclusion of the DM-violating solution from endtally_rec/2,
-% I prefer to proceed using a more general approach.
-
-table mendtally_rec/2.
-mendtally_rec(Q, D) :- mendtally_rec(Q, D, _).
-
-mendtally_rec(Q, D, Ds) :- % prefixed "m" for (dose-)monotone
-    endtally_rec(Q, D0),
-    findall(Di, (endtally_rec(Qi, Di),
-                 Q '≼' Qi,  % Q is no safer than Qi,
-                 D0 #> Di), % yet its rec exceeds Di.
-            Ds),
-    foldl(clpz:min_, Ds, D0, D).
-
-%?- mendtally_rec(Q, D, [_|_]).
-%@    Q = [1/6,1/6], D = 1
-%@ ;  false.
 
 /*
 ?- d_mendtally_rec(2, Q1, D1),
@@ -664,11 +542,11 @@ d_ncovers(D, N) :-
     length(Covers, N).
 
 %?- time(d_ncovers(2, N)).
-%@    % CPU time: 8.545s, 43_559_874 inferences
+%@    % CPU time: 8.613s, 43_559_874 inferences
 %@    N = 50.
 
 %?- time(d_ncovers(3, N)).
-%@    % CPU time: 236.477s, 1_228_314_914 inferences
+%@    % CPU time: 251.255s, 1_228_314_914 inferences
 %@    N = 194.
 
 % At least for the D=2 case, a useful Hasse diagram for 𝒬f seems within reach.
@@ -739,7 +617,7 @@ qs_sorted(Qs, SQs) :-
 %?- d_sortedQfs(4, SQs), length(SQs, L).
 %@    SQs = [[4/6,0/0,0/0,0/0],[3/6,4/6,0/0,0/0],[3/6,3/6,4/6,0/0],[3/6,3/6,3/6,4/6],[3/6,3/6,3/6,3/3],[3/6,3/6,3/6,3/6],[3/6,3/6,3/6,2/3],[3/6,3/6,3/6,2/6],[3/6,3/6,3/3,0/0],[3/6,3/6,3/6,0/0],[3/6,3/6,2/6,4/6],[3/6,3/6,2/6,3/3],[3/6,3/6,2/6,3/6],[3/6,3/6,2/6,2/3],[3/6,3/6,2/6,2/6],[3/6,3/6,2/3,0/0],[3/6,3/6,2/6,... / ...],[3/6,3/3,... / ...|...],[3/6,... / ...|...],[... / ...|...]|...], L = 261.
 
-% The guarantee I have regarding such sorted a Qf list is that,
+% The guarantee I have regarding such a sorted Qf list is that,
 % if I process its elements front-to-back, each next element
 % cannot be below any of those previously processed.
 % In particular, I do NOT have a guarantee that all minimal
@@ -748,33 +626,35 @@ qs_sorted(Qs, SQs) :-
 % an efficient stratification of the list into recursively
 % peeled-off minimal sets.
 
-stratadd(Q, [], [[Q]]).
-stratadd(Q, [Top|Lower], Mss) :-
+sift(Q, [Top|Lower], Strata) :-
     if_(tmember_t('≽'(Q), Top),
-        Mss = [[Q],Top|Lower],
-        Mss = [[Q|Top]|Lower]
+        Strata = [[Q],Top|Lower],
+        sift_(Lower, Q, Top, Strata)).
+
+sift_([], Q, Top, [[Q|Top]]).
+sift_([Next|More], Q, Top, Strata) :-
+    if_(tmember_t('≽'(Q), Next),
+        Strata = [[Q|Top],Next|More],
+        (   Strata = [Top|Strata0],
+            sift_(More, Q, Next, Strata0)
+        )
        ).
 
 d_strata(D, Qss) :-
     d_sortedQfs(D, Qfs),
-    foldl(stratadd, Qfs, [], Qss).
+    foldl(sift, Qfs, [[]], Qss).
 
 %?- S+\(d_strata(2, Qss), maplist(portray_clause, Qss), length(Qss, S)).
-%@ [[0/3,0/6]].
-%@ [[0/3,1/6],[0/6,2/6]].
-%@ [[0/6,2/3],[0/6,3/6]].
-%@ [[0/6,3/3],[0/6,4/6],[1/6,0/6]].
-%@ [[1/6,1/6]].
-%@ [[1/6,2/6]].
+%@ [[0/6,2/6],[1/6,0/6]].
+%@ [[0/6,2/3],[0/6,3/6],[1/6,1/6]].
+%@ [[0/6,3/3],[0/6,4/6],[1/6,2/6]].
 %@ [[1/6,2/3],[1/6,3/6]].
-%@ [[1/6,3/3],[1/6,4/6],[2/6,0/0]].
-%@ [[2/3,0/0],[2/6,2/6]].
-%@ [[2/6,2/3],[2/6,3/6]].
-%@ [[2/6,3/3],[2/6,4/6],[3/6,0/0]].
-%@ [[3/3,0/0],[3/6,2/6]].
-%@ [[3/6,2/3],[3/6,3/6]].
-%@ [[3/6,3/3],[3/6,4/6],[4/6,0/0]].
-%@    S = 14. % More strata (∴ more _structure_) than I expected!
+%@ [[0/3,0/6],[1/6,3/3],[1/6,4/6],[2/6,2/6]].
+%@ [[0/3,1/6],[2/6,0/0],[2/6,2/3],[2/6,3/6]].
+%@ [[2/6,3/3],[2/6,4/6],[3/6,2/6]].
+%@ [[2/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,3/6]].
+%@ [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
+%@    S = 9.
 
 % Write out Hasse diagram as (GraphViz) DOT file.
 d_writehassedot(D) :-
@@ -791,7 +671,7 @@ d_writehassedot(D) :-
                            format("~n sorting ~d final tallies ..", [Nf]),
                            qs_sorted(Qs, SQs),
                            format("~n stratifying ..~n", []),
-                           foldl(stratadd, SQs, [], Qss),
+                           foldl(sift, SQs, [[]], Qss),
                            maplist(portray_clause, Qss),
                            format(OS, "strict digraph hasseD~d {~n", [D]),
                            format(OS, "  rankdir=~a;~n", ['BT']),
@@ -824,22 +704,17 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ Collecting final tallies ..
 %@  sorting 29 final tallies ..
 %@  stratifying ..
-%@ [[0/3,0/6]].
-%@ [[0/3,1/6],[0/6,2/6]].
-%@ [[0/6,2/3],[0/6,3/6]].
-%@ [[0/6,3/3],[0/6,4/6],[1/6,0/6]].
-%@ [[1/6,1/6]].
-%@ [[1/6,2/6]].
+%@ [[0/6,2/6],[1/6,0/6]].
+%@ [[0/6,2/3],[0/6,3/6],[1/6,1/6]].
+%@ [[0/6,3/3],[0/6,4/6],[1/6,2/6]].
 %@ [[1/6,2/3],[1/6,3/6]].
-%@ [[1/6,3/3],[1/6,4/6],[2/6,0/0]].
-%@ [[2/3,0/0],[2/6,2/6]].
-%@ [[2/6,2/3],[2/6,3/6]].
-%@ [[2/6,3/3],[2/6,4/6],[3/6,0/0]].
-%@ [[3/3,0/0],[3/6,2/6]].
-%@ [[3/6,2/3],[3/6,3/6]].
-%@ [[3/6,3/3],[3/6,4/6],[4/6,0/0]].
+%@ [[0/3,0/6],[1/6,3/3],[1/6,4/6],[2/6,2/6]].
+%@ [[0/3,1/6],[2/6,0/0],[2/6,2/3],[2/6,3/6]].
+%@ [[2/6,3/3],[2/6,4/6],[3/6,2/6]].
+%@ [[2/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,3/6]].
+%@ [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 5.639s, 28_764_431 inferences
+%@  writing covering relation ..   % CPU time: 5.606s, 28_764_431 inferences
 %@ .. done.
 %@    true.
 
@@ -848,49 +723,23 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ Collecting final tallies ..
 %@  sorting 93 final tallies ..
 %@  stratifying ..
-%@ [[0/3,0/3,0/6]].
-%@ [[0/3,0/3,1/6],[0/3,0/6,2/6]].
-%@ [[0/3,0/6,2/3],[0/3,0/6,3/6]].
-%@ [[0/3,0/6,3/3],[0/3,0/6,4/6],[0/3,1/6,0/6]].
-%@ [[0/3,1/6,1/6]].
-%@ [[0/3,1/6,2/6]].
-%@ [[0/3,1/6,2/3],[0/3,1/6,3/6]].
-%@ [[0/3,1/6,3/3],[0/3,1/6,4/6],[0/6,2/6,0/0]].
-%@ [[0/6,2/3,0/0],[0/6,2/6,2/6]].
-%@ [[0/6,2/6,2/3],[0/6,2/6,3/6]].
-%@ [[0/6,2/6,3/3],[0/6,2/6,4/6],[0/6,3/6,0/0]].
-%@ [[0/6,3/3,0/0],[0/6,3/6,2/6]].
-%@ [[0/6,3/6,2/3],[0/6,3/6,3/6]].
-%@ [[0/6,3/6,3/3],[0/6,3/6,4/6],[0/6,4/6,0/0],[1/6,0/3,0/6]].
-%@ [[1/6,0/3,1/6],[1/6,0/6,2/6]].
-%@ [[1/6,0/6,2/3],[1/6,0/6,3/6]].
-%@ [[1/6,0/6,3/3],[1/6,0/6,4/6],[1/6,1/6,0/6]].
-%@ [[1/6,1/6,1/6]].
-%@ [[1/6,1/6,2/6]].
-%@ [[1/6,1/6,2/3],[1/6,1/6,3/6]].
-%@ [[1/6,1/6,3/3],[1/6,1/6,4/6],[1/6,2/6,0/0]].
-%@ [[1/6,2/3,0/0],[1/6,2/6,2/6]].
-%@ [[1/6,2/6,2/3],[1/6,2/6,3/6]].
-%@ [[1/6,2/6,3/3],[1/6,2/6,4/6],[1/6,3/6,0/0]].
-%@ [[1/6,3/3,0/0],[1/6,3/6,2/6]].
-%@ [[1/6,3/6,2/3],[1/6,3/6,3/6]].
-%@ [[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0],[2/6,0/0,0/0]].
-%@ [[2/3,0/0,0/0],[2/6,2/6,0/0]].
-%@ [[2/6,2/3,0/0],[2/6,2/6,2/6]].
-%@ [[2/6,2/6,2/3],[2/6,2/6,3/6]].
-%@ [[2/6,2/6,3/3],[2/6,2/6,4/6],[2/6,3/6,0/0]].
-%@ [[2/6,3/3,0/0],[2/6,3/6,2/6]].
-%@ [[2/6,3/6,2/3],[2/6,3/6,3/6]].
-%@ [[2/6,3/6,3/3],[2/6,3/6,4/6],[2/6,4/6,0/0],[3/6,0/0,0/0]].
-%@ [[3/3,0/0,0/0],[3/6,2/6,0/0]].
-%@ [[3/6,2/3,0/0],[3/6,2/6,2/6]].
-%@ [[3/6,2/6,2/3],[3/6,2/6,3/6]].
-%@ [[3/6,2/6,3/3],[3/6,2/6,4/6],[3/6,3/6,0/0]].
-%@ [[3/6,3/3,0/0],[3/6,3/6,2/6]].
-%@ [[3/6,3/6,2/3],[3/6,3/6,3/6]].
-%@ [[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]].
+%@ [[1/6,0/6,2/6],[1/6,1/6,0/6]].
+%@ [[0/6,2/6,2/6],[1/6,0/6,2/3],[1/6,0/6,3/6],[1/6,1/6,1/6]].
+%@ [[0/6,2/6,0/0],[0/6,2/6,2/3],[0/6,2/6,3/6],[1/6,0/6,3/3],[1/6,0/6,4/6],[1/6,1/6,2/6]].
+%@ [[0/6,2/6,3/3],[0/6,2/6,4/6],[0/6,3/6,2/6],[1/6,1/6,2/3],[1/6,1/6,3/6]].
+%@ [[0/6,3/6,0/0],[0/6,3/6,2/3],[0/6,3/6,3/6],[1/6,0/3,0/6],[1/6,1/6,3/3],[1/6,1/6,4/6],[1/6,2/6,2/6]].
+%@ [[0/6,3/6,3/3],[0/6,3/6,4/6],[1/6,0/3,1/6],[1/6,2/6,0/0],[1/6,2/6,2/3],[1/6,2/6,3/6]].
+%@ [[0/3,0/6,2/6],[0/3,1/6,0/6],[0/6,4/6,0/0],[1/6,2/6,3/3],[1/6,2/6,4/6],[1/6,3/6,2/6]].
+%@ [[0/3,0/6,2/3],[0/3,0/6,3/6],[0/3,1/6,1/6],[0/6,2/3,0/0],[1/6,3/6,0/0],[1/6,3/6,2/3],[1/6,3/6,3/6],[2/6,2/6,2/6]].
+%@ [[0/3,0/6,3/3],[0/3,0/6,4/6],[0/3,1/6,2/6],[0/6,3/3,0/0],[1/6,3/6,3/3],[1/6,3/6,4/6],[2/6,2/6,0/0],[2/6,2/6,2/3],[2/6,2/6,3/6]].
+%@ [[0/3,1/6,2/3],[0/3,1/6,3/6],[1/6,2/3,0/0],[1/6,4/6,0/0],[2/6,2/6,3/3],[2/6,2/6,4/6],[2/6,3/6,2/6]].
+%@ [[0/3,0/3,0/6],[0/3,1/6,3/3],[0/3,1/6,4/6],[1/6,3/3,0/0],[2/6,3/6,0/0],[2/6,3/6,2/3],[2/6,3/6,3/6],[3/6,2/6,2/6]].
+%@ [[0/3,0/3,1/6],[2/6,0/0,0/0],[2/6,2/3,0/0],[2/6,3/6,3/3],[2/6,3/6,4/6],[3/6,2/6,0/0],[3/6,2/6,2/3],[3/6,2/6,3/6]].
+%@ [[2/6,3/3,0/0],[2/6,4/6,0/0],[3/6,2/6,3/3],[3/6,2/6,4/6],[3/6,3/6,2/6]].
+%@ [[2/3,0/0,0/0],[3/6,0/0,0/0],[3/6,2/3,0/0],[3/6,3/6,0/0],[3/6,3/6,2/3],[3/6,3/6,3/6]].
+%@ [[3/3,0/0,0/0],[3/6,3/3,0/0],[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 127.513s, 594_315_268 inferences
+%@  writing covering relation ..   % CPU time: 114.274s, 594_315_291 inferences
 %@ .. done.
 %@    true.
 
@@ -946,33 +795,6 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ ;  Q1 = [4/6,0/0], Q2 = [2/6,2/3]
 %@ ;  Q1 = [4/6,0/0], Q2 = [3/6,0/0]
 %@ ;  false. % Covering relation in 𝒬f (D=2 case) has just 50 pairs.
-
-% stratadd/3 inserts Q into a list of strata Mss0, yielding Mss.
-% Each Mss is of the form [Msk,..Ms1,Ms0], with Ms0 being minimal
-% in the set 𝒬f, Ms1 being minimal in 𝒬f ∖ Ms0, and so forth.
-% Thus, Mss has higher-up strata toward the front, and lower-down
-% strata deeper in the list.  Also, within each stratum, no pair
-% of elements is ordered.  (But remember that being non-ordered
-% within a partial order is NOT an equivalence relation!)
-% Any given Q will always be not-below any existing tally in Mss0.
-% But it is by no means guaranteed to be above any of them either!
-% Relative to such a stratification, it makes sense to speak of
-% a Q being above or below the whole stratum, according to whether
-% Q is above or below any element of the stratum.  (Note that this
-% is a property of *this* stratification, and would not reasonably
-% apply to arbitrarily partitioned sets.)
-% We want to add Q in an appropriate stratum.  If Q happens to be
-% above the top (ie, front) stratum, then [Q] becomes the new top
-% stratum.  Otherwise, since we have the guarantee that none of
-% the elements of the top stratum is above Q, we know Q belongs
-% in that stratum.
-% So each new element processed goes into the top stratum of Mss;
-% the only question is whether this is Mss0's existing top stratum,
-% or a new one.
-% We want to add Q to the lowest-down stratum for which it is not
-% above any element of the stratum.  If it is above any element
-% of the top (front) stratum, then we prepend a new top stratum [Q]
-% to the list.
 
 /*
 Thus, it would seem that the 'obvious' visualization will be too complicated
@@ -1036,7 +858,7 @@ Let's begin by exploring how many (if any!) such (g₀, g₁) exist.
 % projecting off the lowest dose, and the remaining 13 do so when
 % the top dose is removed.
 
-%:- table d_mendtally_rec/3. % TODO: Understand why I cannot table this.
+%:- table d_mendtally_rec_/4. % TODO: Understand why I cannot table this.
 % (I can hardly use tabling safely, if I don't understand why it failed here!)
 d_mendtally_rec(D, Q, X) :- d_mendtally_rec_(D, Q, X, _).
 
@@ -1155,20 +977,20 @@ d_g_rec(D, G, X) :- d_g_rec(D, G, X, 6).
 % Might we find an adjunction (g₀, g₁, g₂) for the D=3 case as well?
 
 %?- time(N+\(setof(G0, d_g_rec(3, G0, 0), G0s), length(G0s, N))).
-%@    % CPU time: 46.689s, 239_030_535 inferences
+%@    % CPU time: 46.581s, 239_029_620 inferences
 %@    N = 43.
 
 /*
 ?- X^N+\(X in 0..3, indomain(X),
          time(findall(Gx, d_g_rec(3, Gx, X), Gxs)),
          length(Gxs, N)).
-%@    % CPU time: 46.731s, 239_030_248 inferences
+%@    % CPU time: 46.430s, 239_029_333 inferences
 %@    X = 0, N = 43
-%@ ;  % CPU time: 35.628s, 184_445_551 inferences
+%@ ;  % CPU time: 35.438s, 184_445_124 inferences
 %@    X = 1, N = 1
-%@ ;  % CPU time: 35.139s, 182_183_755 inferences
+%@ ;  % CPU time: 34.968s, 182_183_138 inferences
 %@    X = 2, N = 0 % Aha! ∄ g₂ for the 3-dose 3+3 trial.
-%@ ;  % CPU time: 35.282s, 183_621_992 inferences
+%@ ;  % CPU time: 35.238s, 183_621_057 inferences
 %@    X = 3, N = 5.
 */
 
@@ -1176,11 +998,11 @@ d_g_rec(D, G, X) :- d_g_rec(D, G, X, 6).
 ?- X^N+\(D = 2, X in 0..D, indomain(X),
          time(findall(Gx, d_g_rec(D, Gx, X), Gxs)),
          length(Gxs, N)).
-%@    % CPU time: 2.309s, 11_426_733 inferences
+%@    % CPU time: 2.305s, 11_426_608 inferences
 %@    X = 0, N = 9
-%@ ;  % CPU time: 1.247s, 6_371_451 inferences
+%@ ;  % CPU time: 1.242s, 6_371_386 inferences
 %@    X = 1, N = 1
-%@ ;  % CPU time: 1.300s, 6_523_869 inferences
+%@ ;  % CPU time: 1.272s, 6_523_766 inferences
 %@    X = 2, N = 2.
 */
 
