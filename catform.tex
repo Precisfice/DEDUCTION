@@ -824,13 +824,13 @@ One appeal of a Galois enrollment is that it yields a simple rule parametrized b
 
 Now if we wish to proceed {\em cautiously} in approximating some given trial with final dose recommendations $\Q_f\!\xrightarrow{F} \D$, we must ensure $E(q) \le F(q) \;\forall q \in \Q_f$.  For a lower-Galois approximation, this requires
 \begin{equation}
-F(q) \le d \; \Longleftarrow \; q \preceq g_d \quad \forall q \in \Q_f,\; d \in \D, \label{gconstraint}
+F(q) \le d \; \Longrightarrow \; q \preceq g_d \quad \forall q \in \Q_f,\; d \in \D, \label{gconstraint}
 \end{equation}
 and for an upper-Galois approximation,
 \begin{equation}
-d \le F(q) \; \Longrightarrow \; \ell_d \preceq q \quad \forall q \in \Q_f,\; d \in \D. \label{gconstraint}
+d \not\le F(q) \; \Longrightarrow \; \ell_d \not\preceq q \quad \forall q \in \Q_f,\; d \in \D. \label{gconstraint}
 \end{equation}
-{\em Closest} approximations will be had with minimal $g_d$ or maximal $\ell_d$, respectively.
+{\em Closest} approximations will be had with minimal such $g_d$'s or $\ell_d$'s.
 
 \subsection{Lower-Galois enrollments for the 2-dose \mbox{3+3} trial}
 
