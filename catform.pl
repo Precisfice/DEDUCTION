@@ -405,15 +405,25 @@ d_ncovers(D, N) :-
 % This correlates best with our normal way of writing numbers,
 % putting MSD's leftmost and LSD's rightmost.
 
-placevalues([P|Ps]) :-
-    placevalues(Ps),
+pvs([P|Ps]) :-
+    pvs(Ps),
     pvs_nextup(Ps, P).
-placevalues([]).
+pvs([]).
 
 pvs_nextup([], 1).
 pvs_nextup([P|Ps], P1) :-
     length([P|Ps], N),
     #P1 #= #P * (6*N + 1).
+
+% Let's just PRECOMPUTE!
+%?- length(Ps, 8), pvs(Ps), reverse(Ps, Rs).
+%@    Ps = [2131900225,49579075,1339975,43225,1729,91,7,1], Rs = [1,7,91,1729,43225,1339975,49579075,2131900225].
+
+placevalues(Ps) :-
+    same_length(Ps, Rs),
+    % NB: Taking a _tail_ with append/3 would leave a choice point.
+    append(Rs, _, [1,7,91,1729,43225,1339975,49579075,2131900225]),
+    reverse(Rs, Ps).
 
 %?- length(Ps, 5), placevalues(Ps).
 %@    Ps = [43225,1729,91,7,1].
@@ -508,13 +518,6 @@ d_int_ws(D, K, Ws) :-
 %@    K = 223329.
 
 d_maxenc(D, Kmax) :-
-    length(Xs, D),
-    maplist(=(6), Xs),
-    intlist_partsums(Xs, SXs),
-    ws_int(SXs, Kmax).
-
-% TODO: Note that instead of above, we could do
-d_maxencB(D, Kmax) :-
     length(Ps, D),
     placevalues([Kmax1|Ps]),
     #Kmax #= Kmax1 - 1.
@@ -522,8 +525,9 @@ d_maxencB(D, Kmax) :-
 %?- d_maxenc(5, Kmax).
 %@    Kmax = 1339974.
 
-%?- d_maxencB(5, Kmax).
-%@    Kmax = 1339974.
+% NB: We could encode D=7 tallies in 62-bit integers!
+%?- #M #= 2^31, d_maxenc(7, Kmax), M > Kmax.
+%@    M = 2147483648, Kmax = 2131900224.
 
 ws_cint(Ws, CK) :-
     ws_int(Ws, K),
@@ -539,13 +543,165 @@ ws_cint(Ws, CK) :-
 
 % Finally, I need to encode Ts-Us pairs _jointly_.
 qs_int(Qs, K) :-
+    %format("qs_Ts_Us/3 ..", []), time(qs_Ts_Us(Qs, Ts, Us)),
+    %format("ws_int/2 ....", []), time(ws_int(Ts, KT)),
+    %format("ws_cint/2 ...", []), time(ws_cint(Us, CKU)),
     qs_Ts_Us(Qs, Ts, Us),
     ws_int(Ts, KT),
     ws_cint(Us, CKU),
     length(Qs, D),
+    %format("d_maxenc/2 ..", []), time(d_maxenc(D, Kmax)),
     d_maxenc(D, Kmax),
     #Kmax1 #= #Kmax + 1,
     #K #= #Kmax1 * #KT + #CKU.
+
+/*
+?- Qs=[1/6,0/3,2/6], qs_int(Qs, K).
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  false.
+%@ qs_Ts_Us/3 ..   % CPU time: 0.003s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.000s, 1_473 inferences
+%@ ws_cint/2 ...   % CPU time: 0.001s, 3_527 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.000s, 1_367 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 35 inferences
+%@    % CPU time: 0.000s, 66 inferences
+%@    % CPU time: 0.000s, 31 inferences
+%@    false.
+%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_333 inferences
+%@ ws_int/2 ....   % CPU time: 0.004s, 16_401 inferences
+%@ ws_cint/2 ...   % CPU time: 0.002s, 9_074 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.000s, 1_367 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 35 inferences
+%@    % CPU time: 0.000s, 66 inferences
+%@    % CPU time: 0.000s, 31 inferences
+%@    false.
+%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_333 inferences
+%@ ws_int/2 ....   % CPU time: 0.002s, 7_854 inferences
+%@ ws_cint/2 ...   % CPU time: 0.004s, 17_694 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.002s, 9_143 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424.
+%@    Qs = [1/6,0/3,2/6], Ts = [1,1,3], Us = [5,8,12], KT = 281, CKU = 575.
+%@    Qs = [1/6,0/3,2/6], Ts = [1,1,3], Us = [5,8,12], KT = 281, CKU = 575
+%@ ;  false. % Aha, now I find a choicepoint inside ws_cint/2!
+%@    Qs = [1/6,0/3,2/6], Ts = [1,1,3], Us = [5,8,12], KT = 281.
+%@    Qs = [1/6,0/3,2/6], Ts = [1,1,3], Us = [5,8,12].
+%@ qs_Ts_Us/3 ..   % CPU time: 0.003s, 2_333 inferences
+%@ ws_int/2 ....   % CPU time: 0.003s, 7_854 inferences
+%@ ws_cint/2 ...   % CPU time: 0.005s, 19_615 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.000s, 281 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 19 inferences
+%@    % CPU time: 0.000s, 19 inferences
+%@    false.
+%@    Qs = [1/6,0/3,2/6], Ts = [1,1,3], Us = [5,8,12], KT = 281.
+%@    Qs = [1/6,0/3,2/6], Ts = [1,1,3], Us = [5,8,12], KT = 281
+%@ ;  false. % Aha, choicepoint is in ws_int
+%@    Qs = [1/6,0/3,2/6], Ts = [1,1,3], Us = [5,8,12].
+%@ qs_Ts_Us/3 ..   % CPU time: 0.003s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.000s, 1_473 inferences
+%@ ws_cint/2 ...   % CPU time: 0.000s, 2_448 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.000s, 288 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 19 inferences
+%@    % CPU time: 0.000s, 50 inferences
+%@    % CPU time: 0.000s, 31 inferences
+%@    false.
+*/
+
+%?- Qs=[1/6,0/3,2/6], time(qs_int(Qs, K)). % now TABLING d_maxenc/2 also
+%@ qs_Ts_Us/3 ..   % CPU time: 0.003s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.000s, 1_473 inferences
+%@ ws_cint/2 ...   % CPU time: 0.001s, 2_448 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.000s, 288 inferences
+%@    % CPU time: 0.015s, 14_222 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 19 inferences
+%@    % CPU time: 0.000s, 50 inferences
+%@    % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.010s, 5_332 inferences
+%@    false. % New choice point; why?
+%@ qs_Ts_Us/3 ..   % CPU time: 0.000s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.005s, 16_480 inferences
+%@ ws_cint/2 ...   % CPU time: 0.001s, 6_878 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.000s, 288 inferences
+%@    % CPU time: 0.014s, 33_656 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 19 inferences
+%@    % CPU time: 0.000s, 50 inferences
+%@    % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.010s, 5_332 inferences
+%@    false.
+
+%?- Qs=[1/6,0/3,2/6], time(qs_int(Qs, K)). % now TABLING d_placevalues/2
+%@ qs_Ts_Us/3 ..   % CPU time: 0.002s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.000s, 1_473 inferences
+%@ ws_cint/2 ...   % CPU time: 0.002s, 4_912 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.000s, 2_752 inferences
+%@    % CPU time: 0.015s, 19_172 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.000s, 62 inferences
+%@    % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.011s, 5_356 inferences
+%@    false.
+%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.004s, 16_480 inferences
+%@ ws_cint/2 ...   % CPU time: 0.001s, 4_912 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.000s, 2_752 inferences
+%@    % CPU time: 0.015s, 34_176 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.000s, 62 inferences
+%@    % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.009s, 5_356 inferences
+%@    false.
+%@ qs_Ts_Us/3 ..   % CPU time: 0.002s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.000s, 1_492 inferences
+%@ ws_cint/2 ...   % CPU time: 0.001s, 4_950 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.000s, 2_771 inferences
+%@    % CPU time: 0.014s, 19_248 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.000s, 62 inferences
+%@    % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.009s, 5_356 inferences
+%@    false.
+%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.008s, 17_777 inferences
+%@ ws_cint/2 ...   % CPU time: 0.002s, 4_950 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.001s, 2_771 inferences
+%@    % CPU time: 0.025s, 35_530 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424
+%@ ;  % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.000s, 62 inferences
+%@    % CPU time: 0.000s, 31 inferences
+%@    % CPU time: 0.013s, 5_356 inferences
+%@    false.
+
+%?- Qs=[1/6,0/3,2/6], time(qs_int(Qs, K)). % AFTER placevalues/1 ~~> d_placevalues/2
+%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.001s, 6_338 inferences
+%@ ws_cint/2 ...   % CPU time: 0.003s, 14_662 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.001s, 7_627 inferences
+%@    % CPU time: 0.016s, 38_770 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424.
+
+%?- Qs=[1/6,0/3,2/6], time(qs_int(Qs, K)).
+%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_356 inferences
+%@ ws_int/2 ....   % CPU time: 0.002s, 5_049 inferences
+%@ ws_cint/2 ...   % CPU time: 0.005s, 12_084 inferences
+%@ d_maxenc/2 ..   % CPU time: 0.002s, 6_338 inferences
+%@    % CPU time: 0.024s, 33_614 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424.
+%@    % CPU time: 0.003s, 2_333 inferences
+%@    % CPU time: 0.001s, 5_049 inferences
+%@    % CPU time: 0.003s, 12_084 inferences
+%@    % CPU time: 0.001s, 6_338 inferences
+%@    Qs = [1/6,0/3,2/6], K = 486424.
+%@    error(existence_error(procedure,qs_int/3),qs_int/3).
+
 
 %?- Qs=[1/6,2/3], qs_Ts_Us(Qs, Ts, Us).
 %@    Qs = [1/6,2/3], Ts = [1,3], Us = [5,6].
@@ -590,11 +746,57 @@ d_sortedQfs(D, SQs) :-
     qs_sorted(Qs, SQs).
 
 qs_sorted(Qs, SQs) :-
-    maplist(qs_int, Qs, Ks),
-    sort(Ks, SKs),
+    format("Encoding Qs... ", []),
+    time(maplist(qs_int, Qs, Ks)),
+    format("Sorting Qs.... ", []),
+    time(sort(Ks, SKs)),
     same_length(SQs, Qs),
-    maplist(same_length, SQs, Qs), % (**)
-    maplist(int_qs, SKs, SQs).
+    format("Sizing Qs..... ", []),
+    time(maplist(same_length, SQs, Qs)),
+    format("Decoding...... ", []),
+    time(maplist(int_qs, SKs, SQs)).
+
+% After PRECOMPUTING placevalues/1
+%?- D=3, findall(Q, qs_d_nmax(Q, D, 6), Qs), time(qs_sorted(Qs, SQs)).
+%@ Encoding Qs...    % CPU time: 27.665s, 151_958_265 inferences
+%@ Sorting Qs....    % CPU time: 0.019s, 2 inferences
+%@ Sizing Qs.....    % CPU time: 0.020s, 175_617 inferences
+%@ Decoding......    % CPU time: 49.427s, 314_906_923 inferences
+%@    % CPU time: 77.143s, 467_092_723 inferences
+%@    D = 3, Qs = [[0/0,0/0,0/0],[0/0,0/0,0/1],[0/0,0/0,1/1],[0/0,0/0,0/2],[0/0,0/0,1/2],[0/0,0/0,2/2],[0/0,0/0,0/3],[0/0,0/0,1/3],[0/0,0/0,2/3],[0/0,0/0,3/3],[0/0,0/0,0/4],[0/0,0/0,1/4],[0/0,0/0,2/4],[0/0,0/0,3/4],[0/0,0/0,4/4],[0/0,0/0,0/5],[0/0,0/0,1/5],[0/0,0/0,... / ...],[0/0,... / ...|...],[... / ...|...]|...], SQs = [[0/6,0/6,0/6],[0/6,0/6,0/5],[0/6,0/5,0/6],[0/5,0/6,0/6],[0/6,0/6,0/4],[0/6,0/5,0/5],[0/5,0/6,0/5],[0/6,0/4,0/6],[0/5,0/5,0/6],[0/4,0/6,0/6],[0/6,0/6,0/3],[0/6,0/5,0/4],[0/5,0/6,0/4],[0/6,0/4,0/5],[0/5,0/5,0/5],[0/4,0/6,0/5],[0/6,0/3,0/6],[0/5,0/4,... / ...],[0/4,... / ...|...],[... / ...|...]|...].
+
+% After tabling d_placevalues/2 ...
+%?- D=3, findall(Q, qs_d_nmax(Q, D, 6), Qs), time(qs_sorted(Qs, SQs)).
+%@ Encoding Qs...    % CPU time: 38.165s, 204_883_070 inferences
+%@ Sorting Qs....    % CPU time: 0.017s, 2 inferences
+%@ Sizing Qs.....    % CPU time: 0.020s, 175_617 inferences
+%@ Decoding......    % CPU time: 52.788s, 329_439_147 inferences
+%@    % CPU time: 91.002s, 534_549_657 inferences
+%@    D = 3, Qs = [[0/0,0/0,0/0],[0/0,0/0,0/1],[0/0,0/0,1/1],[0/0,0/0,0/2],[0/0,0/0,1/2],[0/0,0/0,2/2],[0/0,0/0,0/3],[0/0,0/0,1/3],[0/0,0/0,2/3],[0/0,0/0,3/3],[0/0,0/0,0/4],[0/0,0/0,1/4],[0/0,0/0,2/4],[0/0,0/0,3/4],[0/0,0/0,4/4],[0/0,0/0,0/5],[0/0,0/0,1/5],[0/0,0/0,... / ...],[0/0,... / ...|...],[... / ...|...]|...], SQs = [[0/6,0/6,0/6],[0/6,0/6,0/5],[0/6,0/5,0/6],[0/5,0/6,0/6],[0/6,0/6,0/4],[0/6,0/5,0/5],[0/5,0/6,0/5],[0/6,0/4,0/6],[0/5,0/5,0/6],[0/4,0/6,0/6],[0/6,0/6,0/3],[0/6,0/5,0/4],[0/5,0/6,0/4],[0/6,0/4,0/5],[0/5,0/5,0/5],[0/4,0/6,0/5],[0/6,0/3,0/6],[0/5,0/4,... / ...],[0/4,... / ...|...],[... / ...|...]|...]
+%@ ;  % CPU time: 0.180s, 768_320 inferences
+%@    % CPU time: 0.385s, 2_897_664 inferences
+%@    % CPU time: 0.568s, 3_669_656 inferences
+%@    false.
+
+% I've discovered qs_sorted/2 accounts for 80% of run-time for d_gs/2 (D=3 case)
+%?- D=3, findall(Q, qs_d_nmax(Q, D, 6), Qs), time(qs_sorted(Qs, SQs)).
+%@ Encoding Qs...    % CPU time: 101.706s, 580_549_113 inferences
+%@ Sorting Qs....    % CPU time: 0.020s, 2 inferences
+%@ Sizing Qs.....    % CPU time: 0.019s, 175_617 inferences
+%@ Decoding......    % CPU time: 72.479s, 438_562_539 inferences
+%@    % CPU time: 174.236s, 1_019_339_176 inferences
+%@    D = 3, Qs = [[0/0,0/0,0/0],[0/0,0/0,0/1],[0/0,0/0,1/1],[0/0,0/0,0/2],[0/0,0/0,1/2],[0/0,0/0,2/2],[0/0,0/0,0/3],[0/0,0/0,1/3],[0/0,0/0,2/3],[0/0,0/0,3/3],[0/0,0/0,0/4],[0/0,0/0,1/4],[0/0,0/0,2/4],[0/0,0/0,3/4],[0/0,0/0,4/4],[0/0,0/0,0/5],[0/0,0/0,1/5],[0/0,0/0,... / ...],[0/0,... / ...|...],[... / ...|...]|...], SQs = [[0/6,0/6,0/6],[0/6,0/6,0/5],[0/6,0/5,0/6],[0/5,0/6,0/6],[0/6,0/6,0/4],[0/6,0/5,0/5],[0/5,0/6,0/5],[0/6,0/4,0/6],[0/5,0/5,0/6],[0/4,0/6,0/6],[0/6,0/6,0/3],[0/6,0/5,0/4],[0/5,0/6,0/4],[0/6,0/4,0/5],[0/5,0/5,0/5],[0/4,0/6,0/5],[0/6,0/3,0/6],[0/5,0/4,... / ...],[0/4,... / ...|...],[... / ...|...]|...].
+
+%?- D=2, findall(Q, qs_d_nmax(Q, D, 6), Qs), time(qs_sorted(Qs, SQs)).
+%@ Encoding Qs...    % CPU time: 2.410s, 13_546_869 inferences
+%@ Sorting Qs....    % CPU time: 0.000s, 2 inferences
+%@ Sizing Qs.....    % CPU time: 0.000s, 4_705 inferences
+%@ Decoding......    % CPU time: 1.780s, 11_012_059 inferences
+%@    % CPU time: 4.197s, 24_573_088 inferences
+%@    D = 2, Qs = [[0/0,0/0],[0/0,0/1],[0/0,1/1],[0/0,0/2],[0/0,1/2],[0/0,2/2],[0/0,0/3],[0/0,1/3],[0/0,2/3],[0/0,3/3],[0/0,0/4],[0/0,1/4],[0/0,2/4],[0/0,3/4],[0/0,4/4],[0/0,0/5],[0/0,1/5],[0/0,2/5],[0/0,... / ...],[... / ...|...]|...], SQs = [[0/6,0/6],[0/6,0/5],[0/5,0/6],[0/6,0/4],[0/5,0/5],[0/4,0/6],[0/6,0/3],[0/5,0/4],[0/4,0/5],[0/3,0/6],[0/6,0/2],[0/5,0/3],[0/4,0/4],[0/3,0/5],[0/2,0/6],[0/6,0/1],[0/5,0/2],[0/4,0/3],[0/3,... / ...],[... / ...|...]|...].
+
+% And the above now points to encoding qs_int/2 and decoding int_qs/2
+% as accounting for the ENTIRE run-time of qs_sorted/2!
 
 %?- qs_d_nmax(Q, 2, 6).
 %@    Q = [0/0,0/0]
@@ -878,7 +1080,7 @@ qs_d_nmax(Qs, D, Nmax) :-
 
 d_gs_rec(D, Gs, X, Nmax) :-
     X in 0..D, indomain(X),
-    %%%d_qfs_rec(D, Qls, 0..X), % Qls = F⁻¹(0..X)
+    % Calculate Qls = F⁻¹(0..X)
     findall(Qf, (d_endtally_rec(D, Qf, Xi), Xi in 0..X), Qls),
     qs_maxs(Qls, Qls1), % q ∈ Qls ⟹ ∃ q' ∈ Qls1 . q ≼ q'
     % Having calculated the maximal elements of F⁻¹(0..X),
@@ -1012,12 +1214,71 @@ galois([Ms|Mss], [Q|Qs], Gs0, Gs) :-
 galois([], _, Gs, Gs). % Succeed when all strata are accounted-for.
 
 d_gs(D, Gs) :-
-    findall(Q, qs_d_nmax(Q, D, 6), Qs),
-    qs_sorted(Qs, SQs),
-    reverse(SQs, RQs),
-    d_Qfstratamax(D, Mss),
-    galois(Mss, RQs, [], RGs),
+    format("Listing Qs...... ", []),
+    time(findall(Q, qs_d_nmax(Q, D, 6), Qs)),
+    format("Sorting Qs...... ", []),
+    time(qs_sorted(Qs, SQs)),
+    format("Reversing....... ", []),
+    time(reverse(SQs, RQs)),
+    format("Stratifying Qf.. ", []),
+    time(d_Qfstratamax(D, Mss)),
+    format("Finding g's ..~n", []),
+    time(galois(Mss, RQs, [], RGs)),
     reverse(RGs, Gs).
+
+%?- time(d_gs(4, Gs)). % Has this become feasible? (ALMOST!)
+%@ Listing Qs......    % CPU time: 43.552s, 182_781_614 inferences
+%@ Sorting Qs...... Encoding Qs...    % CPU time: 875.273s, 4_738_223_165 inferences
+%@ Sorting Qs....    % CPU time: 0.638s, 2 inferences
+%@ Sizing Qs.....    % CPU time: 0.643s, 6_146_561 inferences
+%@ Decoding......    % CPU time: 185.771s, 1_177_910_766 inferences
+% < interrupted during decoding, as %MEM had hit 65% and still growing >
+%@    % CPU time: 1066.593s, 5_923_517_910 inferences
+%@    % CPU time: 1110.149s, 6_106_303_711 inferences
+%@    error('$interrupt_thrown',repl/0).
+
+%?- time(d_gs(3, Gs)). % After precomputing placevalues/1
+%@ Listing Qs......    % CPU time: 1.566s, 6_660_460 inferences
+%@ Sorting Qs...... Encoding Qs...    % CPU time: 27.714s, 151_958_265 inferences
+%@ Sorting Qs....    % CPU time: 0.017s, 2 inferences
+%@ Sizing Qs.....    % CPU time: 0.019s, 175_617 inferences
+%@ Decoding......    % CPU time: 49.405s, 314_906_923 inferences
+%@    % CPU time: 77.167s, 467_092_727 inferences
+%@ Reversing.......    % CPU time: 0.006s, 21_954 inferences
+%@ Stratifying Qf..    % CPU time: 3.343s, 15_549_757 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/4,0/4] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ Mss = [[[0/6,2/6,0/0],[0/6,2/6,2/6]],[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 2494, Gs1 = [[2/6,0/4,0/4]].
+%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ Mss = [[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1978, Gs1 = [[0/6,2/6,0/4],[2/6,0/4,0/4]].
+%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ Mss = [[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1228, Gs1 = [[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
+%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
+%@ Mss = [], |Qs| = 8, Gs1 = [[0/5,0/5,0/6],[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
+%@    % CPU time: 28.593s, 145_469_735 inferences
+%@    % CPU time: 110.684s, 634_804_811 inferences
+%@    Gs = [[2/6,0/4,0/4],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
+
+%?- time(d_gs(3, Gs)).
+%@ Listing Qs......    % CPU time: 1.638s, 6_660_460 inferences
+%@ Sorting Qs......    % CPU time: 192.997s, 1_019_331_176 inferences
+%@ Reversing.......    % CPU time: 0.006s, 21_954 inferences
+%@ Stratifying Qf..    % CPU time: 3.434s, 15_549_757 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/4,0/4] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ Mss = [[[0/6,2/6,0/0],[0/6,2/6,2/6]],[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 2494, Gs1 = [[2/6,0/4,0/4]].
+%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ Mss = [[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1978, Gs1 = [[0/6,2/6,0/4],[2/6,0/4,0/4]].
+%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ Mss = [[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1228, Gs1 = [[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
+%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
+%@ Mss = [], |Qs| = 8, Gs1 = [[0/5,0/5,0/6],[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
+%@    % CPU time: 35.667s, 145_469_735 inferences
+%@    % CPU time: 233.751s, 1_187_043_271 inferences
+%@    Gs = [[2/6,0/4,0/4],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
+
+%?- Pct is 100*193/234.
+%@    Pct = 82.47863247863248. % 0.8 of the time is spent in qs_sorted/2!
 
 %?- time(d_gs(2, Gs)).
 %@ ↓[2/6,0/4] ⊇ [[2/6,0/0],[2/6,2/6]].
