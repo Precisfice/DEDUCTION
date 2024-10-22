@@ -567,14 +567,13 @@ ws_cint(Ws, CK) :-
 
 % Finally, I need to encode Ts-Us pairs _jointly_.
 qs_int(Qs, K) :-
-    %format("qs_Ts_Us/3 ..", []), time(qs_Ts_Us(Qs, Ts, Us)),
-    %format("ws_int/2 ....", []), time(ws_int(Ts, KT)),
-    %format("ws_cint/2 ...", []), time(ws_cint(Us, CKU)),
     qs_Ts_Us(Qs, Ts, Us),
     ws_int(Ts, KT),
+    % TODO: Could I eliminate ws_cint altogether,
+    %       given that I must already obtain Kmax
+    %       below, to build the whole number?
     ws_cint(Us, CKU),
     length(Qs, D),
-    %format("d_maxenc/2 ..", []), time(d_maxenc(D, Kmax)),
     d_maxenc(D, Kmax),
     #Kmax1 #= #Kmax + 1,
     #K #= #Kmax1 * #KT + #CKU.
@@ -785,15 +784,16 @@ d_sortedQfs(D, SQs) :-
     qs_sorted(Qs, SQs).
 
 qs_sorted(Qs, SQs) :-
-    format("Encoding Qs... ", []),
+    length(Qs, LQs), format("Sorting length-~d list Qs:~n", [LQs]),
+    time((
+    format("  .. encoding Qs:", []),
     time(maplist(qs_int, Qs, Ks)),
-    format("Sorting Qs.... ", []),
-    time(sort(Ks, SKs)),
+    sort(Ks, SKs), % too fast to be worth timing!
     same_length(SQs, Qs),
-    format("Sizing Qs..... ", []),
-    time(maplist(same_length, SQs, Qs)),
-    format("Decoding...... ", []),
-    time(maplist(int_qs, SKs, SQs)).
+    maplist(same_length, SQs, Qs),
+    format("  .. decoding Qs:", []),
+    time(maplist(int_qs, SKs, SQs))
+    )).
 
 % After PRECOMPUTING placevalues/1
 %?- D=3, findall(Q, qs_d_nmax(Q, D, 6), Qs), time(qs_sorted(Qs, SQs)).
@@ -1255,15 +1255,33 @@ galois([], _, Gs, Gs). % Succeed when all strata are accounted-for.
 d_gs(D, Gs) :-
     format("Listing Qs...... ", []),
     time(findall(Q, qs_d_nmax(Q, D, 6), Qs)),
-    format("Sorting Qs...... ", []),
-    time(qs_sorted(Qs, SQs)),
-    format("Reversing....... ", []),
-    time(reverse(SQs, RQs)),
+    qs_sorted(Qs, SQs), % instrumentation included
+    reverse(SQs, RQs),
     format("Stratifying Qf.. ", []),
     time(d_Qfstratamax(D, Mss)),
     format("Finding g's ..~n", []),
     time(galois(Mss, RQs, [], RGs)),
     reverse(RGs, Gs).
+
+%?- time(d_gs(3, Gs)). % After trimming back instrumentation
+%@ Listing Qs......    % CPU time: 1.651s, 6_660_460 inferences
+%@ Sorting length-21952 list Qs:
+%@   .. encoding Qs:   % CPU time: 21.063s, 109_988_099 inferences
+%@   .. decoding Qs:   % CPU time: 32.770s, 207_539_697 inferences
+%@    % CPU time: 53.881s, 317_751_877 inferences
+%@ Stratifying Qf..    % CPU time: 3.576s, 15_670_513 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/4,0/4] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ Mss = [[[0/6,2/6,0/0],[0/6,2/6,2/6]],[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 2494, Gs1 = [[2/6,0/4,0/4]].
+%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ Mss = [[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1978, Gs1 = [[0/6,2/6,0/4],[2/6,0/4,0/4]].
+%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ Mss = [[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1228, Gs1 = [[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
+%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
+%@ Mss = [], |Qs| = 8, Gs1 = [[0/5,0/5,0/6],[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
+%@    % CPU time: 31.390s, 153_168_191 inferences
+%@    % CPU time: 90.512s, 493_281_398 inferences
+%@    Gs = [[2/6,0/4,0/4],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
 
 %?- time(d_gs(4, Gs)). % Perhaps this is feasible _now_?
 %@ Listing Qs......    % CPU time: 43.456s, 182_781_614 inferences
