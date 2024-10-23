@@ -24,7 +24,6 @@ clpz:monotonic.
 
 '≤'([], [], true). % trivial case makes general clause easier to implement
 '≤'([X|Xs], [Y|Ys], Truth) :- % ≤ extended to ℕᴰ, D≥1
-    % TODO: Would reif:cond_t/3 apply here?
     if_(clpz_t(#X #=< #Y),
         '≤'(Xs,Ys,Truth),
         Truth = false
@@ -35,6 +34,9 @@ clpz:monotonic.
 
 %?- '≤'([2], [3], Truth).
 %@    Truth = true.
+
+%?- '≤'([2,3], [3,2], Truth).
+%@    Truth = false.
 
 %?- '≤'([2], [3], true).
 %@    true.
@@ -87,8 +89,8 @@ Xs '≰' Ys :-
 %% 1. Via Fact 2.13, define evident-$afety relation ≼ ⊂ 𝒬✕𝒬:
 :- op(900, xfx, '≼').
 :- op(900, xfx, '⋠').
-:- op(900, xfx, '≽'). % TODO: If I don't eventually find good uses
-:- op(900, xfx, '⋡'). %       for these flipped ops, delete them.
+:- op(900, xfx, '≽').
+:- op(900, xfx, '⋡').
 
 % TODO: Consider implementing also the *strict* orders '≺' and '≻',
 %       but watch out in case this introduces subtle misconceptions
@@ -1126,25 +1128,36 @@ in a single pass.
 '⋡'(Q1s, Q2s, Truth) :- '≽'(Q1s, Q2s, Untruth),
                         reif:non(Untruth, Truth).
 
+/*
+tmember_t(_P_2, [], false).
+tmember_t(P_2, [X|Xs], T) :-
+   if_( call(P_2, X), T = true, tmember_t(P_2, Xs, T) ).
+*/
+% Drawing inspiration from tmember_t/3, let's try a tfirst_tail_t/4
+tfirst_tail_t(P_2, [X|Xs], First, T) :-
+    if_(call(P_2, X),
+        ( First = [X|Xs], T = true ),
+        tfirst_tail_t(P_2, Xs, First, T) % NB: will fail if Xs=[]
+       ).
+
+%?- tfirst_tail_t(#<(2), [1,2,3,4,5], First, T).
+%@    First = [3,4,5], T = true.
+
 % Here, galois/4 is searching [Q|Qs] for the first Gx
 % satisfying Q ≼ Gx ∀ Q ∈ Ms, or equivalently ↓Gx ⊇ Ms.
-% It has already found Gs0, and will prepend to that
-% the next Gx it finds.
 % TODO: It would be nice to recast this as a maplist/4,
 %       since the Mss and Gs lists should be same length!
-galois([Ms|Mss], [Q|Qs], Gs0, Gs) :-
+galois([Ms|Mss], [Q|Qs], [G|Gs]) :-
     % If Q is not above _any_ of the Ms, then skip it;
     % otherwise (Q is above *all* Ms), prepend to Gs and recurse.
-    if_(tmember_t('⋡'(Q), Ms), % ∃ M ∈ Ms s.t. M ⋠ Q ?
-        galois([Ms|Mss], Qs, Gs0, Gs), % if so, Q is not a Gx;
+    if_(tmember_t('⋡'(Q), Ms),        % ∃ M ∈ Ms s.t. M ⋠ Q ?
+        galois([Ms|Mss], Qs, [G|Gs]), % if so, Q is not a Gx;
         (   format("↓~w ⊇ ~w.~n", [Q, Ms]),
-            Gs1 = [Q|Gs0],
-            length(Qs, LQ),
-            format("Mss = ~w, |Qs| = ~d, Gs1 = ~w.~n", [Mss, LQ, Gs1]),
-            galois(Mss, Qs, Gs1, Gs) % otherwise, we collect it and recurse
+            G = Q,                    % otherwise, collect it
+            galois(Mss, Qs, Gs)       % and recurse.
         )
        ).
-galois([], _, Gs, Gs). % Succeed when all strata are accounted-for.
+galois([], _, []). % Succeed when all strata are accounted-for.
 
 d_gs(D, Gs) :-
     format("Listing Qs...... ", []),
@@ -1154,8 +1167,23 @@ d_gs(D, Gs) :-
     format("Stratifying Qf.. ", []),
     time(d_Qfstratamax(D, Mss)),
     format("Finding g's ..~n", []),
-    time(galois(Mss, RQs, [], RGs)),
-    reverse(RGs, Gs).
+    time(galois(Mss, RQs, Gs)).
+
+%?- time(d_gs(3, Gs)). % Chopping galois/4 ~~> galois/3
+%@ Listing Qs......    % CPU time: 1.602s, 6_660_460 inferences
+%@ Sorting length-21952 list Qs:
+%@   .. encoding Qs:   % CPU time: 20.459s, 109_746_627 inferences
+%@   .. decoding Qs:   % CPU time: 31.410s, 207_539_697 inferences
+%@    % CPU time: 51.912s, 317_510_405 inferences
+%@ Stratifying Qf..    % CPU time: 3.409s, 15_670_513 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/4,0/4] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
+%@    % CPU time: 29.983s, 153_162_409 inferences
+%@    % CPU time: 86.920s, 493_034_138 inferences
+%@    Gs = [[2/6,0/4,0/4],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
 
 %?- time(d_gs(3, Gs)). % After factoring out ws_cint/2
 %@ Listing Qs......    % CPU time: 1.628s, 6_660_460 inferences
