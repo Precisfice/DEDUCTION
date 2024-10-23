@@ -979,6 +979,32 @@ d_qfs_rec(D, Qfs, Xrange) :-
 
 % Construct maximal and minimal subsets
 % TODO: Eliminate duplicated code by taking relation as parameter.
+flip(R_3, X, Y, T) :- call(R_3, Y, X, T).
+%?- '≽'([1/2], [2/3]).
+%@    true.
+%?- call('≽'([1/2]), [2/3]).
+%@    true.
+%?- call('≼', [2/3], [1/2]).
+%@    true.
+%?- call(flip('≼', [1/2]), [2/3], T).
+%@    T = true.
+
+po_elts_maxs(_, [], []).
+po_elts_maxs(R_3, [X|Xs], Maxs) :-
+    tpartition(flip(R_3,X), Xs, _, Xs1),
+    if_(tmember_t(call(R_3,X), Xs1),
+        po_elts_maxs(R_3, Xs1, Maxs),
+        (   Maxs = [X|Maxs1],
+            po_elts_maxs(R_3, Xs1, Maxs1)
+        )
+       ).
+
+%?- D=3, X=3, findall(Qf, d_endtally_rec(D, Qf, X), Qfs), po_elts_maxs('≼', Qfs, Maxs).
+%@    D = 3, X = 3, Qfs = [[0/3,0/3,0/6],[0/3,0/3,1/6],[0/3,1/6,0/6],[0/3,1/6,1/6],[1/6,0/3,0/6],[1/6,0/3,1/6],[1/6,1/6,0/6],[1/6,1/6,1/6]], Maxs = [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
+
+%?- D=3, X=3, findall(Qf, d_endtally_rec(D, Qf, X), Qfs), qs_maxs(Qfs, Maxs).
+%@    D = 3, X = 3, Qfs = [[0/3,0/3,0/6],[0/3,0/3,1/6],[0/3,1/6,0/6],[0/3,1/6,1/6],[1/6,0/3,0/6],[1/6,0/3,1/6],[1/6,1/6,0/6],[1/6,1/6,1/6]], Maxs = [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
+
 qs_maxs([], []).
 qs_maxs([Q|Qs], Maxs) :-
     tpartition('≽'(Q), Qs, _, Qs1),
