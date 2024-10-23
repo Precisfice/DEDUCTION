@@ -1128,28 +1128,9 @@ in a single pass.
 '⋡'(Q1s, Q2s, Truth) :- '≽'(Q1s, Q2s, Untruth),
                         reif:non(Untruth, Truth).
 
-/*
-tmember_t(_P_2, [], false).
-tmember_t(P_2, [X|Xs], T) :-
-   if_( call(P_2, X), T = true, tmember_t(P_2, Xs, T) ).
-*/
-% Drawing inspiration from tmember_t/3, let's try a tfirst_tail_t/4
-tfirst_tail_t(P_2, [X|Xs], First, T) :-
-    if_(call(P_2, X),
-        ( First = [X|Xs], T = true ),
-        tfirst_tail_t(P_2, Xs, First, T) % NB: will fail if Xs=[]
-       ).
-
-%?- tfirst_tail_t(#<(2), [1,2,3,4,5], First, T).
-%@    First = [3,4,5], T = true.
-
-% Here, galois/4 is searching [Q|Qs] for the first Gx
+% Here, galois/3 is searching [Q|Qs] for the first Gx
 % satisfying Q ≼ Gx ∀ Q ∈ Ms, or equivalently ↓Gx ⊇ Ms.
-% TODO: It would be nice to recast this as a maplist/4,
-%       since the Mss and Gs lists should be same length!
 galois([Ms|Mss], [Q|Qs], [G|Gs]) :-
-    % If Q is not above _any_ of the Ms, then skip it;
-    % otherwise (Q is above *all* Ms), prepend to Gs and recurse.
     if_(tmember_t('⋡'(Q), Ms),        % ∃ M ∈ Ms s.t. M ⋠ Q ?
         galois([Ms|Mss], Qs, [G|Gs]), % if so, Q is not a Gx;
         (   format("↓~w ⊇ ~w.~n", [Q, Ms]),
@@ -1502,36 +1483,6 @@ d_mendtally_rec_(D, Q, X, Xls) :-
 /*
 TODO:
 
-1. I must take stock of the foregoing efforts in light of the clearer view
-afforded by the monograph's Kan-extension motivation for Galois enrollments.
-Where the foregoing now seem in retrospect ill-considered or doomed to fail,
-let me expunge them with suitably commented git commits.
-
-- One major distraction above relates to my now-abandoned speculation about
-  needing to extend ≼.
-
-- Another distracting technicality is the special code for early exploration
-  of the D=2 case.
-
-- All discussion around approximating from above/below via aₓ & bₓ can go,
-  now that I have a well-developed theory grounded in the Kan extension
-  and properly defined gₓ & ℓₓ.
-
-2. Revisit the feasibility of Hasse diagrams.
-
-- Try implementing the https://en.wikipedia.org/wiki/Covering_relation.
-
-- Shouldn't a Hasse diagram for 𝒬f be possible, at least in D=2 case,
-  and maybe even for D=3 as well?
-
-3. Simulate and visualize rolling-enrollment trials.
-
-4. In Prolog code, explore the possibility of implementing join & meet
-   operations.  Are these well-defined?  Does that make 𝒬 a _lattice_,
-   or even a _complete lattice_?
-
-   - It is interesting to note how abandoning the idea of enlarging ≼
-     has directly enabled these considerations.  There may well be a
-     role for calling 𝒬 a lattice!
+1. Simulate and visualize rolling-enrollment trials.
 
 */
