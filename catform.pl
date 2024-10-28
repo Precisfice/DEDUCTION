@@ -102,22 +102,101 @@ Xs '≰' Ys :-
 
 q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
 
-qs_Ts_Us(Qs, ΣTs, ΣUs) :-
+% Since the typographical equivalent of the monograph's \bar{U},
+% is unavailable, we use here Ü for the _descending_ vector of
+% partial sums of (uᵢ) taken from the _right_.
+% Also, the monograph's capitalization notation being ill-suited
+% to Prolog (for obvious reasons!), we indicate our partial-sum
+% variables below with a prefix Σ.
+qs_Ts_Üs(Qs, ΣTs, ΣÜs) :-
     maplist(\Q^T^U^(q_r(Q, T:U)), Qs, Ts, Us),
     intlist_partsums(Ts, ΣTs),
-    intlist_partsums(Us, ΣUs).
+    reverse(Us, Üs),
+    intlist_partsums(Üs, RΣÜs),
+    reverse(RΣÜs, ΣÜs).
 
-%?- qs_Ts_Us([1/6,2/6], Ts, Us).
-%@    Ts = [1,3], Us = [5,9].
+%?- Qs = [1/6,2/6], maplist(q_r, Qs, Rs), qs_Ts_Üs(Qs, Ts, Üs).
+%@    Qs = [1/6,2/6], Rs = [1:5,2:4], Ts = [1,3], Üs = [9,4].
+
+% I've discovered that the sufficient condition for ≼
+% is actually quite subtle, and necessitates considering
+% the exchange relations.
+
+% Let us make this predicate strictly about the equation
+% relating tallies Qs to Qas thru the exchange coefs As.
+% (I will not even impose a restriction of positivity on
+% the As, nor even the resulting Qas.)
+qs_as_qas(Qs, As, Qas) :- % 'A' für Austausch
+    qs_Ts_Üs(Qs, Ts, Üs),
+    same_length(Qs, [_|As]), % the As act at the (D-1) *commas* of Qs
+    as_Üs_Üas(As, Üs, Üas),
+    as_Ts_Tas(As, Ts, Tas),
+    qs_Ts_Üs(Qas, Tas, Üas).
+
+%?- qs_as_qas([1/6,1/6], As, [0/6,2/6]).
+%@    As = [1].
+
+% The As are the D-1 coefficients of the _comma-wise_ exchanges.
+% Because each exchange moves both 'o' and 'x' alike in the _same_
+% direction as Üs and Ts respectively are summed, both of these
+% vectors get _decremented_ by an exchange.  The Üs are decremented
+% to the right of each comma (where the 'o' gets taken from), while
+% the Ts get decremented to the left (where the 'x' is taken from).
+as_Üs_Üas(As, [ΣU|Üs], [ΣU|Üas]) :- % Üs head is total count of o's,
+    same_length(Üs, Üas),           % an _invariant_ under x-o exchange.
+    maplist(\U^A^Ua^(#U - #A #= #Ua), Üs, As, Üas).
+
+as_Ts_Tas(As, Ts, Tas) :-
+    append(As, [0], As0), % Last of Ts is the total count of x's,
+    same_length(Ts, Tas), % which is invariant under x-o exchange.
+    maplist(\T^A^Ta^(#T - #A #= #Ta), Ts, As0, Tas).
 
 '≼'(Q1s, Q2s, Truth) :-
-    qs_Ts_Us(Q1s, ST1s, SU1s),
-    qs_Ts_Us(Q2s, ST2s, SU2s),
-    if_((ST2s '≤' ST1s,
-         SU1s '≤' SU2s),
+    qs_Ts_Üs(Q1s, T1s, Ü1s),
+    qs_Ts_Üs(Q2s, T2s, Ü2s),
+    %%format("T1s = ~w , T2s = ~w~n", [T1s, T2s]),
+    %%format("Ü1s = ~w , Ü2s = ~w~n", [Ü1s, Ü2s]),
+    Ü1s = [Ü1|Ü1rs],
+    Ü2s = [Ü2|Ü2rs],
+    % We next calculate the _smallest_ exchange-adjustment As : Ü1s ⟼ Ü1as
+    % that would ensure Ü1as ≤ Ü2s.  (In case this inequality already holds
+    % as for unadjusted Ü1s, then this will be the _null_ adjustment.)
+    same_length(Ü1rs, As),
+    maplist(\A^U1^U2^(#A #= max(0, #U1 - #U2)), As, Ü1rs, Ü2rs),
+    % Now we will calculate post-exchange [T1a|T1as] vector.
+    as_Ts_Tas(As, T1s, T1as),
+    %%format("As = ~w; T1as = ~w~n", [As, T1as]),
+    %%format("Ü1 ≤ Ü2 ? ~w ≤ ~w~n", [Ü1, Ü2]),
+    %%format("T2s ≤ T1as ? ~w ≤ ~w~n", [T2s, T1as]),
+    if_((clpz_t(#Ü1 #=< #Ü2), % Q1 must not have _net_ advantage of more total o's
+         T2s '≤' T1as % Even *after* exchange-adjustment, T1 must still exceed T2.
+         % (Happily, the above also ensures T1as never 'goes negative'.)
+        ),
         Truth = true,
         Truth = false
        ).
+
+%?- '≼'([0/1,0/0], [0/0,0/1], Truth).
+%@ T1s = [0,0] , T2s = [0,0]
+%@ Ü1s = [1,0] , Ü2s = [1,1]
+%@ As = [0]; T1as = [0,0]
+%@ Ü1 ≤ Ü2 ? 1 ≤ 1
+%@ T2s ≤ T1as ? [0,0] ≤ [0,0]
+%@    Truth = true.
+
+%?- '≼'([1/6,1/6], [0/6,2/6], Truth).
+%@ T1s = [1,2] , T2s = [0,2]
+%@ Ü1s = [10,5] , Ü2s = [10,4]
+%@ As = [1]; T1as = [0,2]
+%@ Ü1 ≤ Ü2 ? 10 ≤ 10
+%@ T2s ≤ T1as ? [0,2] ≤ [0,2]
+%@    Truth = true.
+
+%?- qs_Ts_Üs([1/6,1/6], Ts, Üs), reverse(Üs, Us).
+%@    Ts = [1,2], Üs = [10,5], Us = [5,10].
+
+%?- qs_Ts_Üs([0/6,2/6], Ts, Üs), reverse(Üs, Us).
+%@    Ts = [0,2], Üs = [10,4], Us = [4,10].
 
 '≺'(Q1s, Q2s, Truth) :-
     if_((Q1s '≼' Q2s, dif(Q1s, Q2s)),
@@ -555,15 +634,32 @@ d_maxenc(7, 2131900224).
 %?- #M #= 2^31, d_maxenc(7, Kmax), M > Kmax.
 %@    M = 2147483648, Kmax = 2131900224.
 
-% Finally, I need to encode Ts-Us pairs _jointly_.
-qs_int(Qs, K) :-
-    qs_Ts_Us(Qs, Ts, Us),
-    ws_int(Ts, KT),
-    ws_int(Us, KU),
-    length(Qs, D),
-    d_maxenc(D, Kmax),
-    #K #= (#Kmax + 1) * #KT + (#Kmax - #KU).
+% With the above enlargement of ≼ comes a requirement
+% to revise the integer encoding.  It may no longer be
+% obvious how to effect a 1-1 encoding from which the
+% tally may be recovered.  But this isn't truly needed
+% to achieve the sorting crucial to efficient, 1-pass
+% searches of large 'balls' in 𝒬, since integer-keyed
+% list-of-pairs may easily be constructed, key-sorted,
+% then projected back down to tallies.
 
+% Remember that an integer encoding need only _contain_
+% the ≼ relation, which is to say that we require just
+%
+%    q ≼ q' ⟹ K(q) ≤ K(q')  ∀ q, q'∈ 𝒬.
+%
+% But this already holds for the partial-sum Ts vectors!
+% So we may actually proceed with *simpler* integer keys,
+% constructed using already-existing infrastructure.
+qs_int(Qs, K) :-
+    qs_Ts_Üs(Qs, Ts, _), % TODO: Is a don't-care var treated lazily?
+    ws_int(Ts, K).
+
+%?- Qs = [[1/6,1/6],[0/6,2/6]], qs_sorted(Qs, SQs).
+%@ Sorting length-2 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.004s, 6_220 inferences
+%@    % CPU time: 0.008s, 8_372 inferences
+%@    Qs = [[1/6,1/6],[0/6,2/6]], SQs = [[0/6,2/6],[1/6,1/6]].
 
 %?- Qs=[1/6,0/3,2/6], time(qs_int(Qs, K)). % now TABLING d_placevalues/2
 %@ qs_Ts_Us/3 ..   % CPU time: 0.002s, 2_356 inferences
@@ -634,44 +730,6 @@ qs_int(Qs, K) :-
 %@    error(existence_error(procedure,qs_int/3),qs_int/3).
 
 
-%?- Qs=[1/6,2/3], qs_Ts_Us(Qs, Ts, Us).
-%@    Qs = [1/6,2/3], Ts = [1,3], Us = [5,6].
-
-%?- Qs=[1/6,2/3], qs_int(Qs, K).
-%@    Qs = [1/6,2/3], KT = 22, CKU = 43, K = 2045.
-
-% For the time being, we also need a special, reverse-direction predicate:
-d_int_kt_ku(D, K, KT, KU) :-
-    d_maxenc(D, Kmax),
-    #Kmax1 #= #Kmax + 1,
-    #KT #= #K div #Kmax1,
-    #CKU #= #K mod #Kmax1,
-    #KU #= #Kmax - #CKU.
-
-int_qs(K, Qs) :-
-    length(Qs, D),
-    d_int_kt_ku(D, K, KT, KU),
-    d_int_ws(D, KT, Ts),
-    d_int_ws(D, KU, Us),
-    qsfrom_Ts_Us(Qs, Ts, Us).
-
-qsfrom_Ts_Us(Qs, CTs, CUs) :- % 'C' for Cumulative
-    intlist_partsums(Ts, CTs),
-    intlist_partsums(Us, CUs),
-    maplist(\T^U^R^(R = T:U), Ts, Us, Rs),
-    same_length(Qs, Rs), % eliminates a superfluous choice point
-    maplist(q_r, Qs, Rs).
-
-%?- length(Qs, 2), int_qs(2045, Qs).
-%@    Qs = [1/6,2/3].
-
-%?- qsfrom_Ts_Us(Qs, [1,3], [5,6]).
-%@    Qs = [1/6,2/3].
-
-% We're ready to demonstrate encode and decode as inverses!
-%?- qs_int([1/6,0/3,1/3], K), length(Qs, 3), int_qs(K, Qs).
-%@    K = 329267, Qs = [1/6,0/3,1/3].
-
 d_sortedQfs(D, SQs) :-
     findall(Q, d_mendtally_rec(D,Q,_), Qs),
     qs_sorted(Qs, SQs).
@@ -681,12 +739,17 @@ qs_sorted(Qs, SQs) :-
     time((
     format("  .. encoding Qs:", []),
     time(maplist(qs_int, Qs, Ks)),
-    sort(Ks, SKs), % too fast to be worth timing!
-    same_length(SQs, Qs),
-    maplist(same_length, SQs, Qs),
-    format("  .. decoding Qs:", []),
-    time(maplist(int_qs, SKs, SQs))
+    pairs_keys_values(KQs, Ks, Qs),
+    sort(KQs, SKQs), % too fast to be worth timing!
+    pairs_values(SKQs, SQs)
     )).
+
+%?- d_sortedQfs(2, Qfs).
+%@ Sorting length-29 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.025s, 133_012 inferences
+%@   .. decoding Qs:   % CPU time: 0.028s, 182_750 inferences
+%@    % CPU time: 0.057s, 320_382 inferences
+%@    Qfs = [[0/3,0/6],[0/3,1/6],[1/6,0/6],[0/6,2/6],[0/6,2/3],[1/6,1/6],[2/6,0/0],[2/3,0/0],[0/6,3/6],[0/6,3/3],[1/6,2/6],[1/6,2/3],[3/6,0/0],[3/3,0/0],[0/6,4/6],[1/6,3/6],[1/6,3/3],[2/6,2/6],[2/6,... / ...],[... / ...|...]|...].
 
 % After PRECOMPUTING placevalues/1
 %?- D=3, findall(Q, qs_d_nmax(Q, D, 6), Qs), time(qs_sorted(Qs, SQs)).
@@ -861,23 +924,106 @@ write_stratum(OS, QXassoc, Qs) :-
 %?- d_writehassedot(2).
 %@ Opening file 'HasseD2.dot'...
 %@ Collecting final tallies ..
-%@  sorting 29 final tallies ..
+%@  sorting 29 final tallies ..Sorting length-29 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.017s, 91_073 inferences
+%@    % CPU time: 0.019s, 93_326 inferences
+%@ 
 %@  stratifying ..
 %@ [[0/6,2/6],[1/6,0/6],[0/3,0/6]].
-%@ [[0/6,3/6],[1/6,1/6],[0/6,2/3],[0/3,1/6]].
-%@ [[0/6,4/6],[1/6,2/6],[0/6,3/3],[2/6,0/0]].
-%@ [[1/6,3/6],[1/6,2/3],[2/3,0/0]].
-%@ [[1/6,4/6],[2/6,2/6],[1/6,3/3],[3/6,0/0]].
-%@ [[2/6,3/6],[2/6,2/3],[3/3,0/0]].
-%@ [[2/6,4/6],[3/6,2/6],[2/6,3/3],[4/6,0/0]].
-%@ [[3/6,3/6],[3/6,2/3]].
-%@ [[3/6,4/6],[3/6,3/3]].
+%@ [[0/6,3/6],[1/6,1/6],[0/3,1/6]].
+%@ [[0/6,4/6],[1/6,2/6],[0/6,2/3]].
+%@ [[1/6,3/6],[0/6,3/3],[2/6,0/0],[2/3,0/0]].
+%@ [[1/6,4/6],[2/6,2/6],[1/6,2/3]].
+%@ [[2/6,3/6],[1/6,3/3],[3/6,0/0],[3/3,0/0]].
+%@ [[2/6,4/6],[3/6,2/6],[2/6,2/3]].
+%@ [[3/6,3/6],[2/6,3/3],[4/6,0/0]].
+%@ [[3/6,4/6],[3/6,2/3]].
+%@ [[3/6,3/3]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 5.718s, 28_403_617 inferences
+%@  writing covering relation ..   % CPU time: 6.690s, 30_026_332 inferences
+%@ .. done.
+%@    true.
+%@ Opening file 'HasseD2.dot'...
+%@ Collecting final tallies ..
+%@  sorting 29 final tallies ..Sorting length-29 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.020s, 102_926 inferences
+%@   .. decoding Qs:   % CPU time: 0.029s, 182_252 inferences
+%@    % CPU time: 0.052s, 289_798 inferences
+%@ 
+%@  stratifying ..
+%@ [[0/6,2/6],[1/6,0/6],[0/3,0/6]].
+%@ [[0/6,3/6],[1/6,1/6],[0/3,1/6]].
+%@ [[0/6,4/6],[1/6,2/6],[0/6,2/3]].
+%@ [[1/6,3/6],[0/6,3/3],[2/6,0/0]].
+%@ [[1/6,4/6],[2/6,2/6],[1/6,2/3],[2/3,0/0]].
+%@ [[2/6,3/6],[1/6,3/3],[3/6,0/0]].
+%@ [[2/6,4/6],[3/6,2/6],[2/6,2/3],[3/3,0/0]].
+%@ [[3/6,3/6],[2/6,3/3],[4/6,0/0]].
+%@ [[3/6,4/6],[3/6,2/3]].
+%@ [[3/6,3/3]].
+%@ Writing strata to DOT file ..
+%@  writing covering relation ..   % CPU time: 2.482s, 11_535_864 inferences
 %@ .. done.
 %@    true.
 
 %?- d_writehassedot(3).
+%@ Opening file 'HasseD3.dot'...
+%@ Collecting final tallies ..
+%@  sorting 93 final tallies ..Sorting length-93 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.069s, 359_513 inferences
+%@    % CPU time: 0.071s, 361_978 inferences
+%@ 
+%@  stratifying ..
+%@ [[1/6,0/6,2/6],[1/6,1/6,0/6],[0/3,0/6,2/6],[0/3,1/6,0/6],[0/3,0/3,0/6]].
+%@ [[0/6,2/6,2/6],[1/6,1/6,1/6],[0/3,0/6,3/6],[0/3,1/6,1/6],[1/6,0/3,0/6],[0/3,0/3,1/6]].
+%@ [[0/6,2/6,3/6],[1/6,0/6,3/6],[0/3,0/6,4/6],[0/3,1/6,2/6],[1/6,0/3,1/6],[0/3,0/6,2/3]].
+%@ [[0/6,2/6,4/6],[0/6,3/6,2/6],[1/6,0/6,4/6],[1/6,1/6,2/6],[0/3,1/6,3/6],[1/6,0/6,2/3],[0/3,0/6,3/3],[0/6,2/6,0/0],[0/6,2/3,0/0]].
+%@ [[0/6,3/6,3/6],[1/6,1/6,3/6],[0/3,1/6,4/6],[0/6,2/6,2/3],[1/6,0/6,3/3],[0/3,1/6,2/3],[2/6,0/0,0/0],[2/3,0/0,0/0]].
+%@ [[0/6,3/6,4/6],[1/6,1/6,4/6],[1/6,2/6,2/6],[0/6,2/6,3/3],[1/6,1/6,2/3],[0/3,1/6,3/3],[0/6,3/6,0/0],[0/6,3/3,0/0]].
+%@ [[1/6,2/6,3/6],[0/6,3/6,2/3],[1/6,1/6,3/3],[0/6,4/6,0/0],[1/6,2/6,0/0],[1/6,2/3,0/0]].
+%@ [[1/6,2/6,4/6],[1/6,3/6,2/6],[0/6,3/6,3/3],[1/6,2/6,2/3],[1/6,3/6,0/0],[1/6,3/3,0/0],[3/6,0/0,0/0],[3/3,0/0,0/0]].
+%@ [[1/6,3/6,3/6],[2/6,2/6,2/6],[1/6,2/6,3/3],[1/6,4/6,0/0],[2/6,2/6,0/0],[2/6,2/3,0/0]].
+%@ [[1/6,3/6,4/6],[2/6,2/6,3/6],[1/6,3/6,2/3],[2/6,3/6,0/0],[2/6,3/3,0/0],[4/6,0/0,0/0]].
+%@ [[2/6,2/6,4/6],[2/6,3/6,2/6],[1/6,3/6,3/3],[2/6,2/6,2/3],[3/6,2/6,0/0],[3/6,2/3,0/0]].
+%@ [[2/6,3/6,3/6],[3/6,2/6,2/6],[2/6,2/6,3/3],[2/6,4/6,0/0]].
+%@ [[2/6,3/6,4/6],[3/6,2/6,3/6],[2/6,3/6,2/3],[3/6,3/6,0/0],[3/6,3/3,0/0]].
+%@ [[3/6,2/6,4/6],[3/6,3/6,2/6],[2/6,3/6,3/3],[3/6,2/6,2/3]].
+%@ [[3/6,3/6,3/6],[3/6,2/6,3/3],[3/6,4/6,0/0]].
+%@ [[3/6,3/6,4/6],[3/6,3/6,2/3]].
+%@ [[3/6,3/6,3/3]].
+%@ Writing strata to DOT file ..
+%@  writing covering relation ..   % CPU time: 176.904s, 788_714_092 inferences
+%@ .. done.
+%@    true.
+%@ Opening file 'HasseD3.dot'...
+%@ Collecting final tallies ..
+%@  sorting 93 final tallies ..Sorting length-93 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.063s, 332_037 inferences
+%@   .. decoding Qs:   % CPU time: 0.138s, 877_246 inferences
+%@    % CPU time: 0.204s, 1_214_601 inferences
+%@ 
+%@  stratifying ..
+%@ [[0/6,2/6,2/6],[1/6,0/6,2/6],[1/6,1/6,0/6],[0/3,0/6,2/6],[0/3,1/6,0/6],[0/3,0/3,0/6]].
+%@ [[0/6,2/6,3/6],[1/6,0/6,3/6],[1/6,1/6,1/6],[0/3,0/6,3/6],[0/3,1/6,1/6],[1/6,0/3,0/6],[0/3,0/3,1/6]].
+%@ [[0/6,2/6,4/6],[0/6,3/6,2/6],[1/6,0/6,4/6],[1/6,1/6,2/6],[0/3,0/6,4/6],[0/3,1/6,2/6],[1/6,0/3,1/6],[0/3,0/6,2/3]].
+%@ [[0/6,3/6,3/6],[1/6,1/6,3/6],[0/3,1/6,3/6],[1/6,0/6,2/3],[0/3,0/6,3/3],[0/6,2/6,0/0]].
+%@ [[0/6,3/6,4/6],[1/6,1/6,4/6],[1/6,2/6,2/6],[0/3,1/6,4/6],[0/6,2/6,2/3],[1/6,0/6,3/3],[0/3,1/6,2/3],[0/6,2/3,0/0]].
+%@ [[1/6,2/6,3/6],[0/6,2/6,3/3],[1/6,1/6,2/3],[0/3,1/6,3/3],[0/6,3/6,0/0],[2/6,0/0,0/0]].
+%@ [[1/6,2/6,4/6],[1/6,3/6,2/6],[0/6,3/6,2/3],[1/6,1/6,3/3],[0/6,4/6,0/0],[1/6,2/6,0/0],[0/6,3/3,0/0],[2/3,0/0,0/0]].
+%@ [[1/6,3/6,3/6],[2/6,2/6,2/6],[0/6,3/6,3/3],[1/6,2/6,2/3],[1/6,3/6,0/0],[1/6,2/3,0/0]].
+%@ [[1/6,3/6,4/6],[2/6,2/6,3/6],[1/6,2/6,3/3],[1/6,4/6,0/0],[2/6,2/6,0/0],[1/6,3/3,0/0],[3/6,0/0,0/0]].
+%@ [[2/6,2/6,4/6],[2/6,3/6,2/6],[1/6,3/6,2/3],[2/6,3/6,0/0],[2/6,2/3,0/0],[3/3,0/0,0/0]].
+%@ [[2/6,3/6,3/6],[3/6,2/6,2/6],[1/6,3/6,3/3],[2/6,2/6,2/3],[3/6,2/6,0/0],[2/6,3/3,0/0],[4/6,0/0,0/0]].
+%@ [[2/6,3/6,4/6],[3/6,2/6,3/6],[2/6,2/6,3/3],[2/6,4/6,0/0],[3/6,2/3,0/0]].
+%@ [[3/6,2/6,4/6],[3/6,3/6,2/6],[2/6,3/6,2/3],[3/6,3/6,0/0]].
+%@ [[3/6,3/6,3/6],[2/6,3/6,3/3],[3/6,2/6,2/3],[3/6,3/3,0/0]].
+%@ [[3/6,3/6,4/6],[3/6,2/6,3/3],[3/6,4/6,0/0]].
+%@ [[3/6,3/6,2/3]].
+%@ [[3/6,3/6,3/3]].
+%@ Writing strata to DOT file ..
+%@  writing covering relation ..   % CPU time: 49.716s, 233_678_798 inferences
+%@ .. done.
+%@    true.
 %@ Opening file 'HasseD3.dot'...
 %@ Collecting final tallies ..
 %@  sorting 93 final tallies ..
@@ -902,12 +1048,15 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ .. done.
 %@    true.
 
-%?- Q1^Q2+\(findall(Q, d_mendtally_rec(2,Q,_), Qfs), in_cover(Qfs, Q1, Q2)).
+%?- Q1^Q2+\(findall(Q, user:d_mendtally_rec(2,Q,_), Qfs), user:in_cover(Qfs, Q1, Q2)).
 %@    Q1 = [0/3,1/6], Q2 = [0/3,0/6]
+%@ ;  Q1 = [0/6,2/3], Q2 = [0/3,1/6]
 %@ ;  Q1 = [0/6,2/3], Q2 = [0/6,2/6]
 %@ ;  Q1 = [0/6,3/3], Q2 = [0/6,2/3]
 %@ ;  Q1 = [0/6,3/3], Q2 = [0/6,3/6]
+%@ ;  Q1 = [0/6,3/6], Q2 = [0/3,0/6]
 %@ ;  Q1 = [0/6,3/6], Q2 = [0/6,2/6]
+%@ ;  Q1 = [0/6,4/6], Q2 = [0/3,1/6]
 %@ ;  Q1 = [0/6,4/6], Q2 = [0/6,3/6]
 %@ ;  Q1 = [1/6,1/6], Q2 = [0/6,2/6]
 %@ ;  Q1 = [1/6,1/6], Q2 = [1/6,0/6]
@@ -921,7 +1070,6 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ ;  Q1 = [1/6,3/6], Q2 = [1/6,2/6]
 %@ ;  Q1 = [1/6,4/6], Q2 = [0/6,2/3]
 %@ ;  Q1 = [1/6,4/6], Q2 = [1/6,3/6]
-%@ ;  Q1 = [2/3,0/0], Q2 = [0/3,1/6]
 %@ ;  Q1 = [2/3,0/0], Q2 = [2/6,0/0]
 %@ ;  Q1 = [2/6,0/0], Q2 = [0/6,2/3]
 %@ ;  Q1 = [2/6,0/0], Q2 = [1/6,1/6]
@@ -937,12 +1085,10 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ ;  Q1 = [2/6,4/6], Q2 = [2/6,3/6]
 %@ ;  Q1 = [3/3,0/0], Q2 = [2/3,0/0]
 %@ ;  Q1 = [3/3,0/0], Q2 = [3/6,0/0]
-%@ ;  Q1 = [3/6,0/0], Q2 = [0/3,1/6]
 %@ ;  Q1 = [3/6,0/0], Q2 = [1/6,2/3]
 %@ ;  Q1 = [3/6,0/0], Q2 = [2/6,0/0]
 %@ ;  Q1 = [3/6,2/3], Q2 = [2/6,3/3]
 %@ ;  Q1 = [3/6,2/3], Q2 = [3/6,2/6]
-%@ ;  Q1 = [3/6,2/6], Q2 = [0/3,1/6]
 %@ ;  Q1 = [3/6,2/6], Q2 = [2/6,3/6]
 %@ ;  Q1 = [3/6,3/3], Q2 = [3/6,0/0]
 %@ ;  Q1 = [3/6,3/3], Q2 = [3/6,2/3]
@@ -953,7 +1099,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ ;  Q1 = [3/6,4/6], Q2 = [3/6,3/6]
 %@ ;  Q1 = [4/6,0/0], Q2 = [2/6,2/3]
 %@ ;  Q1 = [4/6,0/0], Q2 = [3/6,0/0]
-%@ ;  false. % Covering relation in 𝒬f (D=2 case) has just 50 pairs.
+%@ ;  false. % Covering relation in 𝒬f (D=2 case) _still_ has 50 pairs.
 
 /*
 We now seek the parameters (g₀, g₁, g₂) of a lower-Galois enrollment for D=2,
@@ -1049,6 +1195,14 @@ d_gs_rec(D, Gs, X, Nmax) :-
 
 d_gs_rec(D, Gs, X) :- d_gs_rec(D, Gs, X, 6).
 
+%?- time(d_gs_rec(2, Gs, X)). % After expanding ≼ to include 'escalation condition'
+%@    % CPU time: 2.526s, 11_246_152 inferences
+%@    Gs = [[2/6,0/4]], X = 0
+%@ ;  % CPU time: 0.934s, 4_083_756 inferences
+%@    Gs = [[0/6,2/6]], X = 1
+%@ ;  % CPU time: 0.918s, 3_999_748 inferences
+%@    Gs = [[0/5,0/6]], X = 2.
+
 %?- time(d_gs_rec(2, Gs, X)).
 %@    % CPU time: 1.199s, 5_774_900 inferences
 %@    Gs = [[2/6,0/4]], X = 0
@@ -1058,14 +1212,14 @@ d_gs_rec(D, Gs, X) :- d_gs_rec(D, Gs, X, 6).
 %@    Gs = [[0/6,0/5]], X = 2.
 
 %?- time(d_gs_rec(3, Gs, X)).
-%@    % CPU time: 39.542s, 194_608_812 inferences
-%@    Gs = [[2/6,0/4,0/4]], X = 0
-%@ ;  % CPU time: 29.026s, 144_788_174 inferences
+%@    % CPU time: 96.537s, 433_764_185 inferences
+%@    Gs = [[2/6,0/6,0/2]], X = 0
+%@ ;  % CPU time: 37.900s, 167_610_490 inferences
 %@    Gs = [[0/6,2/6,0/4]], X = 1
-%@ ;  % CPU time: 28.822s, 143_985_181 inferences
-%@    Gs = [[0/6,0/5,2/6]], X = 2
-%@ ;  % CPU time: 29.160s, 145_735_273 inferences
-%@    Gs = [[0/6,0/5,0/5]], X = 3.
+%@ ;  % CPU time: 32.531s, 144_890_329 inferences
+%@    Gs = [[0/5,0/6,2/6]], X = 2
+%@ ;  % CPU time: 32.356s, 144_278_953 inferences
+%@    Gs = [[0/5,0/5,0/6]], X = 3.
 
 %?- [2/6,0/4,0/4] '≼' [0/6,2/6,0/4].
 %@    true.
@@ -1176,7 +1330,35 @@ d_gs(D, Gs) :-
     format("Finding g's ..~n", []),
     time(galois(Mss, RQs, Gs)).
 
-%?- time(d_gs(3, Gs)). % Chopping galois/4 ~~> galois/3
+%?- time(d_gs(2, Gs)). % After expanding ≼
+%@ Listing Qs......    % CPU time: 0.067s, 249_966 inferences
+%@ Sorting length-784 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.445s, 2_352_998 inferences
+%@    % CPU time: 0.450s, 2_357_582 inferences
+%@ Stratifying Qf..    % CPU time: 0.767s, 3_442_117 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/6] ⊇ [[2/6,0/0],[2/6,2/6]].
+%@ ↓[0/6,2/6] ⊇ [[0/6,2/6]].
+%@ ↓[0/6,0/6] ⊇ [[0/3,0/6],[1/6,0/6]].
+%@    % CPU time: 0.822s, 3_665_015 inferences
+%@    % CPU time: 2.114s, 9_723_711 inferences
+%@    Gs = [[2/6,0/6],[0/6,2/6],[0/6,0/6]].
+% TODO: These differ from the Gₓ's calculated by d_gs_rec/3; WHY?
+
+%?- time(d_gs(3, Gs)). % After expanding ≼
+%@ Listing Qs......    % CPU time: 1.584s, 6_660_460 inferences
+%@ Sorting length-21952 list Qs:
+%@   .. encoding Qs:   % CPU time: 15.394s, 82_823_698 inferences
+%@    % CPU time: 15.533s, 82_891_818 inferences
+%@ Stratifying Qf..    % CPU time: 3.252s, 14_740_333 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/6,0/6] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ ↓[0/6,2/6,0/6] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ ↓[0/6,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ ↓[0/6,0/6,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
+%@    % CPU time: 35.345s, 159_516_593 inferences
+%@    % CPU time: 55.728s, 263_839_535 inferences
+%@    Gs = [[2/6,0/6,0/6],[0/6,2/6,0/6],[0/6,0/6,2/6],[0/6,0/6,0/6]].
 %@ Listing Qs......    % CPU time: 1.602s, 6_660_460 inferences
 %@ Sorting length-21952 list Qs:
 %@   .. encoding Qs:   % CPU time: 20.459s, 109_746_627 inferences
@@ -1505,6 +1687,189 @@ d_mendtally_rec_(D, Q, X, Xls) :-
 %@ ;  false.
 % NB: Indeed there were only 7 unique Q1's
 %     among the 15 solutions found above.
+
+% TODO: Bring the following explorations up-of-date
+%       with our now-expanded ≼.
+
+% ~~~~ Rolling enrollment for the D=2 trial ~~~~
+
+% TODO: Of course, getting such a predicate to work in
+%       all directions would boost these explorations!
+
+% Now, in constructing an IE from the upper adjoint
+% Gx, x ∈ 0..D, I must acknowledge that our default
+% partial order ≼ is not sufficient to identify
+% _positively_ all q for which d ≤ E(q).
+% That is, although by construction we have
+%
+%       q ≼ G(d) ⟹ E(q) ≤ d ∀ q ∈ 𝒬f,
+%
+% we cannot obtain from this any lower bound on E(q),
+% and therefore lack a principle to drive escalation
+% and so guarantee liveness.
+%
+% So what may be needed ultimately is a reformulation
+% of the idea of Galois enrollment, either restoring
+% the enlargement ('strengthening') ≼ to  ≼* or else
+% *weakening* the iff at the heart of adjointness.
+e2(Q, X) :-
+    [G0,G1,G2] = [[2/6,0/6], [0/6,2/6], [0/6,0/6]],
+    %%% (previously) [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+    if_(Q '≼' G0, X = 0,
+        if_(Q '≼' G1, X = 1,
+            if_(Q '≼' G2, X = 2, false))).
+
+%?- e2([0/0,0/0], X).
+%@    X = 2.
+%@    X = 2. % Is the bottom-up cascade of a lower-Galois IE therefore unsafe?
+
+% Suppose we want a 'cut-off' version c2/2 of the above.
+% The main deficiency of e2/2 to be remedied is that it
+% lets Q 'slip thru' to the highest dose, simply because
+% the po ≼ is too weak to catch it.  What we would need
+% then is to impose _additional_ requirements on upward
+% percolation of Q.
+c2(Q, X) :-
+    [G0,G1,G2] = [[2/6,0/6], [0/6,2/6], [0/6,0/6]],
+    %% (previously) [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+    if_(Q '≼' G0,
+        X = 0,
+        if_(( Q '⋡' G0
+            ; Q '≼' G1
+            ), X = 1,
+            if_(( Q '⋡' G1
+                ; Q '≼' G2
+                ), X = 2,
+                false))).
+
+%?- [0/3,0/0] '≼' [0/6,2/6].
+%@    false.
+
+%?- [0/3,0/0] '≼' [0/6,0/6].
+%@    true.
+
+% Thus, it would appear that I need to define my 'ladder' to propel
+% dose escalation.  Let's investigate the _meets_ of the several
+% Qf strata.
+/*
+?- D = 2, X in 0..D, indomain(X),
+   findall(Qf, d_mendtally_rec(D, Qf, X), Qfs),
+   qs_mins(Qfs, Qfs1).
+%@    D = 2, X = 0, Qfs = [[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,3/3],[2/6,3/6],[2/6,4/6],[3/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,2/6],[3/6,3/3],[3/6,3/6],[3/6,4/6],[4/6,0/0]], Qfs1 = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]]
+%@ ;  D = 2, X = 1, Qfs = [[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]], Qfs1 = [[1/6,3/3],[1/6,4/6]]
+%@ ;  D = 2, X = 2, Qfs = [[0/3,0/6],[0/3,1/6],[1/6,0/6]], Qfs1 = [[0/3,1/6],[1/6,0/6]].
+*/
+
+% Let's calculate the meet of the pair { [1/6,3/3] , [1/6,4/6] }.
+%?- [1/6,4/4] '≼' [1/6,3/3].
+%@    false.
+
+%?- [0/1,1/1] '≼' [0/1,0/0].
+%@    false.
+
+%?- [4/4] '≼' [3/3].
+%@    false. % WRONG!  So I messed something up here by switching to Ñs from Us.
+% FIXME: Having worked it out by hand, I think the Ñs idea is right;
+%        it's my implementation above that is likely wrong!
+
+/*
+RQss = [[[0/6,2/6],[1/6,0/6],[0/3,0/6]],
+        [[0/6,3/6],[1/6,1/6],[0/3,1/6]],[[0/6,4/6],[1/6,2/6],[0/6,2/3]],[[1/6,3/6],[0/6,3/3],[2/6,0/0]],[[1/6,4/6],[2/6,2/6],[1/6,2/3],[2/3,0/0]],[[2/6,3/6],[1/6,3/3],[3/6,0/0]],[[2/6,4/6],[3/6,2/6],[2/6,2/3],[3/3,0/0]],[[3/6,3/6],[2/6,3/3],[4/6,0/0]],[[3/6,4/6],[3/6,2/3]],[[3/6,3/3]]].
+*/
+
+%?- c2([0/0,0/0], X).
+%@    X = 1. % unch
+%@    X = 1.
+
+%?- c2([1/1,0/0], X).
+%@    X = 1. % unch
+%@    X = 1.
+
+%?- c2([2/2,0/0], X).
+%@    X = 0. % unch
+%@    X = 0.
+
+%?- c2([0/3,0/0], X).
+%@    X = 1. % unch
+%@    X = 1.
+
+%?- c2([0/4,0/0], X).
+%@    X = 1. % unch
+%@    X = 1.
+
+%?- c2([0/6,0/0], X).
+%@    X = 1. % still unch!
+%@    X = 1. % Huh!
+
+%?- [0/6,0/0] '≼' [2/6,0/4].
+%@    false.
+
+%?- [0/6,0/0] '≼' [0/6,2/6].
+%@    false.
+
+%?-  [2/6,0/4] '≼' [0/6,0/0].
+%@    false.
+
+%?- [0/6,0/0] '≼' [0/6,2/6].
+%@    false.
+
+%?- [0/6,0/0] '≽' [0/6,2/6].
+%@    false.
+
+%?- [0/6,0/0] '≼' [0/5,0/6].
+%@    true. % Repaired!
+%@    false. % This CAN'T be right, can it?
+
+%?- [0/6,0/0] '≼' [0/6,0/6].
+%@    true.
+
+%?- [0/6,0/0] '≼' [0/0,0/6].
+%@    true. % Repaired!
+%@    false. % This ALSO CAN'T be right!
+
+%?- qs_Ts_Ñs([0/6,0/0], Ts, Ñs).
+%@    Ts = [0,0], Ñs = [0,6].
+
+%?- qs_Ts_Ñs([0/0,0/6], Ts, Ñs).
+%@    Ts = [0,0], Ñs = [6,6].
+
+% This means I need to refer to the developments in the monograph.
+% Perhaps even those were wrong?
+
+%?- [0/6,0/0] '≽' [2/6,0/4].
+%@    false.
+
+% Let's make sure to gain access to upper-Galois enrollments, too.
+% These correspond to the lower (left) adjoint L of Def 4.2.
+
+% lgalois/3 ought to be _dual_ to galois/3, and the
+% dual construction may prove quite straighforward!
+% Here the Mss should be an _ascending_ sequence of
+% _minimal_ sets, and order relations reversed so
+% that '⋡' becomes '⋠'; accordingly, the Qs must now
+% be sorted in _??scending_ order.
+% Thus lgalois/3 searches the ascending list [Q|Qs]
+% for the first Lx satisfying Lx ≼ Q ∀ Q ∈ Ms, or
+% equivalently ↑Lx ⊇ Ms.
+lgalois([Ms|Mss], [Q|Qs], [L|Ls]) :-
+    if_(tmember_t('⋠'(Q), Ms),         % ∃ M ∈ Ms s.t. Q ⋠ M ?
+        lgalois([Ms|Mss], Qs, [L|Ls]), % if so, Q is not an Lx;
+        (   format("↑~w ⊇ ~w.~n", [Q, Ms]),
+            L = Q,                     % otherwise, collect it
+            lgalois(Mss, Qs, Ls)       % and recurse.
+        )
+       ).
+lgalois([], _, []). % Succeed when all strata are accounted-for.
+
+d_ls(D, Ls) :-
+    format("Listing Qs...... ", []),
+    time(findall(Q, qs_d_nmax(Q, D, 6), Qs)),
+    qs_sorted(Qs, SQs), % instrumentation included
+    reverse(SQs, RQs),
+    format("Stratifying Qf.. ", []),
+    time(d_Qfstratamax(D, Mss)), % TODO: Do I need MINIMAL strata here?
+    format("Finding g's ..~n", []),
+    time(lgalois(Mss, RQs, Ls)).
 
 /*
 TODO:
