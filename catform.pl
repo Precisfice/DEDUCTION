@@ -634,31 +634,32 @@ d_maxenc(7, 2131900224).
 %?- #M #= 2^31, d_maxenc(7, Kmax), M > Kmax.
 %@    M = 2147483648, Kmax = 2131900224.
 
-% With the above enlargement of ≼ comes a requirement
-% to revise the integer encoding.  It may no longer be
-% obvious how to effect a 1-1 encoding from which the
-% tally may be recovered.  But this isn't truly needed
-% to achieve the sorting crucial to efficient, 1-pass
-% searches of large 'balls' in 𝒬, since integer-keyed
-% list-of-pairs may easily be constructed, key-sorted,
-% then projected back down to tallies.
-
-% Remember that an integer encoding need only _contain_
-% the ≼ relation, which is to say that we require just
+% Contrary to my presumptions in that last commit, our
+% previous encoding should be retained, and continues
+% to support sorting of the Qs by their unique keys.
+% A clearer accounting for how and why this works is
+% sorely needed, however!
 %
-%    q ≼ q' ⟹ K(q) ≤ K(q')  ∀ q, q'∈ 𝒬.
+% Keeping in mind that ≼ is in fact a _partial order_,
+% which justifies the use of '≺' for '≼ ∖ =', we want
+% to ensure that
 %
-% But this already holds for the partial-sum Ts vectors!
-% So we may actually proceed with *simpler* integer keys,
-% constructed using already-existing infrastructure.
+%    q ≺ q' ⟹ K(q) < K(q')  ∀ q, q'∈ 𝒬,
+%
+% so that the Key sorting can discriminate between q's
+% sharing the same Ts profile but differing in the Us.
+% (The weaker implication ≼ ⟹ ≤ simply won't suffice.)
 qs_int(Qs, K) :-
-    qs_Ts_Üs(Qs, Ts, _), % TODO: Is a don't-care var treated lazily?
-    ws_int(Ts, K).
+    qs_Ts_Üs(Qs, Ts, Üs),
+    ws_int(Ts, KT),
+    ws_int(Üs, KÜ),
+    length(Qs, D), d_maxenc(D, Kmax),
+    #K #= (#Kmax + 1) * #KT + (#Kmax - #KÜ).
 
 %?- Qs = [[1/6,1/6],[0/6,2/6]], qs_sorted(Qs, SQs).
 %@ Sorting length-2 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.004s, 6_220 inferences
-%@    % CPU time: 0.008s, 8_372 inferences
+%@   .. encoding Qs:   % CPU time: 0.002s, 6_220 inferences
+%@    % CPU time: 0.005s, 8_395 inferences
 %@    Qs = [[1/6,1/6],[0/6,2/6]], SQs = [[0/6,2/6],[1/6,1/6]].
 
 %?- Qs=[1/6,0/3,2/6], time(qs_int(Qs, K)). % now TABLING d_placevalues/2
@@ -1345,6 +1346,20 @@ d_gs(D, Gs) :-
 %@    Gs = [[2/6,0/6],[0/6,2/6],[0/6,0/6]].
 % TODO: These differ from the Gₓ's calculated by d_gs_rec/3; WHY?
 
+%?- time(d_gs(3, Gs)). % After refining qs_int/2
+%@ Listing Qs......    % CPU time: 1.674s, 6_660_460 inferences
+%@ Sorting length-21952 list Qs:
+%@   .. encoding Qs:   % CPU time: 20.587s, 109_986_469 inferences
+%@    % CPU time: 20.654s, 110_054_609 inferences
+%@ Stratifying Qf..    % CPU time: 3.261s, 14_740_333 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/6,0/2] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
+%@    % CPU time: 36.582s, 163_114_471 inferences
+%@    % CPU time: 62.185s, 294_600_224 inferences
+%@    Gs = [[2/6,0/6,0/2],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]]. % Yup!
 %?- time(d_gs(3, Gs)). % After expanding ≼
 %@ Listing Qs......    % CPU time: 1.584s, 6_660_460 inferences
 %@ Sorting length-21952 list Qs:
@@ -1615,8 +1630,17 @@ d_Qfstratamax(D, Mss) :-
 %@ [[0/6,2/6]].
 %@ [[0/3,0/6],[1/6,0/6]].
 %@    Mss = [[[2/6,0/0],[2/6,2/6]],[[0/6,2/6]],[[0/3,0/6],[1/6,0/6]]].
+%@ [[2/6,0/0],[2/6,2/6]].
+%@ [[0/6,2/6]].
+%@ [[0/3,0/6],[1/6,0/6]].
+%@    Mss = [[[2/6,0/0],[2/6,2/6]],[[0/6,2/6]],[[0/3,0/6],[1/6,0/6]]].
 
 %?- d_Qfstratamax(3, Mss), maplist(portray_clause, Mss).
+%@ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
+%@    Mss = [[[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]],[[0/6,2/6,0/0],[0/6,2/6,2/6]],[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]]].
 %@ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
 %@ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
 %@ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
