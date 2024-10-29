@@ -327,6 +327,21 @@ meet(Q1s, Q2s, Qs) :-
 % TODO: Compare the computation by meet/3 against a brute-force calculation
 %       that directly implements the _definition_ of meet.  This comparison
 %       ought to demonstrate that meets are indeed *unique*.
+meet_def(Q1s, Q2s, Qs) :-
+    % 1. Generate a list of 'all possible' Qss to test.
+    same_length(Q1s, Q2s),
+    length(Q1s, D),
+    findall(Qs, qs_d_nmax(Qs, D, 6), Qss),
+    % 2. Filter out elements that are below both Q1s and Q2s.
+    tfilter('≽'(Q1s), Qss, Qss1),
+    tfilter('≽'(Q2s), Qss1, Qss12),
+    % 3. Find the maximal elements of the resulting list.
+    qs_maxs(Qss12, Meets),
+    member(Qs, Meets).
+
+%?- meet_def([0/6,4/6], [1/6,2/3], Qs).
+%@ Generated Qss of length 784.
+%@    Qs = [1/6,3/4].
 
 :- table d_endtally_rec/3.
 
