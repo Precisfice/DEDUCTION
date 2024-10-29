@@ -284,41 +284,34 @@ all_but_last(Xs, Xs1, X) :-
 %?- all_but_last([1,2,3], B, L).
 %@    B = [1,2], L = 3.
 
-% How about meets and joins?  Can we construct these?
+% Find the maximal Üs profile such that (Ts:Üs) ≼ Qs.
+qs_Ts_maxÜs(Qs, Ts, Üs) :-
+    qs_Ts_Üs(Qs, Ts_, Üs_), Ts_ '≤' Ts,
+    monus(Ts, Ts_, As_), all_but_last(As_, As, _),
+    same_length(Qs, Üs),
+    maplist(\U^U_^A^(#U #= #U_ + #A), Üs, Üs_, [0|As]).
+
 meet(Q1s, Q2s, Qs) :-
     same_length(Q1s, Q2s), same_length(Q2s, Qs),
-    qs_Ts_Üs(Q1s, T1s, Ü1s), format("T1s = ~w; Ü1s = ~w~n", [T1s, Ü1s]),
-    qs_Ts_Üs(Q2s, T2s, Ü2s), format("T2s = ~w; Ü2s = ~w~n", [T2s, Ü2s]),
-    maxs(T1s, T2s, Ts), % q = q₁ ∧ q₂ ⟹ Ts ≥ T1s ∨ T2s, so this Ts is bare-minimum
-    format("T1s = ~w; T2s = ~w; Ts = ~w~n", [T1s, T2s, Ts]),
-    % Having set Ts to the bare-minimum T1s ∨ T2s compatible with q = q₁ ∧ q₂,
-    % we now seek the highest compatible Üs profile given the Ü1s and Ü2s.
-    % Taking Ü1s for example, because of the slack created by the gap Ts-T1s,
-    % note that we could even have Üs ≥ Ü1s with Üs ≠ Ü1s while still q ≼ q₁.
-    % This would require finding an x-o exchange As able to pull Üs below Ü1s
-    % while still not pulling Ts below T1s.  So we seek the biggest As that
-    % preserves Ts ≥ T1s, then calculate the largest allowable Üs profile.
-    monus(Ts, T1s, A1s0), all_but_last(A1s0, A1s, _),
-    format("A1s = ~w; Ts = ~w; T1s = ~w~n", [A1s, Ts, T1s]),
-    as_Üs_Üas(A1s, Ü1s, Ü1as), format("Ü1s = ~w; Ü1as = ~w~n", [Ü1s, Ü1as]),
-    % We then do likewise for Ü2s..
-    monus(Ts, T2s, A2s0), all_but_last(A2s0, A2s, _),
-    format("A2s = ~w; Ts = ~w; T2s = ~w~n", [A2s, Ts, T2s]),
-    as_Üs_Üas(A2s, Ü2s, Ü2as), format("Ü2s = ~w; Ü2as = ~w~n", [Ü2s, Ü2as]),
-    % ..and finally obtain their minimum:
-    mins(Ü1as, Ü2as, Üs),
-    format("Ts = ~w; Üs = ~w~n", [Ts, Üs]),
+    qs_Ts_Üs(Q1s, T1s, _), qs_Ts_Üs(Q2s, T2s, _),
+    maxs(T1s, T2s, Ts), % q = q₁ ∧ q₂ ⟹ Ts ≥ T1s ∨ T2s
+    % Having set Ts to the bare-minimum T1s ∨ T2s compatible with
+    % q = q₁ ∧ q₂, we now seek the highest compatible Üs profile:
+    qs_Ts_maxÜs(Q1s, Ts, Ü1s),
+    qs_Ts_maxÜs(Q2s, Ts, Ü2s),
+    mins(Ü1s, Ü2s, Üs),
     qs_Ts_Üs(Qs, Ts, Üs).
 
+%?- meet([3/3,4/4], [4/6,0/0], M).
+%@    M = [4/4,3/3].
+
+%?- meet_def([3/3,4/4], [4/6,0/0], M).
+%@    M = [4/4,3/3].
+
 %?- meet([0/6,4/6], [1/6,2/3], Qs).
-%@ T1s = [0,4]; Ü1s = [8,2]
-%@ T2s = [1,3]; Ü2s = [6,1]
-%@ T1s = [0,4]; T2s = [1,3]; Ts = [1,4]
-%@ A1s = [1]; Ts = [1,4]; T1s = [0,4]
-%@ Ü1s = [8,2]; Ü1as = [8,1]
-%@ A2s = [0]; Ts = [1,4]; T2s = [1,3]
-%@ Ü2s = [6,1]; Ü2as = [6,1]
-%@ Ts = [1,4]; Üs = [6,1]
+%@    Qs = [1/6,3/4].
+
+%?- meet_def([0/6,4/6], [1/6,2/3], Qs).
 %@    Qs = [1/6,3/4].
 
 %?- [1/6,3/4] '≼' [0/6,4/6], [1/6,3/4] '≼' [0/6,2/3].
@@ -1843,14 +1836,12 @@ d_mendtally_rec_(D, Q, X, Xls) :-
 % the enlargement ('strengthening') ≼ to  ≼* or else
 % *weakening* the iff at the heart of adjointness.
 e2(Q, X) :-
-    [G0,G1,G2] = [[2/6,0/6], [0/6,2/6], [0/6,0/6]],
-    %%% (previously) [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+    [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
     if_(Q '≼' G0, X = 0,
         if_(Q '≼' G1, X = 1,
             if_(Q '≼' G2, X = 2, false))).
 
 %?- e2([0/0,0/0], X).
-%@    X = 2.
 %@    X = 2. % Is the bottom-up cascade of a lower-Galois IE therefore unsafe?
 
 % Suppose we want a 'cut-off' version c2/2 of the above.
@@ -1860,8 +1851,7 @@ e2(Q, X) :-
 % then is to impose _additional_ requirements on upward
 % percolation of Q.
 c2(Q, X) :-
-    [G0,G1,G2] = [[2/6,0/6], [0/6,2/6], [0/6,0/6]],
-    %% (previously) [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+    [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
     if_(Q '≼' G0,
         X = 0,
         if_(( Q '⋡' G0
@@ -1872,11 +1862,14 @@ c2(Q, X) :-
                 ), X = 2,
                 false))).
 
-%?- [0/3,0/0] '≼' [0/6,2/6].
-%@    false.
+%?- c2([0/0,0/0], X).
+%@    X = 1.
 
-%?- [0/3,0/0] '≼' [0/6,0/6].
-%@    true.
+%?- c2([1/1,0/0], X).
+%@    X = 1.
+
+%?- c2([2/2,0/0], X).
+%@    X = 0.
 
 % Thus, it would appear that I need to define my 'ladder' to propel
 % dose escalation.  Let's investigate the _meets_ of the several
@@ -1890,17 +1883,27 @@ c2(Q, X) :-
 %@ ;  D = 2, X = 2, Qfs = [[0/3,0/6],[0/3,1/6],[1/6,0/6]], Qfs1 = [[0/3,1/6],[1/6,0/6]].
 */
 
+%?- meet([3/3,0/0],[3/6,3/3],M1).
+%@    M1 = [3/3,3/3].
+%?- meet([3/3,3/3], [3/6,4/6], M2).
+%@    M2 = [3/3,4/4].
+%?- meet([3/3,4/4], [4/6,0/0], M3).
+%@    M3 = [4/4,3/3].
+
+%?- foldl(meet, [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]], [0/6,0/6], Meet).
+%@    Meet = [4/4,3/3].
+
 % Let's calculate the meet of the pair { [1/6,3/3] , [1/6,4/6] }.
-%?- [1/6,4/4] '≼' [1/6,3/3].
-%@    false.
+%?- meet([1/6,3/3], [1/6,4/6], Meet).
+%@    Meet = [1/6,4/4].
+%?- [1/6,4/4] '≼' [1/6,3/3], [1/6,4/4] '≼' [1/6,4/6].
+%@    true.
 
 %?- [0/1,1/1] '≼' [0/1,0/0].
-%@    false.
+%@    true.
 
 %?- [4/4] '≼' [3/3].
-%@    false. % WRONG!  So I messed something up here by switching to Ñs from Us.
-% FIXME: Having worked it out by hand, I think the Ñs idea is right;
-%        it's my implementation above that is likely wrong!
+%@    true.
 
 /*
 RQss = [[[0/6,2/6],[1/6,0/6],[0/3,0/6]],
