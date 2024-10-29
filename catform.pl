@@ -147,6 +147,7 @@ as_Üs_Üas(As, [ΣU|Üs], [ΣU|Üas]) :- % Üs head is total count of o's,
     maplist(\U^A^Ua^(#U - #A #= #Ua), Üs, As, Üas).
 
 as_Ts_Tas(As, Ts, Tas) :-
+    Ts = [_|Ts1], same_length(Ts1, As),
     append(As, [0], As0), % Last of Ts is the total count of x's,
     same_length(Ts, Tas), % which is invariant under x-o exchange.
     maplist(\T^A^Ta^(#T - #A #= #Ta), Ts, As0, Tas).
@@ -251,6 +252,81 @@ intlist_partsums_acc([X|Xs], [S|Ss], A) :-
 
 %?- [1/6,1/6] '≺' [0/6,2/6].
 %@    true.
+
+%?- as_Ts_Tas(As, [1,2,3], [0,3,3]).
+%@    As = [1,-1].
+
+maxs(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= max(#N1, #N2)), N1s, N2s, Ns).
+mins(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= min(#N1, #N2)), N1s, N2s, Ns).
+
+%?- maxs([1,2,6], [3,4,5], Maxs).
+%@    Maxs = [3,4,6].
+%?- mins([1,2,6], [3,4,5], Mins).
+%@    Mins = [1,2,5].
+
+% https://en.wikipedia.org/wiki/Monus#Natural_numbers
+monus_(X, Y, X_Y) :- #X #>= 0, #Y #>= 0, #X_Y #= max(0, #X - #Y).
+monus([X|Xs], [Y|Ys], [X_Y|Xs_Ys]) :-
+    monus_(X, Y, X_Y),
+    monus(Xs, Ys, Xs_Ys).
+monus([], [], []).
+    
+%?- X=[5,7], Y=[8,9], monus(X, Y, X_Y), monus(Y, X, Y_X).
+%@    X = [5,7], Y = [8,9], X_Y = [0,0], Y_X = [3,2].
+
+%?- X=5, Y=8, monus_(X, Y, X_Y), monus_(Y, X, Y_X).
+%@    X = 5, Y = 8, X_Y = 0, Y_X = 3.
+
+all_but_last(Xs, Xs1, X) :-
+    reverse(Xs, [X|Vs]),
+    reverse(Vs, Xs1).
+
+%?- all_but_last([1,2,3], B, L).
+%@    B = [1,2], L = 3.
+
+% How about meets and joins?  Can we construct these?
+meet(Q1s, Q2s, Qs) :-
+    same_length(Q1s, Q2s), same_length(Q2s, Qs),
+    qs_Ts_Üs(Q1s, T1s, Ü1s), format("T1s = ~w; Ü1s = ~w~n", [T1s, Ü1s]),
+    qs_Ts_Üs(Q2s, T2s, Ü2s), format("T2s = ~w; Ü2s = ~w~n", [T2s, Ü2s]),
+    maxs(T1s, T2s, Ts), % q = q₁ ∧ q₂ ⟹ Ts ≥ T1s ∨ T2s, so this Ts is bare-minimum
+    format("T1s = ~w; T2s = ~w; Ts = ~w~n", [T1s, T2s, Ts]),
+    % Having set Ts to the bare-minimum T1s ∨ T2s compatible with q = q₁ ∧ q₂,
+    % we now seek the highest compatible Üs profile given the Ü1s and Ü2s.
+    % Taking Ü1s for example, because of the slack created by the gap Ts-T1s,
+    % note that we could even have Üs ≥ Ü1s with Üs ≠ Ü1s while still q ≼ q₁.
+    % This would require finding an x-o exchange As able to pull Üs below Ü1s
+    % while still not pulling Ts below T1s.  So we seek the biggest As that
+    % preserves Ts ≥ T1s, then calculate the largest allowable Üs profile.
+    monus(Ts, T1s, A1s0), all_but_last(A1s0, A1s, _),
+    format("A1s = ~w; Ts = ~w; T1s = ~w~n", [A1s, Ts, T1s]),
+    as_Üs_Üas(A1s, Ü1s, Ü1as), format("Ü1s = ~w; Ü1as = ~w~n", [Ü1s, Ü1as]),
+    % We then do likewise for Ü2s..
+    monus(Ts, T2s, A2s0), all_but_last(A2s0, A2s, _),
+    format("A2s = ~w; Ts = ~w; T2s = ~w~n", [A2s, Ts, T2s]),
+    as_Üs_Üas(A2s, Ü2s, Ü2as), format("Ü2s = ~w; Ü2as = ~w~n", [Ü2s, Ü2as]),
+    % ..and finally obtain their minimum:
+    mins(Ü1as, Ü2as, Üs),
+    format("Ts = ~w; Üs = ~w~n", [Ts, Üs]),
+    qs_Ts_Üs(Qs, Ts, Üs).
+
+%?- meet([0/6,4/6], [1/6,2/3], Qs).
+%@ T1s = [0,4]; Ü1s = [8,2]
+%@ T2s = [1,3]; Ü2s = [6,1]
+%@ T1s = [0,4]; T2s = [1,3]; Ts = [1,4]
+%@ A1s = [1]; Ts = [1,4]; T1s = [0,4]
+%@ Ü1s = [8,2]; Ü1as = [8,1]
+%@ A2s = [0]; Ts = [1,4]; T2s = [1,3]
+%@ Ü2s = [6,1]; Ü2as = [6,1]
+%@ Ts = [1,4]; Üs = [6,1]
+%@    Qs = [1/6,3/4].
+
+%?- [1/6,3/4] '≼' [0/6,4/6], [1/6,3/4] '≼' [0/6,2/3].
+%@    true.
+
+% TODO: Compare the computation by meet/3 against a brute-force calculation
+%       that directly implements the _definition_ of meet.  This comparison
+%       ought to demonstrate that meets are indeed *unique*.
 
 :- table d_endtally_rec/3.
 
@@ -1213,14 +1289,29 @@ d_gs_rec(D, Gs, X) :- d_gs_rec(D, Gs, X, 6).
 %@    Gs = [[0/6,0/5]], X = 2.
 
 %?- time(d_gs_rec(3, Gs, X)).
-%@    % CPU time: 96.537s, 433_764_185 inferences
+%@    % CPU time: 101.280s, 433_764_185 inferences
 %@    Gs = [[2/6,0/6,0/2]], X = 0
-%@ ;  % CPU time: 37.900s, 167_610_490 inferences
+%@ ;  % CPU time: 46.671s, 167_610_490 inferences
 %@    Gs = [[0/6,2/6,0/4]], X = 1
-%@ ;  % CPU time: 32.531s, 144_890_329 inferences
+%@ ;  % CPU time: 33.517s, 144_890_329 inferences
 %@    Gs = [[0/5,0/6,2/6]], X = 2
-%@ ;  % CPU time: 32.356s, 144_278_953 inferences
+%@ ;  % CPU time: 32.245s, 144_278_953 inferences
 %@    Gs = [[0/5,0/5,0/6]], X = 3.
+
+%?- time(d_gs(3, Gs)).
+%@ Listing Qs......    % CPU time: 1.565s, 6_660_460 inferences
+%@ Sorting length-21952 list Qs:
+%@   .. encoding Qs:   % CPU time: 20.463s, 109_986_469 inferences
+%@    % CPU time: 20.532s, 110_054_609 inferences
+%@ Stratifying Qf..    % CPU time: 3.261s, 14_740_333 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/6,0/2] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
+%@    % CPU time: 36.531s, 163_114_471 inferences
+%@    % CPU time: 61.902s, 294_600_224 inferences
+%@    Gs = [[2/6,0/6,0/2],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
 
 %?- [2/6,0/4,0/4] '≼' [0/6,2/6,0/4].
 %@    true.
