@@ -1,0 +1,170 @@
+---
+title: "Applied Category Theory with Scryer Prolog and CLP(ℤ): a case study in dose-escalation"
+subtitle: "Scryer Prolog Meetup 2024 --- Hotel Stefanie, Vienna"
+author: "David C. Norris"
+format:
+  revealjs:
+    embed-resources: true
+    auto-stretch: false
+---
+
+## An update
+
+![Norris & Triska (2024)](Executable-Spec-arXiv-2024.png)
+
+# Orientation to oncology dose-finding
+
+Inertial forces of history
+
+## Up-and-down designs in explosives research
+
+![Example of data from an up-and-down design in explosives research.  Source: Dixon & Mood (1948) "A Method for Obtaining and Analyzing Sensitivity Data" *J. Am. Stat. Assoc.*](Dixon-Mood-Fig1.png)
+
+## 'Sensitivity data' are conceived as inherently *censored*
+
+![](Dixon-Mood-sensitivity-def.png)
+
+## Ethical assumptions
+
+* Typically, dose-finding trials are 'first-in-humans' (FIH) trials
+
+* Oncology drugs are too toxic for healthy-volunteer studies
+
+* So FIH oncology trials are pursued with *therapeutic intent*,
+  in patients who have exhausted all standard treatments
+  
+* Nevertheless, *scientifically* the emphasis in dose-finding trials
+  is primarily on toxicity, rather than efficacy
+
+* Thus, participants are "resources" [*sic* --- as recent as 2023!]
+  used for learning about drug toxicities
+
+## Statistical assumptions
+
+* Occurrence of a binary 'dose-limiting toxicity' (DLT) is recorded
+  after a 'first cycle' of treatment, typically 4 weeks
+
+* A DLT is akin to the explosions of Dixon & Mood
+
+* Each trial participant yields one Bernoulli trial, DLT=0|1
+
+* These are *exchangeable* (participants lack individuality)
+
+* Trial concludes with a 'recommended phase 2 dose' (RP2D)
+
+::: aside
+The DTAT research programme rejects many of the foregoing
+assumptions, aiming to enable clinical *dose individualization*.
+:::
+
+## Pharmacologic assumptions
+
+> Alle Dinge sind Gift, und nichts ist ohne Gift;
+> allein die Dosis macht, dass ein Ding kein Gift ist.
+> 
+> --- Paracelsus, 1538
+
+* Strictly monotone dose-response
+* Higher doses are both more efficacious and more toxic
+
+
+# The '3 + 3' design
+
+The Original Sin of oncology dose finding
+
+## 3 + 3 by example
+
+```{.verbatim code-line-numbers="1-4|6-9|11-14|"}
+Level 3                        x x o  |  2/3  <-- Too toxic 
+Level 2          o x o  o o o         |  1/6  <-- MTD = RP2D
+Level 1   o o o                       |  0/3
+Cohort#     1      2      3      4    | Tally 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Level 3                 x x o         |  2/3  <-- Too toxic 
+Level 2          o o o         o x o  |  1/6  <-- MTD = RP2D
+Level 1   o o o                       |  0/3
+Cohort#     1      2      3      4    | Tally
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Level 3                        |
+Level 2          x o x         |  2/3  <-- Too toxic 
+Level 1   o o o         o o o  |  0/6  <-- MTD = RP2D
+Cohort#     1      2      3    | Tally
+```
+
+::: {.incremental}
+- 'Markov property'
+- Synchronous cohorts
+:::
+
+## 'Markov property'
+
+![The 'Markov' or 'lack-of-memory' property of 3+3 method as described by Clertant & O'Quigley (2017) "Semiparametric dose finding methods" *J. R. Statist. Soc. B*](Clertant+O'Quigley-2017.png)
+
+
+## Synchronously dosed cohorts
+::: {layout-ncol=2}
+
+![Callaway & Butler (2016) "Researchers question design of fatal French clinical trial" *Nature*](Callaway+Butler-2016-Nature.png){.lightbox}
+
+![Wadman (2006) "London's disastrous drug trial has serious side effects for research" *Nature*](TeGenero.png){.lightbox}
+:::
+
+---
+
+:::: {.columns}
+
+::: {.column width="70%"}
+![](Skolnik08-Table1.png){.lightbox}
+:::
+
+::: {.column width="30%"}
+Note the fine print!
+:::
+
+::::
+
+
+::: aside
+Skolnik JM, Barrett JS, Jayaraman B, Patel D, Adamson PC. Shortening the timeline of pediatric phase I trials: the rolling six design. *J Clin Oncol.* 2008;26(2):190-195. doi:10.1200/JCO.2007.12.7712
+:::
+
+---
+
+:::: {.columns}
+
+::: {.column width="50%"}
+![](Frankel20-Table1.png){.lightbox}
+:::
+
+::: {.column width="50%"}
+Frankel PH, Chung V, Tuscano J, et al. Model of a Queuing Approach for Patient Accrual in Phase 1 Oncology Studies. *JAMA Network Open.* 2020;3(5):e204787-e204787. doi:10.1001/jamanetworkopen.2020.4787
+
+Drowning in a combinatorial explosion of fine print?
+
+:::
+
+::::
+
+
+## 93 final tallies of the 3-dose 3+3 {.scrollable}
+
+![](hasse3.png){width=80% .lightbox}
+
+## 29 final tallies of the 2-dose 3+3 {.scrollable}
+
+![](hasse2.svg){width=100%}
+
+---
+
+> What can you do with it?
+> It's like a lot of yaks jumping about!
+> 
+> --- Sir Thomas Beecham, on Beethoven's 7th Symphony
+
+### This embeds 2 intutitions:
+
+* We are dealing with an *ordered set* of doses
+* The current dose changes *incrementally*
+
+
+# Thank you!
