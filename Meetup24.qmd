@@ -2,11 +2,41 @@
 title: "Applied Category Theory with Scryer Prolog and CLP(ℤ): a case study in dose-escalation"
 subtitle: "Scryer Prolog Meetup 2024 --- Hotel Stefanie, Vienna"
 author: "David C. Norris"
+filters:
+  - diagram
 format:
   revealjs:
     embed-resources: true
     auto-stretch: false
+diagram:
+  engine:
+    tikz:
+      execpath: pdflatex
+      header-includes:
+        - '\usepackage[mathscr]{eucal}'
+        - '\usepackage{amsmath}'
+        - '\usepackage{amssymb}'
+        - '\usepackage{mathtools}'
+        - '\usepackage{tikz}'
+        - '\usepackage{tikz-cd}'
+        - '\usetikzlibrary{shapes}'
+        - '\newcommand{\D}{\mathcal{D}}'
+        - '\newcommand{\Q}{\mathcal{Q}}'
 ---
+
+::: hidden
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\renewcommand{\S}{\mathcal{S}}
+\newcommand{\A}{\mathcal{A}}
+\newcommand{\C}{\mathcal{C}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\Q}{\mathcal{Q}}
+\newcommand{\M}{\mathcal{M}}
+\newcommand{\IE}{\Q \xrightarrow{\;\;E\;\;} \D}
+\newcommand{\E}{\widehat{E}}
+\newcommand{\delihat}{\surd\E}
+:::
 
 ## An update
 
@@ -161,10 +191,99 @@ Drowning in a combinatorial explosion of fine print?
 > 
 > --- Sir Thomas Beecham, on Beethoven's 7th Symphony
 
-### This embeds 2 intutitions:
+## Metagraphs
+
+- *Objects* $a, b, c, ...$
+- *Arrows* $f, g, h, ...$
+- Operations *Domain* and *Codomain* assigning objects $a = \mathrm{dom} f$ and $b = \mathrm{cod} f$ to each arrow $f$,
+  a situation we can depict as
+  $$
+  a \xrightarrow{f} b.
+  $$
+
+::: aside
+Saunders Mac Lane. 1998. *Categories for the Working Mathematician.* 2ed.
+:::
+
+## Metacategories have in addition ..
+
+- *Identity* operation $\mathrm{id}$ giving an arrow $a \xrightarrow{\mathrm{id}_a} a$ for each $a$
+- *Composition* giving for each pair $\langle f, g \rangle$ with $\mathrm{dom}f = \mathrm{cod}g$ an $f \circ g$ such that
+``` {.tikz}
+%%| width: 100%
+%%| height: 40%
+\begin{tikzcd}
+    a \ar[rrr, "k\circ(g\circ f) = (k\circ g)\circ f"]
+    \ar[ddrrr, near end, "g\circ f"{description}]
+    \ar[dd, "f"']
+    & & & d
+    \\ \\
+    b \ar[rrr, "g"']
+    \ar[uurrr, near end, "k\circ g"{description}]
+    & & & c \ar[uu, "k"']
+\end{tikzcd}\qquad\text{and}\qquad
+\begin{tikzcd}
+    a \ar[ddrr, "f"'] \ar[rr, "f"] & & b \ar[dd, "1_b"] \ar[ddrr, "g"]
+    \\ \\
+    & & b \ar[rr, "g"'] & & c
+\end{tikzcd}
+```
+
+::: aside
+Saunders Mac Lane. 1998. *Categories for the Working Mathematician*, 2ed. pp.7--8
+:::
+
+
+## Category
+
+An interpretation of the preceding axioms within set theory.
+
+![The category **3**](IMG_0328.JPG){width=80%}
+
+## Associativity
+
+``` {.tikz width=400px}
+%%| scale: 3
+\begin{tikzpicture}[baseline= (a).base]
+\node[scale=3.0] (a) at (0,0){
+\begin{tikzcd}
+    a \ar[rrr, "k\circ(g\circ f) = (k\circ g)\circ f"]
+    \ar[ddrrr, near end, "g\circ f"{description}]
+    \ar[dd, "f"']
+    & & & d
+    \\ \\
+    b \ar[rrr, "g"']
+    \ar[uurrr, near end, "k\circ g"{description}]
+    & & & c \ar[uu, "k"']
+\end{tikzcd}
+};
+\end{tikzpicture}
+```
+
+# Testing Ti*k*Z
+``` {.tikz}
+%%| width: 50%
+%%| height: 50%
+\begin{tikzcd}
+    {\mathcal{M}} \ar[rr,hook]
+    & & {\mathcal{N}} \ar[ll,bend left,"\Sigma"]
+\end{tikzcd}
+```
+
+
+# Checking preamble ...
+
+$$
+\Q \xrightarrow{E} \D.
+$$
+
+
+# This embeds 2 intutitions:
 
 * We are dealing with an *ordered set* of doses
 * The current dose changes *incrementally*
 
+
+# Pending work
 
 # Thank you!
