@@ -310,13 +310,15 @@ $$
 
 ---
 
-### $(Q,\preceq,\frac{0}{0},+)$ is a symmetric monoidal preorder
+### $(Q,\preceq,\frac{0}{0},+)$ is a monoidal preorder
 
 In particular, we have the *monotonicity condition*,
 $$
 q \preceq q',\; g \preceq g' \implies q + g \preceq q' + g',
 $$
 arising by induction from the our definition of $\preceq$ in terms of $+$.
+
+* Indeed, it is a *symmetric* monoidal preorder, since $+$ is commutative!
 
 ## Characterization of $\preceq$ on $R$
 
@@ -334,7 +336,65 @@ $$
 \frac{t}{n} \preceq \frac{t'}{n'} \iff t \ge t' + \max(0,n-n').
 $$
 
-## Extending $\preceq$ to $Q^D$
+## Extending $\preceq$ to [full] tallies in $Q^D$
+
+* WLOG, consider $D=2$
+
+* Observe tallies may be related by *logical implication*
+  - $\left(\frac{1}{1},\frac{0}{0}\right) \implies \left(\frac{0}{0},\frac{1}{1}\right) \quad \text{or} \quad \left(\frac{1}{1},\frac{0}{0}\right) \supseteq \left(\frac{0}{0},\frac{1}{1}\right)$
+  - $\left(\frac{0}{1},\frac{0}{0}\right) \impliedby \left(\frac{0}{0},\frac{0}{1}\right) \quad \text{or} \quad \left(\frac{0}{1},\frac{0}{0}\right) \subseteq \left(\frac{0}{0},\frac{0}{1}\right)$
+
+* Since toxicities are bad and non-toxicities good, we have
+  - $\left(\frac{1}{1},\frac{0}{0}\right) \preceq \left(\frac{0}{0},\frac{1}{1}\right)$ (RHS has less evidence of a *bad* thing)
+  - $\left(\frac{0}{1},\frac{0}{0}\right) \preceq \left(\frac{0}{0},\frac{0}{1}\right)$ (LHS has less evidence of a *good* thing)
+
+## Breaking the x|o symmetry
+
+* Claim: $\left(\frac{1}{1},\frac{0}{1}\right) \preceq \left(\frac{0}{1},\frac{1}{1}\right)$
+
+```{.verbatim code-line-numbers="1-4|6-9|"}
+Pt ID     A B C  D E F
+Level 2          x o x |  2/3
+Level 1   o o o        |  0/3
+Cohort#     1      2   | Tally = [0/3,2/3] 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Pt ID     A B D  C E F
+Level 2          o o x |  1/3
+Level 1   o o x        |  1/3
+Cohort#     1      2   | Tally = [1/3,1/3] 
+```
+
+::: {.incremental}
+* $\left(\frac{1}{3},\frac{1}{3}\right) \preceq \left(\frac{0}{3},\frac{2}{3}\right)$
+* $q + \left(\frac{1}{1},\frac{0}{1}\right) \preceq_\text{exch} \left(\frac{0}{1},\frac{1}{1}\right) + q$, where $q = \left(\frac{0}{2},\frac{1}{2}\right) \in Q^2$
+:::
+
+## Arrows of the preorder $(Q^D,\preceq)$
+
+\begin{align*}
+q + \langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} &\preceq_\text{exch} \langle\frac{0}{1},\frac{1}{1}\rangle_{j,k} + q \quad \forall q \in Q^2, j<k \in \{1,...,D\}
+\\
+q + \langle\frac{1}{1}\rangle_j &\preceq_\text{tox} \langle\frac{0}{0}\rangle_j + q
+\\
+q +  \langle\frac{0}{0}\rangle_j &\preceq_\text{tol} \langle\frac{0}{1}\rangle_j + q
+\\
+q +  \langle\frac{0}{1}\rangle_j &\preceq_\text{titr} \langle\frac{0}{1}\rangle_{j+1} + q
+\end{align*}
+
+Transitive closure of $\preceq_{exch} \cup \preceq_{tox} \cup \preceq_{tol} \cup \preceq_{titr}$ yields $\preceq$.
+
+---
+
+> Make no mistake about it: Computers process numbers --- not symbols.
+> We measure our understanding (and control) by the extent to which
+> we can arithmetize an activity.
+> 
+> --- Alan J. Perlis (Epigram #65)
+
+::: {.incremental}
+* Not so much anti-symbolic-computing ..
+* .. as pro-CLP(ℤ)!
+:::
 
 
 # Testing Ti*k*Z
