@@ -240,25 +240,102 @@ An interpretation of the preceding axioms within set theory.
 
 ![The category **3**](IMG_0328.JPG){width=80%}
 
-## Associativity
+## Concrete Categories
 
-``` {.tikz width=400px}
-%%| scale: 3
-\begin{tikzpicture}[baseline= (a).base]
-\node[scale=3.0] (a) at (0,0){
-\begin{tikzcd}
-    a \ar[rrr, "k\circ(g\circ f) = (k\circ g)\circ f"]
-    \ar[ddrrr, near end, "g\circ f"{description}]
-    \ar[dd, "f"']
-    & & & d
-    \\ \\
-    b \ar[rrr, "g"']
-    \ar[uurrr, near end, "k\circ g"{description}]
-    & & & c \ar[uu, "k"']
-\end{tikzcd}
-};
-\end{tikzpicture}
+* **Set:** sets are the objects, and functions are the arrows
+
+* **Rel:** sets and binary relations
+
+* **Top:** topological spaces and continuous functions
+
+* **Group:** groups and group homomorphisms
+
+* **Poset:** partially ordered sets and monotone maps
+
+## Abstract Categories
+
+* **Monoid:** a category with 1 object
+  - Same as a *semigroup with unit*
+  - A monoid with inverses is a *group*
+
+* **Preorder:** for any pair $\langle a, b \rangle$, there is *at most* 1 arrow $a \rightarrow b$
+  - The arrows $a \rightarrow b$ are often written $a \le b$
+  - This definition allows both $a \le b\;$ and $\;b \le a$
+  - In a *partial order*, $a \le b \wedge b \le a \Rightarrow a = b$
+  - Identity arrows $\Rightarrow$ reflexivity; composition $\Rightarrow$ transitivity
+
+## Dosewise Tallies
+
+```prolog
+:- use_module(library(clpz)).
+clpz:monotonic.
+
+q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
 ```
+
+Denote the set of *dosewise tallies* by
+$$
+Q = \{t/n \mid t, n \in \N, t \le n\}
+$$
+or in 'ratio form'
+$$
+R = \{t\!:\!u \mid t, u \in \N\},
+$$
+with $u = n - t$ denoting counts of non-toxicities.
+
+
+## Q is a commutative monoid
+
+$$
+\frac{t_1}{n_1} + \frac{t_2}{n_2} = \frac{t_1+t_2}{n_1+n_2},
+$$
+
+Observe that $\frac{0}{0} \in Q$ is the unit.
+
+$$
+(Q,0/0,+) \cong (\N,0,+)\times(\N,0,+)
+$$
+
+## An *evident safety* relation on Q
+
+  Let $\preceq$ be the transitive closure of a preorder relation satisfying,
+  \begin{equation}
+  \frac{t}{n}\!+\!\frac{1}{1} \;\preceq\; \frac{t}{n} \;\preceq\; \frac{t}{n}\!+\!\frac{0}{1} \quad \forall\; \frac{t}{n} \in Q. \label{lesafcond}
+  \end{equation}
+  Then the preorder $(Q,\preceq)$ compares the **evident safety** expressed in dosewise tallies, such that we read
+  $$
+  q_1 \preceq q_2
+  $$
+  as "$q_1$ is evidently no safer than $q_2$" or "$q_2$ is evidently at least as safe as $q_1$".
+
+---
+
+### $(Q,\preceq,\frac{0}{0},+)$ is a symmetric monoidal preorder
+
+In particular, we have the *monotonicity condition*,
+$$
+q \preceq q',\; g \preceq g' \implies q + g \preceq q' + g',
+$$
+arising by induction from the our definition of $\preceq$ in terms of $+$.
+
+## Characterization of $\preceq$ on $R$
+
+$$
+t\!:\!u \preceq t'\!:\!u' \iff t \ge t' \;\text{and}\; u \le u'
+$$
+
+This follows from the ratio formulation of $\preceq$,
+$$
+    t\!:\!u + 1\!:\!0 \preceq t\!:\!u \preceq t\!:\!u + 0\!:\!1 \quad \forall\; t\!:\!u \in R.
+$$
+
+In $Q$, this translates to,
+$$
+\frac{t}{n} \preceq \frac{t'}{n'} \iff t \ge t' + \max(0,n-n').
+$$
+
+## Extending $\preceq$ to $Q^D$
+
 
 # Testing Ti*k*Z
 ``` {.tikz}
