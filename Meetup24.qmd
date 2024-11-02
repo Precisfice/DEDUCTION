@@ -476,14 +476,14 @@ Note that $X$ is an ascending sequence, and $\bar{X}$ descending.
 ## Implementation (1)
 
 ```prolog
-intlist_partsums([X|Xs], [X|Ss]) :-
-    same_length(Xs, Ss), % eliminate unnecessary choice point
-    intlist_partsums_acc(Xs, Ss, X).
+intlist_partsums([X|Xs], [X|Σs]) :-
+    same_length(Xs, Σs), % eliminate unnecessary choice point
+    intlist_partsums_acc(Xs, Σs, X).
 
 intlist_partsums_acc([], [], _).
-intlist_partsums_acc([X|Xs], [S|Ss], A) :-
-    #S #= #X + #A,
-    intlist_partsums_acc(Xs, Ss, S).
+intlist_partsums_acc([X|Xs], [Σ|Σs], A) :-
+    #Σ #= #X + #A,
+    intlist_partsums_acc(Xs, Σs, Σ).
 ```
 
 ---
@@ -547,6 +547,29 @@ as_Ts_Tas(As, Ts, Tas) :-
        ).
 ```
 
+## Implementation (4)
+
+```prolog
+'≺'(Q1s, Q2s, Truth) :-
+    if_((Q1s '≼' Q2s, dif(Q1s, Q2s)),
+        Truth = true,
+        Truth = false
+        ).
+
+'≽'(Q2s, Q1s, Truth) :-'≼'(Q1s, Q2s, Truth).
+'≻'(Q2s, Q1s, Truth) :-'≺'(Q1s, Q2s, Truth).
+
+'≼'(Q1s, Q2s) :- '≼'(Q1s, Q2s, true).
+'⋠'(Q1s, Q2s) :- '≼'(Q1s, Q2s, false).
+'≽'(Q2s, Q1s) :- '≼'(Q1s, Q2s, true).
+'⋡'(Q2s, Q1s) :- '≼'(Q1s, Q2s, false).
+
+'≺'(Q1s, Q2s) :- '≺'(Q1s, Q2s, true).
+'⊀'(Q1s, Q2s) :- '≺'(Q1s, Q2s, false).
+'≻'(Q2s, Q1s) :- '≺'(Q1s, Q2s, true).
+'⊁'(Q2s, Q1s) :- '≺'(Q1s, Q2s, false).
+```
+
 # Testing Ti*k*Z
 ``` {.tikz}
 %%| width: 50%
@@ -565,12 +588,16 @@ $$
 $$
 
 
-# This embeds 2 intutitions:
-
-* We are dealing with an *ordered set* of doses
-* The current dose changes *incrementally*
-
-
 # Pending work
+
+* More direct [yet still performant] implementation in CLP(Z)
+  - $\preceq$
+  - covering relation via `library(clpb)`?
+  
+* Generalize predicates to work more freely in several directions
+
+* Exhaustive searches for counterexamples to Theorems
+
+* Formalize the mathematics in Agda or Shen
 
 # Thank you!
