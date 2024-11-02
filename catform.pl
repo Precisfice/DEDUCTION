@@ -217,14 +217,14 @@ as_Ts_Tas(As, Ts, Tas) :-
 
 %% Utility predicates used above:
 
-intlist_partsums([X|Xs], [X|Ss]) :-
-    same_length(Xs, Ss), % eliminate unnecessary choice point
-    intlist_partsums_acc(Xs, Ss, X).
+intlist_partsums([X|Xs], [X|Σs]) :-
+    same_length(Xs, Σs), % eliminate unnecessary choice point
+    intlist_partsums_acc(Xs, Σs, X).
 
 intlist_partsums_acc([], [], _).
-intlist_partsums_acc([X|Xs], [S|Ss], A) :-
-    #S #= #X + #A,
-    intlist_partsums_acc(Xs, Ss, S).
+intlist_partsums_acc([X|Xs], [Σ|Σs], A) :-
+    #Σ #= #X + #A,
+    intlist_partsums_acc(Xs, Σs, Σ).
 
 %?- [1/3, 1/2] '≼' [0/4, 0/1].
 %@    true.
