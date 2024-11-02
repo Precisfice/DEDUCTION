@@ -102,21 +102,18 @@ Xs '≰' Ys :-
 
 q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
 
-% Since the typographical equivalent of the monograph's \bar{U},
-% is unavailable, we use here Ü for the _descending_ vector of
-% partial sums of (uᵢ) taken from the _right_.
-% Also, the monograph's capitalization notation being ill-suited
-% to Prolog (for obvious reasons!), we indicate our partial-sum
+% The monograph's capitalization notation being ill-suited to
+% Prolog (for obvious reasons!), we indicate our partial-sum
 % variables below with a prefix Σ.
-qs_Ts_Üs(Qs, ΣTs, ΣÜs) :-
+qs_Ts_Ūs(Qs, ΣTs, ΣŪs) :-
     maplist(\Q^T^U^(q_r(Q, T:U)), Qs, Ts, Us),
     intlist_partsums(Ts, ΣTs),
-    reverse(Us, Üs),
-    intlist_partsums(Üs, RΣÜs),
-    reverse(RΣÜs, ΣÜs).
+    reverse(Us, Ūs),
+    intlist_partsums(Ūs, RΣŪs),
+    reverse(RΣŪs, ΣŪs).
 
-%?- Qs = [1/6,2/6], maplist(q_r, Qs, Rs), qs_Ts_Üs(Qs, Ts, Üs).
-%@    Qs = [1/6,2/6], Rs = [1:5,2:4], Ts = [1,3], Üs = [9,4].
+%?- Qs = [1/6,2/6], maplist(q_r, Qs, Rs), qs_Ts_Ūs(Qs, Ts, Ūs).
+%@    Qs = [1/6,2/6], Rs = [1:5,2:4], Ts = [1,3], Ūs = [9,4].
 
 % I've discovered that the sufficient condition for ≼
 % is actually quite subtle, and necessitates considering
@@ -127,24 +124,24 @@ qs_Ts_Üs(Qs, ΣTs, ΣÜs) :-
 % (I will not even impose a restriction of positivity on
 % the As, nor even the resulting Qas.)
 qs_as_qas(Qs, As, Qas) :- % 'A' für Austausch
-    qs_Ts_Üs(Qs, Ts, Üs),
+    qs_Ts_Ūs(Qs, Ts, Ūs),
     same_length(Qs, [_|As]), % the As act at the (D-1) *commas* of Qs
-    as_Üs_Üas(As, Üs, Üas),
+    as_Ūs_Ūas(As, Ūs, Ūas),
     as_Ts_Tas(As, Ts, Tas),
-    qs_Ts_Üs(Qas, Tas, Üas).
+    qs_Ts_Ūs(Qas, Tas, Ūas).
 
 %?- qs_as_qas([1/6,1/6], As, [0/6,2/6]).
 %@    As = [1].
 
 % The As are the D-1 coefficients of the _comma-wise_ exchanges.
 % Because each exchange moves both 'o' and 'x' alike in the _same_
-% direction as Üs and Ts respectively are summed, both of these
-% vectors get _decremented_ by an exchange.  The Üs are decremented
+% direction as Ūs and Ts respectively are summed, both of these
+% vectors get _decremented_ by an exchange.  The Ūs are decremented
 % to the right of each comma (where the 'o' gets taken from), while
 % the Ts get decremented to the left (where the 'x' is taken from).
-as_Üs_Üas(As, [ΣU|Üs], [ΣU|Üas]) :- % Üs head is total count of o's,
-    same_length(Üs, Üas),           % an _invariant_ under x-o exchange.
-    maplist(\U^A^Ua^(#U - #A #= #Ua), Üs, As, Üas).
+as_Ūs_Ūas(As, [ΣU|Ūs], [ΣU|Ūas]) :- % Ūs head is total count of o's,
+    same_length(Ūs, Ūas),           % an _invariant_ under x-o exchange.
+    maplist(\U^A^Ua^(#U - #A #= #Ua), Ūs, As, Ūas).
 
 as_Ts_Tas(As, Ts, Tas) :-
     Ts = [_|Ts1], same_length(Ts1, As),
@@ -153,23 +150,23 @@ as_Ts_Tas(As, Ts, Tas) :-
     maplist(\T^A^Ta^(#T - #A #= #Ta), Ts, As0, Tas).
 
 '≼'(Q1s, Q2s, Truth) :-
-    qs_Ts_Üs(Q1s, T1s, Ü1s),
-    qs_Ts_Üs(Q2s, T2s, Ü2s),
+    qs_Ts_Ūs(Q1s, T1s, Ū1s),
+    qs_Ts_Ūs(Q2s, T2s, Ū2s),
     %%format("T1s = ~w , T2s = ~w~n", [T1s, T2s]),
-    %%format("Ü1s = ~w , Ü2s = ~w~n", [Ü1s, Ü2s]),
-    Ü1s = [Ü1|Ü1rs],
-    Ü2s = [Ü2|Ü2rs],
-    % We next calculate the _smallest_ exchange-adjustment As : Ü1s ⟼ Ü1as
-    % that would ensure Ü1as ≤ Ü2s.  (In case this inequality already holds
-    % as for unadjusted Ü1s, then this will be the _null_ adjustment.)
-    same_length(Ü1rs, As),
-    maplist(\A^U1^U2^(#A #= max(0, #U1 - #U2)), As, Ü1rs, Ü2rs),
+    %%format("Ū1s = ~w , Ū2s = ~w~n", [Ū1s, Ū2s]),
+    Ū1s = [Ū1|Ū1rs],
+    Ū2s = [Ū2|Ū2rs],
+    % We next calculate the _smallest_ exchange-adjustment As : Ū1s ⟼ Ū1as
+    % that would ensure Ū1as ≤ Ū2s.  (In case this inequality already holds
+    % as for unadjusted Ū1s, then this will be the _null_ adjustment.)
+    same_length(Ū1rs, As),
+    maplist(\A^U1^U2^(#A #= max(0, #U1 - #U2)), As, Ū1rs, Ū2rs),
     % Now we will calculate post-exchange [T1a|T1as] vector.
     as_Ts_Tas(As, T1s, T1as),
     %%format("As = ~w; T1as = ~w~n", [As, T1as]),
-    %%format("Ü1 ≤ Ü2 ? ~w ≤ ~w~n", [Ü1, Ü2]),
+    %%format("Ū1 ≤ Ū2 ? ~w ≤ ~w~n", [Ū1, Ū2]),
     %%format("T2s ≤ T1as ? ~w ≤ ~w~n", [T2s, T1as]),
-    if_((clpz_t(#Ü1 #=< #Ü2), % Q1 must not have _net_ advantage of more total o's
+    if_((clpz_t(#Ū1 #=< #Ū2), % Q1 must not have _net_ advantage of more total o's
          T2s '≤' T1as % Even *after* exchange-adjustment, T1 must still exceed T2.
          % (Happily, the above also ensures T1as never 'goes negative'.)
         ),
@@ -179,25 +176,25 @@ as_Ts_Tas(As, Ts, Tas) :-
 
 %?- '≼'([0/1,0/0], [0/0,0/1], Truth).
 %@ T1s = [0,0] , T2s = [0,0]
-%@ Ü1s = [1,0] , Ü2s = [1,1]
+%@ Ū1s = [1,0] , Ū2s = [1,1]
 %@ As = [0]; T1as = [0,0]
-%@ Ü1 ≤ Ü2 ? 1 ≤ 1
+%@ Ū1 ≤ Ū2 ? 1 ≤ 1
 %@ T2s ≤ T1as ? [0,0] ≤ [0,0]
 %@    Truth = true.
 
 %?- '≼'([1/6,1/6], [0/6,2/6], Truth).
 %@ T1s = [1,2] , T2s = [0,2]
-%@ Ü1s = [10,5] , Ü2s = [10,4]
+%@ Ū1s = [10,5] , Ū2s = [10,4]
 %@ As = [1]; T1as = [0,2]
-%@ Ü1 ≤ Ü2 ? 10 ≤ 10
+%@ Ū1 ≤ Ū2 ? 10 ≤ 10
 %@ T2s ≤ T1as ? [0,2] ≤ [0,2]
 %@    Truth = true.
 
-%?- qs_Ts_Üs([1/6,1/6], Ts, Üs), reverse(Üs, Us).
-%@    Ts = [1,2], Üs = [10,5], Us = [5,10].
+%?- qs_Ts_Ūs([1/6,1/6], Ts, Ūs), reverse(Ūs, Us).
+%@    Ts = [1,2], Ūs = [10,5], Us = [5,10].
 
-%?- qs_Ts_Üs([0/6,2/6], Ts, Üs), reverse(Üs, Us).
-%@    Ts = [0,2], Üs = [10,4], Us = [4,10].
+%?- qs_Ts_Ūs([0/6,2/6], Ts, Ūs), reverse(Ūs, Us).
+%@    Ts = [0,2], Ūs = [10,4], Us = [4,10].
 
 '≺'(Q1s, Q2s, Truth) :-
     if_((Q1s '≼' Q2s, dif(Q1s, Q2s)),
@@ -284,23 +281,23 @@ all_but_last(Xs, Xs1, X) :-
 %?- all_but_last([1,2,3], B, L).
 %@    B = [1,2], L = 3.
 
-% Find the maximal Üs profile such that (Ts:Üs) ≼ Qs.
-qs_Ts_maxÜs(Qs, Ts, Üs) :-
-    qs_Ts_Üs(Qs, Ts_, Üs_), Ts_ '≤' Ts,
+% Find the maximal Ūs profile such that (Ts:Ūs) ≼ Qs.
+qs_Ts_maxŪs(Qs, Ts, Ūs) :-
+    qs_Ts_Ūs(Qs, Ts_, Ūs_), Ts_ '≤' Ts,
     monus(Ts, Ts_, As_), all_but_last(As_, As, _),
-    same_length(Qs, Üs),
-    maplist(\U^U_^A^(#U #= #U_ + #A), Üs, Üs_, [0|As]).
+    same_length(Qs, Ūs),
+    maplist(\U^U_^A^(#U #= #U_ + #A), Ūs, Ūs_, [0|As]).
 
 meet(Q1s, Q2s, Qs) :-
     same_length(Q1s, Q2s), same_length(Q2s, Qs),
-    qs_Ts_Üs(Q1s, T1s, _), qs_Ts_Üs(Q2s, T2s, _),
+    qs_Ts_Ūs(Q1s, T1s, _), qs_Ts_Ūs(Q2s, T2s, _),
     maxs(T1s, T2s, Ts), % q = q₁ ∧ q₂ ⟹ Ts ≥ T1s ∨ T2s
     % Having set Ts to the bare-minimum T1s ∨ T2s compatible with
-    % q = q₁ ∧ q₂, we now seek the highest compatible Üs profile:
-    qs_Ts_maxÜs(Q1s, Ts, Ü1s),
-    qs_Ts_maxÜs(Q2s, Ts, Ü2s),
-    mins(Ü1s, Ü2s, Üs),
-    qs_Ts_Üs(Qs, Ts, Üs).
+    % q = q₁ ∧ q₂, we now seek the highest compatible Ūs profile:
+    qs_Ts_maxŪs(Q1s, Ts, Ū1s),
+    qs_Ts_maxŪs(Q2s, Ts, Ū2s),
+    mins(Ū1s, Ū2s, Ūs),
+    qs_Ts_Ūs(Qs, Ts, Ūs).
 
 %?- meet([3/3,4/4], [4/6,0/0], M).
 %@    M = [4/4,3/3].
@@ -734,11 +731,11 @@ d_maxenc(7, 2131900224).
 % sharing the same Ts profile but differing in the Us.
 % (The weaker implication ≼ ⟹ ≤ simply won't suffice.)
 qs_int(Qs, K) :-
-    qs_Ts_Üs(Qs, Ts, Üs),
+    qs_Ts_Ūs(Qs, Ts, Ūs),
     ws_int(Ts, KT),
-    ws_int(Üs, KÜ),
+    ws_int(Ūs, KŪ),
     length(Qs, D), d_maxenc(D, Kmax),
-    #K #= (#Kmax + 1) * #KT + (#Kmax - #KÜ).
+    #K #= (#Kmax + 1) * #KT + (#Kmax - #KŪ).
 
 %?- Qs = [[1/6,1/6],[0/6,2/6]], qs_sorted(Qs, SQs).
 %@ Sorting length-2 list Qs:
