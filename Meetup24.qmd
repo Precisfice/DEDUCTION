@@ -452,6 +452,27 @@ Transitive closure of $\preceq_{exch} \cup \preceq_{-tox} \cup \preceq_{tol+} \c
 * .. as pro-CLP(ℤ)!
 :::
 
+## $\preceq$ via CLP($\mathbb{Z}$)
+
+Every arrow of the preorder $\preceq$ may be obtained in the form,
+\begin{align*}
+\sum_{i=1}^D \lambda_i\langle\frac{1}{1}\rangle_i + &\sum_{j<k}\left(\eta_{jk}\langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} + \theta_{jk}\langle\frac{0}{1}\rangle_j\right) +q \\
+\preceq q + &\sum_{j<k}\left(\eta_{jk}\langle\frac{0}{1},\frac{1}{1}\rangle_{j,k}  + \theta_{jk}\langle\frac{0}{1}\rangle_k\right) + \sum_{i=1}^D \gamma_i\langle\frac{0}{1}\rangle_i, \label{clpz}
+\end{align*}
+for some $q \in Q^D$ and $\lambda_i, \eta_{jk}, \theta_{jk}, \gamma_i \in \N$.
+
+NB: We used the commutativity of $+$ to collect terms.
+
+## Cumulative distributions
+
+Given a dose-indexed tuple $x = (x_d) \in \N^D$, let capitalization denote partial summation from the left or right by,
+$$
+X_d = \sum_{j=1}^d x_j \quad \text{and} \quad \bar{X}_d = \sum_{j=d}^D x_j
+$$
+and write $X = (X_d)$ or $\bar{X} = (\bar{X}_d) \in \N^D$.
+
+Note that $X$ is an ascending sequence, and $\bar{X}$ descending.
+
 ## Implementation (1)
 
 ```prolog
@@ -463,35 +484,63 @@ intlist_partsums_acc([], [], _).
 intlist_partsums_acc([X|Xs], [S|Ss], A) :-
     #S #= #X + #A,
     intlist_partsums_acc(Xs, Ss, S).
-
-qs_Ts_Üs(Qs, ΣTs, ΣÜs) :-
-    maplist(\Q^T^U^(q_r(Q, T:U)), Qs, Ts, Us),
-    intlist_partsums(Ts, ΣTs),
-    reverse(Us, Üs),
-    intlist_partsums(Üs, RΣÜs),
-    reverse(RΣÜs, ΣÜs).
-
-%?- Qs = [1/6,2/6], maplist(q_r, Qs, Rs), qs_Ts_Üs(Qs, Ts, Üs).
-%@    Qs = [1/6,2/6], Rs = [1:5,2:4], Ts = [1,3], Üs = [9,4].
 ```
+
+---
+
+### Invariants of the atomic arrows
+
+\begin{align*}
+q + \langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} &\preceq_{exch} \langle\frac{0}{1},\frac{1}{1}\rangle_{j,k} + q \quad
+& T\downarrow \quad \bar{U}\downarrow
+\\
+q + \langle\frac{1}{1}\rangle_j &\preceq_{-tox} \langle\frac{0}{0}\rangle_j + q
+& T\downarrow \quad \bar{U} -
+\\
+q +  \langle\frac{0}{0}\rangle_j &\preceq_{tol+} \langle\frac{0}{1}\rangle_j + q
+& T - \quad \bar{U}\uparrow
+\\
+q +  \langle\frac{0}{1}\rangle_j &\preceq_{titr} \langle\frac{0}{1}\rangle_{j+1} + q
+& T - \quad \bar{U}\uparrow
+\end{align*}
+
+But for $\preceq_\text{exch}$, we'd have $\,q \preceq q' \iff T \ge T' \wedge \bar{U} \le \bar{U'}$.
 
 ## Implementation (2)
 
 ```prolog
+qs_Ts_Ūs(Qs, ΣTs, ΣŪs) :-
+    maplist(\Q^T^U^(q_r(Q, T:U)), Qs, Ts, Us),
+    intlist_partsums(Ts, ΣTs),
+    reverse(Us, Ūs),
+    intlist_partsums(Ūs, RΣŪs),
+    reverse(RΣŪs, ΣŪs).
+
+%?- Qs = [1/6,2/6], maplist(q_r, Qs, Rs), qs_Ts_Ūs(Qs, Ts, Ūs).
+%@    Qs = [1/6,2/6], Rs = [1:5,2:4], Ts = [1,3], Ūs = [9,4].
+
+as_Ts_Tas(As, Ts, Tas) :-
+    Ts = [_|Ts1], same_length(Ts1, As),
+    append(As, [0], As0), % Last of Ts is the total count of x's,
+    same_length(Ts, Tas), % which is invariant under x-o exchange.
+    maplist(\T^A^Ta^(#T - #A #= #Ta), Ts, As0, Tas).
+```
+
+## Implementation (3)
+
+```prolog
 '≼'(Q1s, Q2s, Truth) :-
-    qs_Ts_Üs(Q1s, T1s, Ü1s),
-    qs_Ts_Üs(Q2s, T2s, Ü2s),
-    Ü1s = [Ü1|Ü1rs], Ü2s = [Ü2|Ü2rs],
-    % We next calculate the _smallest_ exchange-adjustment As : Ü1s ⟼ Ü1as
-    % that would ensure Ü1as ≤ Ü2s.  (In case this inequality already holds
-    % as for unadjusted Ü1s, then this will be the _null_ adjustment.)
-    same_length(Ü1rs, As),
-    maplist(\A^U1^U2^(#A #= max(0, #U1 - #U2)), As, Ü1rs, Ü2rs),
-    % Now we will calculate post-exchange [T1a|T1as] vector.
-    as_Ts_Tas(As, T1s, T1as),
-    if_((clpz_t(#Ü1 #=< #Ü2), % Q1 must not have _net_ advantage of more total o's
-         T2s '≤' T1as % Even *after* exchange-adjustment, T1 must still exceed T2.
-         % (Happily, the above also ensures T1as never 'goes negative'.)
+    qs_Ts_Ūs(Q1s, T1s, Ū1s),
+    qs_Ts_Ūs(Q2s, T2s, Ū2s),
+    Ū1s = [Ū1|Ū1rs], Ū2s = [Ū2|Ū2rs],
+    % We now calculate the _smallest_ exchange-adjustment As:Ū1s⟼Ū1as
+    % that would ensure Ū1as ≤ Ū2s.  (If this inequality already holds
+    % for unadjusted Ū1s, then this will be the _null_ adjustment.)
+    same_length(Ū1rs, As),
+    maplist(\A^U1^U2^(#A #= max(0, #U1 - #U2)), As, Ū1rs, Ū2rs),
+    as_Ts_Tas(As, T1s, T1as), % T1as is the post-exchange vector
+    if_((clpz_t(#Ū1 #=< #Ū2), % Q1 must not have more total o's
+         T2s '≤' T1as % Post-exchange T1as must still exceed T2s
         ),
         Truth = true,
         Truth = false
