@@ -24,6 +24,8 @@ diagram:
         - '\newcommand{\Q}{\mathcal{Q}}'
 ---
 
+## An update
+
 ::: hidden
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\R}{\mathbb{R}}
@@ -37,8 +39,6 @@ diagram:
 \newcommand{\E}{\widehat{E}}
 \newcommand{\delihat}{\surd\E}
 :::
-
-## An update
 
 ![Norris & Triska (2024)](Executable-Spec-arXiv-2024.png)
 
@@ -298,15 +298,15 @@ $$
 
 ## An *evident safety* relation on Q
 
-  Let $\preceq$ be the transitive closure of a preorder relation satisfying,
-  \begin{equation}
-  \frac{t}{n}\!+\!\frac{1}{1} \;\preceq\; \frac{t}{n} \;\preceq\; \frac{t}{n}\!+\!\frac{0}{1} \quad \forall\; \frac{t}{n} \in Q. \label{lesafcond}
-  \end{equation}
-  Then the preorder $(Q,\preceq)$ compares the **evident safety** expressed in dosewise tallies, such that we read
-  $$
-  q_1 \preceq q_2
-  $$
-  as "$q_1$ is evidently no safer than $q_2$" or "$q_2$ is evidently at least as safe as $q_1$".
+Let $\preceq$ be the transitive closure of a preorder relation satisfying,
+\begin{equation}
+    \frac{t}{n}\!+\!\frac{1}{1} \;\preceq\; \frac{t}{n} \;\preceq\; \frac{t}{n}\!+\!\frac{0}{1} \quad \forall\; \frac{t}{n} \in Q.
+\end{equation}
+    Then the preorder $(Q,\preceq)$ compares the **evident safety** expressed in dosewise tallies, such that we read
+$$
+q_1 \preceq q_2
+$$
+as "$q_1$ is evidently no safer than $q_2$" or "$q_2$ is evidently at least as safe as $q_1$".
 
 ---
 
@@ -340,13 +340,28 @@ $$
 
 * WLOG, consider $D=2$
 
-* Observe tallies may be related by *logical implication*
+* Pharmacologic monotonicity engenders *logical implications*
   - $\left(\frac{1}{1},\frac{0}{0}\right) \implies \left(\frac{0}{0},\frac{1}{1}\right) \quad \text{or} \quad \left(\frac{1}{1},\frac{0}{0}\right) \supseteq \left(\frac{0}{0},\frac{1}{1}\right)$
   - $\left(\frac{0}{1},\frac{0}{0}\right) \impliedby \left(\frac{0}{0},\frac{0}{1}\right) \quad \text{or} \quad \left(\frac{0}{1},\frac{0}{0}\right) \subseteq \left(\frac{0}{0},\frac{0}{1}\right)$
 
 * Since toxicities are bad and non-toxicities good, we have
   - $\left(\frac{1}{1},\frac{0}{0}\right) \preceq \left(\frac{0}{0},\frac{1}{1}\right)$ (RHS has less evidence of a *bad* thing)
   - $\left(\frac{0}{1},\frac{0}{0}\right) \preceq \left(\frac{0}{0},\frac{0}{1}\right)$ (LHS has less evidence of a *good* thing)
+
+## Embracing 'arrows' qua 'narrative'
+
+One talks of "applying" a function to an argument, of a function
+"acting" on a domain.  There is a definite impression of action,
+even of motion, as evidenced by the use of the arrow symbol, the
+source-target terminology, and commonly used synonyms for "function"
+like "transformation" and "mapping".  ...  **This dynamical quality
+that we have been describing is an essential part of the meaning of the
+word "function" as it is used in mathematics.**  The "ordered-pairs"
+definition does not convey this.
+
+::: aside
+Robert Goldblatt. *Topoi: The Categorial Analysis of Logic.* Dover edition, 2006.
+:::
 
 ## Breaking the x|o symmetry
 
@@ -369,19 +384,60 @@ Cohort#     1      2   | Tally = [1/3,1/3]
 * $q + \left(\frac{1}{1},\frac{0}{1}\right) \preceq_\text{exch} \left(\frac{0}{1},\frac{1}{1}\right) + q$, where $q = \left(\frac{0}{2},\frac{1}{2}\right) \in Q^2$
 :::
 
-## Arrows of the preorder $(Q^D,\preceq)$
+## Notation
+
+For $q, q' \in Q$ and $j, k \in \{1,...,D\}$ we write:
+
+* $\langle q \rangle_j := (\frac{0}{0},\dots,\frac{0}{0},q,\frac{0}{0},...,\frac{0}{0}) \in Q^D, \;q$ in $j$'th position
+
+* $\langle q, q' \rangle_{j,k} := \langle q \rangle_j + \langle q' \rangle_k,$ with $j < k$ understood.
+
+---
+
+### Arrows of the *monoidal* preorder $(Q^D,\preceq)$
 
 \begin{align*}
-q + \langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} &\preceq_\text{exch} \langle\frac{0}{1},\frac{1}{1}\rangle_{j,k} + q \quad \forall q \in Q^2, j<k \in \{1,...,D\}
+q + \langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} &\preceq_{exch} \langle\frac{0}{1},\frac{1}{1}\rangle_{j,k} + q \quad \forall q \in Q^2, j<k \in \{1,...,D\}
 \\
-q + \langle\frac{1}{1}\rangle_j &\preceq_\text{tox} \langle\frac{0}{0}\rangle_j + q
+q + \langle\frac{1}{1}\rangle_j &\preceq_{-tox} \langle\frac{0}{0}\rangle_j + q
 \\
-q +  \langle\frac{0}{0}\rangle_j &\preceq_\text{tol} \langle\frac{0}{1}\rangle_j + q
+q +  \langle\frac{0}{0}\rangle_j &\preceq_{tol+} \langle\frac{0}{1}\rangle_j + q
 \\
-q +  \langle\frac{0}{1}\rangle_j &\preceq_\text{titr} \langle\frac{0}{1}\rangle_{j+1} + q
+q +  \langle\frac{0}{1}\rangle_j &\preceq_{titr} \langle\frac{0}{1}\rangle_{j+1} + q
 \end{align*}
 
-Transitive closure of $\preceq_{exch} \cup \preceq_{tox} \cup \preceq_{tol} \cup \preceq_{titr}$ yields $\preceq$.
+Transitive closure of $\preceq_{exch} \cup \preceq_{-tox} \cup \preceq_{tol+} \cup \preceq_{titr}$ is $\preceq$.
+
+---
+
+## More parsimony is possible
+
+``` {.tikz}
+%%| width: 100%
+%%| height: 40%
+\begin{tikzcd}
+    (\frac{1}{1},\frac{0}{1}) \ar[r, "\preceq_\text{exch}"]
+    \ar[rrr,bend right,"\preceq_{\text{-tox}_1}"']
+    & (\frac{0}{1},\frac{1}{1}) \ar[r, "\preceq_\text{titr}"]
+    & (\frac{0}{0},\frac{1}{2}) \ar[r, "\preceq_{\text{-tox}_2}"]
+    & (\frac{0}{0},\frac{0}{1})
+\end{tikzcd}
+```
+
+---
+
+### Monoidal 'borrowing'?
+
+\begin{align*}
+\left(\frac{1}{1},\frac{0}{1}\right) &\preceq_{exch}\left(\frac{0}{1},\frac{1}{1}\right)
+\\
++ \left(\frac{0}{1},\frac{0}{0}\right) &\preceq_{titr}\;\left(\frac{0}{0},\frac{0}{1}\right)
+\\
+\hline \\
+\left(\frac{1}{2},\frac{0}{1}\right) &\;\;\preceq\;\; \left(\frac{0}{1},\frac{1}{2}\right)
+\\
+\left(\frac{0}{1},\frac{0}{1}\right) + \left(\frac{1}{1},\frac{0}{0}\right) & \;\;\preceq\;\; \left(\frac{0}{0},\frac{1}{1}\right) + \left(\frac{0}{1},\frac{0}{1}\right)
+\end{align*}
 
 ---
 
@@ -396,6 +452,51 @@ Transitive closure of $\preceq_{exch} \cup \preceq_{tox} \cup \preceq_{tol} \cup
 * .. as pro-CLP(ℤ)!
 :::
 
+## Implementation (1)
+
+```prolog
+intlist_partsums([X|Xs], [X|Ss]) :-
+    same_length(Xs, Ss), % eliminate unnecessary choice point
+    intlist_partsums_acc(Xs, Ss, X).
+
+intlist_partsums_acc([], [], _).
+intlist_partsums_acc([X|Xs], [S|Ss], A) :-
+    #S #= #X + #A,
+    intlist_partsums_acc(Xs, Ss, S).
+
+qs_Ts_Üs(Qs, ΣTs, ΣÜs) :-
+    maplist(\Q^T^U^(q_r(Q, T:U)), Qs, Ts, Us),
+    intlist_partsums(Ts, ΣTs),
+    reverse(Us, Üs),
+    intlist_partsums(Üs, RΣÜs),
+    reverse(RΣÜs, ΣÜs).
+
+%?- Qs = [1/6,2/6], maplist(q_r, Qs, Rs), qs_Ts_Üs(Qs, Ts, Üs).
+%@    Qs = [1/6,2/6], Rs = [1:5,2:4], Ts = [1,3], Üs = [9,4].
+```
+
+## Implementation (2)
+
+```prolog
+'≼'(Q1s, Q2s, Truth) :-
+    qs_Ts_Üs(Q1s, T1s, Ü1s),
+    qs_Ts_Üs(Q2s, T2s, Ü2s),
+    Ü1s = [Ü1|Ü1rs], Ü2s = [Ü2|Ü2rs],
+    % We next calculate the _smallest_ exchange-adjustment As : Ü1s ⟼ Ü1as
+    % that would ensure Ü1as ≤ Ü2s.  (In case this inequality already holds
+    % as for unadjusted Ü1s, then this will be the _null_ adjustment.)
+    same_length(Ü1rs, As),
+    maplist(\A^U1^U2^(#A #= max(0, #U1 - #U2)), As, Ü1rs, Ü2rs),
+    % Now we will calculate post-exchange [T1a|T1as] vector.
+    as_Ts_Tas(As, T1s, T1as),
+    if_((clpz_t(#Ü1 #=< #Ü2), % Q1 must not have _net_ advantage of more total o's
+         T2s '≤' T1as % Even *after* exchange-adjustment, T1 must still exceed T2.
+         % (Happily, the above also ensures T1as never 'goes negative'.)
+        ),
+        Truth = true,
+        Truth = false
+       ).
+```
 
 # Testing Ti*k*Z
 ``` {.tikz}
