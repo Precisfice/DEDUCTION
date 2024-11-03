@@ -600,6 +600,25 @@ as_Ts_Tas(As, Ts, Tas) :-
 1. The '≼' here is a *partially-instantiated* `('≼')/3`
 2. `<op>/2`'s are defined in terms of `<op>/3`'s, not vice versa
 
+---
+
+### Aside
+
+Does reification enlarge some subobject classifier $\Omega$?
+
+``` {.tikz}
+%%| width: 50%
+%%| height: 50%
+\begin{tikzcd}
+    B \ar[d,tail,"m"'] \ar[r,"!"] & 1 \ar[d,"\top"]
+    \\
+    A \ar[r,"\chi(m)"] & \Omega
+\end{tikzcd}
+```
+
+* Before: $\Omega$ = {`true`, `fail`}
+* After: $\Omega$ = {`true`, `false`, `fail`}
+
 ## Computing *meets*
 
 ```prolog
