@@ -185,13 +185,6 @@ Drowning in a combinatorial explosion of fine print?
 
 ![](hasse2.svg){width=100%}
 
----
-
-> What can you do with it?
-> It's like a lot of yaks jumping about!
-> 
-> --- Sir Thomas Beecham, on Beethoven's 7th Symphony
-
 ## Metagraphs
 
 - *Objects* $a, b, c, ...$
@@ -619,20 +612,24 @@ Does reification enlarge some subobject classifier $\Omega$?
 * Before: $\Omega$ = {`true`, `fail`}
 * After: $\Omega$ = {`true`, `false`, `fail`}
 
-## Computing *meets*
+---
 
-```prolog
-```
+> What can you do with it?
+> It's like a lot of yaks jumping about!
+> 
+> --- Sir Thomas Beecham, on Beethoven's 7th Symphony
 
-NB: Therefore $(Q^D,\preceq)$ is (at least) a lower semilattice.
 
-## Checking *functoriality*
+---
 
-``` {.prolog code-line-numbers="1-10|11-15|16-17|"}
+### Dose recommendations as a *functor*
+$$
+(Q^D,\preceq,\frac{0}{0},+) = \Q \hookleftarrow \Q_f \xrightarrow{F} \D = \{0 \le 1 \le ... \le D\}.
+$$
+``` {.prolog}
 :- use_module(library(tabling)).
 :- use_module(rcpearl). % Norris & Triska (2024) arXiv
 
-% Final tallies with dose recommendations, of the D-dose 3+3
 :- table d_endtally_rec/3. % so DCG gets elaborated just once
 d_endtally_rec(D, FinalTally, Rec) :-
     length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
@@ -640,13 +637,51 @@ d_endtally_rec(D, FinalTally, Rec) :-
     phrase((..., [Endstate,stop,recommend_dose(Rec)]), Path),
     state_tallies(Endstate, FinalTally).
 
+%?- d_endtally_rec(2, Q, D).
+%@    Q = [0/3,0/6], D = 2
+%@ ;  Q = [0/3,1/6], D = 2
+%@ ;  Q = [0/6,2/3], D = 1
+%           . . .
+%@ ;  Q = [4/6,0/0], D = 0
+%@ ;  false. % 29 final tallies
+```
+
+## Checking *functoriality*
+
+``` {.prolog code-line-numbers="1-4|1-6|1-11|"}
 ?- d_endtally_rec(2, Q1, D1),
    d_endtally_rec(2, Q2, D2),
       Q1 '≼' Q2,  % Q1 is evidently no safer than Q2,
    #\(D1 #=< D2). % yet D1 is NOT likewise related to D2.
 %@    Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
 %@ ;  false.
+
+?- d_endtally_rec(3, Q1, D1),
+   d_endtally_rec(3, Q2, D2),
+   Q1 '≼' Q2, % Q1 evidently no safer than Q2,
+   D1 #>  D2. % yet recommended D1 exceeds D2.
+%@    Q1 = [0/3,1/6,1/6], D1 = 3, Q2 = [0/3,0/6,2/6], D2 = 2
+%@ ;  Q1 = [1/6,0/3,1/6], D1 = 3, Q2 = [0/3,0/6,2/6], D2 = 2
+%@ ;  Q1 = [1/6,1/6,1/6], D1 = 3, Q2 = [1/6,0/6,2/6], D2 = 2
+%@ ;  Q1 = [1/6,1/6,2/3], D1 = 2, Q2 = [0/6,2/6,2/3], D2 = 1
+%@ ;  Q1 = [1/6,1/6,2/3], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,2/6], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,0/0], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,2/3], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,3/3], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/3], D1 = 2, Q2 = [0/6,2/6,3/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/6], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,3/6], D1 = 2, Q2 = [0/6,2/6,3/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,4/6], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,4/6], D1 = 2, Q2 = [0/6,2/6,3/6], D2 = 1
+%@ ;  Q1 = [1/6,1/6,4/6], D1 = 2, Q2 = [0/6,2/6,4/6], D2 = 1
+%@ ;  false. % 16 non-functorial pairs in D=3 trial!
 ```
+
+## Hasse diagram for 2-dose 3+3 {.scrollable}
+
+![](hasse2.svg){width=100%}
 
 ## 'Markov' or 'lack-of-memory' property
 
@@ -669,9 +704,95 @@ Recall that
 ```
 :::
 
-::: {.fragment}
+::: {.incremental}
 * In effect, the 3+3 'takes a Mulligan' on a 1st-cohort toxicity.
+* Thus we obtain at least a *critical* method
 :::
+
+
+## What can we do *constructively*?
+
+``` {.tikz}
+%%| width: 100%
+%%| height: 75%
+\begin{tikzcd}[row sep=huge]
+    & B \ar[ddr,"g"]
+    \\ \\
+    A \ar[uur,dashed,"f?"] \ar[rr,"h"'] & & C
+    \\
+    & ``\text{lifting problem}"
+\end{tikzcd}
+\qquad
+\begin{tikzcd}[row sep=huge]
+    & B \ar[ddr,dashed,"g?"]
+    \\ \\
+    A \ar[uur,"f"] \ar[rr,"h"'] & & C
+    \\
+    & ``\text{extension problem}"
+\end{tikzcd}
+```
+
+::: aside
+Lawvere & Schanuel (2009) *Conceptual Mathematics: A first introduction to categories*, p45
+:::
+
+---
+
+### Extending $F$ along $\Q_f \hookrightarrow \Q$?
+
+``` {.tikz}
+%%| width: 100%
+%%| height: 60%
+\begin{tikzcd}[row sep=large]
+\Q_f \ar[dr,hook,"\iota"'] \ar[rr,"F"{name=F},""{name=U,below}] & & \D \\
+& \Q\, \ar[ur,dashed,"\text{Lan}_\iota F"']
+\ar[Rightarrow,shorten=2.5mm,from=U,"\eta"]
+\end{tikzcd}
+\quad\text{or}\quad
+\begin{tikzcd}[row sep=large]
+\Q_f \ar[dr,hook,"\iota"'] \ar[rr,"F"{name=F},""{name=U,below}] & & \D \\
+& \Q\, \ar[ur,dashed,"\text{Ran}_\iota F"']
+\ar[Rightarrow,shorten=2.5mm,to=U,"\epsilon"']
+\end{tikzcd}
+```
+
+---
+
+### How about extending $\iota$ along $\Q_f \xrightarrow{F} \D$?
+
+``` {.tikz}
+%%| width: 100%
+%%| height: 40%
+  \begin{tikzcd}[row sep=large,column sep=small]
+    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+    & \D\, \ar[ur,dashed,"G=\text{Lan}_F \iota"']
+      \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\eta"{pos=0.4}]
+  \end{tikzcd}
+  \begin{tikzcd}[row sep=large,column sep=small]
+    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+    & \D\, \ar[ur,"G'"']
+      \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\gamma"{pos=0.4}]
+  \end{tikzcd}
+  =
+  \begin{tikzcd}[row sep=large,column sep=small]
+    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+    & \D\, \ar[ur,bend left,"G"{pos=0.6,inner sep=0.2},""{name=H,below}]
+           \ar[ur,bend right,"G'"'{inner sep=0},""{pos=0.35,name=I,above}]
+           \ar[Rightarrow,from=H,to=I,"\exists !"{pos=0.4},"\alpha"'{pos=0.6}]
+    \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,shift right=2mm,"\eta"'{pos=0.4}]
+  \end{tikzcd}
+```
+
+The 'pasting diagram' on the right states a *universal mapping property* of $G = \text{Lan}_F\iota$, that any *other* $\D \xrightarrow{G'} \Q$ with natural transformation $\gamma : \iota \Rightarrow G'\circ F$ must have $\gamma$ factoring uniquely through $\eta$.
+
+
+## Computing *meets*
+
+```prolog
+```
+
+NB: Therefore $(Q^D,\preceq)$ is (at least) a lower semilattice.
+
 
 # Testing Ti*k*Z
 ``` {.tikz}
