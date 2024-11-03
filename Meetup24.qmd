@@ -22,6 +22,7 @@ diagram:
         - '\usetikzlibrary{shapes}'
         - '\newcommand{\D}{\mathcal{D}}'
         - '\newcommand{\Q}{\mathcal{Q}}'
+code-annotations: below
 ---
 
 ## An update
@@ -473,7 +474,9 @@ and write $X = (X_d)$ or $\bar{X} = (\bar{X}_d) \in \N^D$.
 
 Note that $X$ is an ascending sequence, and $\bar{X}$ descending.
 
-## Implementation (1)
+---
+
+### Basic machinery in $\N^D$
 
 ```prolog
 intlist_partsums([X|Xs], [X|Σs]) :-
@@ -484,6 +487,21 @@ intlist_partsums_acc([], [], _).
 intlist_partsums_acc([X|Xs], [Σ|Σs], A) :-
     #Σ #= #X + #A,
     intlist_partsums_acc(Xs, Σs, Σ).
+
+:- op(900, xfx, '≤').
+'≤'([], [], true). % trivial case makes general clause easier to implement
+'≤'([X|Xs], [Y|Ys], Truth) :- % ≤ extended to ℕᴰ, D≥1
+    if_(clpz_t(#X #=< #Y),
+        '≤'(Xs,Ys,Truth),
+        Truth = false).
+    
+%?- '≤'([], [], Truth).
+%@    Truth = true. % A quirk easily excluded from ('≤')/2
+
+Xs '≤' Ys :- same_length(Xs,Ys), length(Xs,D), D #> 0, '≤'(Xs,Ys,true).
+
+%?- [] '≤' [].
+%@    false. % As desired
 ```
 
 ---
@@ -506,7 +524,9 @@ q +  \langle\frac{0}{1}\rangle_j &\preceq_{titr} \langle\frac{0}{1}\rangle_{j+1}
 
 But for $\preceq_\text{exch}$, we'd have $\,q \preceq q' \iff T \ge T' \wedge \bar{U} \le \bar{U'}$.
 
-## Implementation (2)
+---
+
+### Exchange-adjustment with $T$'s and $\bar{U}$'s
 
 ```prolog
 qs_Ts_Ūs(Qs, ΣTs, ΣŪs) :-
@@ -524,9 +544,17 @@ as_Ts_Tas(As, Ts, Tas) :-
     append(As, [0], As0), % Last of Ts is the total count of x's,
     same_length(Ts, Tas), % which is invariant under x-o exchange.
     maplist(\T^A^Ta^(#T - #A #= #Ta), Ts, As0, Tas).
+
+%?- as_Ts_Tas(As, [1,2,3], [0,3,3]).
+%@    As = [1,-1].
+
+%?- as_Ts_Tas([1,0], [1,2,3], Ts1), as_Ts_Tas([0,-1], Ts1, Ts2).
+%@    Ts1 = [0,2,3], Ts2 = [0,3,3].
 ```
 
-## Implementation (3)
+---
+
+### Implementing $\preceq$ via exchange-adjustment
 
 ```prolog
 '≼'(Q1s, Q2s, Truth) :-
@@ -539,27 +567,27 @@ as_Ts_Tas(As, Ts, Tas) :-
     same_length(Ū1rs, As),
     maplist(\A^U1^U2^(#A #= max(0, #U1 - #U2)), As, Ū1rs, Ū2rs),
     as_Ts_Tas(As, T1s, T1as), % T1as is the post-exchange vector
-    if_((clpz_t(#Ū1 #=< #Ū2), % Q1 must not have more total o's
+    if_((clpz_t(#Ū1 #=< #Ū2), % Q1 must not have more total o's  # <1>
          T2s '≤' T1as % Post-exchange T1as must still exceed T2s
         ),
         Truth = true,
         Truth = false
        ).
 ```
+1. $q \preceq_{exch} q^* \preceq_{\neg exch} q' \iff T^* \ge T' \wedge \bar{U}^* \le \bar{U'}$.
 
-## Implementation (4)
+## Expanding expressive freedom
 
 ```prolog
 '≺'(Q1s, Q2s, Truth) :-
-    if_((Q1s '≼' Q2s, dif(Q1s, Q2s)),
+    if_((Q1s '≼' Q2s, dif(Q1s, Q2s)),  # <1>
         Truth = true,
-        Truth = false
-        ).
+        Truth = false).
 
 '≽'(Q2s, Q1s, Truth) :-'≼'(Q1s, Q2s, Truth).
 '≻'(Q2s, Q1s, Truth) :-'≺'(Q1s, Q2s, Truth).
 
-'≼'(Q1s, Q2s) :- '≼'(Q1s, Q2s, true).
+'≼'(Q1s, Q2s) :- '≼'(Q1s, Q2s, true).  # <2>
 '⋠'(Q1s, Q2s) :- '≼'(Q1s, Q2s, false).
 '≽'(Q2s, Q1s) :- '≼'(Q1s, Q2s, true).
 '⋡'(Q2s, Q1s) :- '≼'(Q1s, Q2s, false).
@@ -569,6 +597,62 @@ as_Ts_Tas(As, Ts, Tas) :-
 '≻'(Q2s, Q1s) :- '≺'(Q1s, Q2s, true).
 '⊁'(Q2s, Q1s) :- '≺'(Q1s, Q2s, false).
 ```
+1. The '≼' here is a *partially-instantiated* `('≼')/3`
+2. `<op>/2`'s are defined in terms of `<op>/3`'s, not vice versa
+
+## Computing *meets*
+
+```prolog
+```
+
+NB: Therefore $(Q^D,\preceq)$ is (at least) a lower semilattice.
+
+## Checking *functoriality*
+
+``` {.prolog code-line-numbers="1-10|11-15|16-17|"}
+:- use_module(library(tabling)).
+:- use_module(rcpearl). % Norris & Triska (2024) arXiv
+
+% Final tallies with dose recommendations, of the D-dose 3+3
+:- table d_endtally_rec/3. % so DCG gets elaborated just once
+d_endtally_rec(D, FinalTally, Rec) :-
+    length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
+    phrase(path([I]-Is), Path),
+    phrase((..., [Endstate,stop,recommend_dose(Rec)]), Path),
+    state_tallies(Endstate, FinalTally).
+
+?- d_endtally_rec(2, Q1, D1),
+   d_endtally_rec(2, Q2, D2),
+      Q1 '≼' Q2,  % Q1 is evidently no safer than Q2,
+   #\(D1 #=< D2). % yet D1 is NOT likewise related to D2.
+%@    Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
+%@ ;  false.
+```
+
+## 'Markov' or 'lack-of-memory' property
+
+```{.verbatim code-line-numbers="1-3|5-7|"}
+Level 2                 x o o  o o o  |  1/6  <-- MTD = RP2D
+Level 1   o o x  o o o                |  1/6
+Cohort#     1      2      3      4    | Tally = [1/6,1/6]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Level 2          o x o  o o x         |  2/6  <-- Too toxic
+Level 1   o o o                o o o  |  0/6  <-- MTD = RP2D
+Cohort#     1      2      3      4    | Tally = [0/6,2/6]
+```
+
+::: {.fragment}
+<cr>
+Recall that
+``` prolog
+%?- [1/6,1/6]'≼'[0/6,2/6].
+%@    true.
+```
+:::
+
+::: {.fragment}
+* In effect, the 3+3 'takes a Mulligan' on a 1st-cohort toxicity.
+:::
 
 # Testing Ti*k*Z
 ``` {.tikz}
