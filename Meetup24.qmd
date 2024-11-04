@@ -977,10 +977,10 @@ meet(Q1s, Q2s, Qs) :-
     qs_Ts_Ūs(Qs, Ts, Ūs).
 ```
 
-NB: Therefore $(Q^D,\preceq)$ is (at least) a lower semilattice.
+Therefore $\Q$ is (at least) a lower semilattice.
 
 
-## A first effort
+## A naive first effort
 
 ```prolog
 %?- time(d_gs(2, Gs)).
@@ -1058,3 +1058,166 @@ c2(Q, X) :-
 # Thank you!
 
 https://github.com/Precisfice/DEDUCTION/
+
+
+# Backup slides
+
+---
+
+### Fast calculation of $G$
+
+```prolog
+'⋡'(Q1s, Q2s, Truth) :- '≽'(Q1s, Q2s, Untruth), reif:non(Untruth, Truth).
+
+% Search [Q|Qs] for first Gx satisfying ↓Gx ⊇ Ms, i.e. Q ≼ Gx ∀ Q ∈ Ms.
+galois([Ms|Mss], [Q|Qs], [G|Gs]) :-
+    if_(tmember_t('⋡'(Q), Ms),        % ∃ M ∈ Ms s.t. M ⋠ Q ?
+        galois([Ms|Mss], Qs, [G|Gs]), % if so, Q is not a Gx;
+        (   format("↓~w ⊇ ~w.~n", [Q, Ms]),
+            G = Q,                    % otherwise, collect it
+            galois(Mss, Qs, Gs)       % and recurse.
+        )).
+galois([], _, []). % Succeed when all strata are accounted-for.
+
+d_gs(D, Gs) :-
+    time(findall(Q, qs_d_nmax(Q, D, 6), Qs)),
+    qs_sorted(Qs, SQs),                        # <1>
+    reverse(SQs, RQs),
+    time(d_Qfstratamax(D, Mss)),
+    time(galois(Mss, RQs, Gs)).
+```
+1. Involves encoding $\Q \hookrightarrow (\mathbb{N},\le)$!
+
+---
+
+### Embedding $\Q \hookrightarrow (\mathbb{N},\le)$
+
+```prolog
+int_bases_digits(K, [B|Bs], [W|Ws]) :-
+    same_length(Bs, Ws),
+    #W #= #K mod #B,
+    #K1 #= #K div #B,
+    int_bases_digits(K1, Bs, Ws).
+
+int_bases_digits(_, [], []).
+
+%?- int_bases_digits(1023, [2,2,2,2,2,2,2,2,2,2], Ds).
+%@    Ds = [1,1,1,1,1,1,1,1,1,1].
+
+%?- int_bases_digits(1023, [16,16,2,2], Ds).
+%@    Ds = [15,15,1,1].
+
+% The length-D list of bases begins 6 + 1 = 7, and adds 6 at each level.
+d_bases(D, [B|Bs]) :-
+    length([B|Bs], D),
+    same_length(Xs, Bs),
+    maplist(=(6), Xs),
+    intlist_partsums([7|Xs], [B|Bs]).
+
+d_int_ws(D, K, Ws) :-
+    d_bases(D, Bs),
+    int_bases_digits(K, Bs, Ws).
+
+pvs([P|Ps]) :-
+    pvs(Ps),
+    pvs_nextup(Ps, P).
+pvs([]).
+
+pvs_nextup([], 1).
+pvs_nextup([P|Ps], P1) :-
+    length([P|Ps], N),
+    #P1 #= #P * (6*N + 1).
+
+% Let's just PRECOMPUTE!
+%?- length(Ps, 8), pvs(Ps), reverse(Ps, Rs).
+%@    Ps = [2131900225,49579075,1339975,43225,1729,91,7,1],
+%     Rs = [1,7,91,1729,43225,1339975,49579075,2131900225].
+
+placevalues(Ps) :-
+    same_length(Ps, Rs),
+    % NB: Taking a _tail_ with append/3 would leave a choice point.
+    append(Rs, _, [1,7,91,1729,43225,1339975,49579075,2131900225]),
+    reverse(Rs, Ps).
+
+%?- length(Ps, 5), placevalues(Ps).
+%@    Ps = [43225,1729,91,7,1].
+
+ws_int(Ws, K) :-
+    same_length(Ws, Ps),
+    placevalues(Ps),
+    reverse(Ws, RWs), % our Us and Ts are typically indexed 1..D
+    scalar_product(RWs, Ps, #=, #K).
+
+%% d_maxenc(D, Kmax) :-
+%%     length(Ps, D),
+%%     placevalues([Kmax1|Ps]),
+%%     #Kmax #= Kmax1 - 1.
+
+%?- d_maxenc(5, Kmax).
+%@    Kmax = 1339974.
+
+% I've already precomputed placevalues/1, but might I still
+% gain additional speedup by precomputing d_maxenc/2 also?
+%?- D in 0..7, indomain(D), d_maxenc(D, Kmax).
+%@    D = 0, Kmax = 0
+%@ ;  D = 1, Kmax = 6
+%@ ;  D = 2, Kmax = 90
+%@ ;  D = 3, Kmax = 1728
+%@ ;  D = 4, Kmax = 43224
+%@ ;  D = 5, Kmax = 1339974
+%@ ;  D = 6, Kmax = 49579074
+%@ ;  D = 7, Kmax = 2131900224.
+
+d_maxenc(1, 6).
+d_maxenc(2, 90).
+d_maxenc(3, 1728).
+d_maxenc(4, 43224).
+d_maxenc(5, 1339974).
+d_maxenc(6, 49579074).
+d_maxenc(7, 2131900224).
+
+qs_int(Qs, K) :-
+    qs_Ts_Ūs(Qs, Ts, Ūs),
+    ws_int(Ts, KT),
+    ws_int(Ūs, KŪ),
+    length(Qs, D), d_maxenc(D, Kmax),
+    #K #= (#Kmax + 1) * #KT + (#Kmax - #KŪ).
+```
+
+---
+
+### Computing the *covering* relation
+
+```prolog
+% NB: The time-complexity of in_cover_t/3 could be reduced
+%     by exploiting the arithmetized sort behind d_strata/2.
+%     But we retain this implementation for the time being,
+%     since its simplicity renders it 'obviously' correct.
+in_cover_t(Qs, Q1, Q2, Truth) :-
+    member(Q1, Qs), member(Q2, Qs), Q1 '≺' Q2,
+    if_(tmember_t(between_t(Q1,Q2), Qs),
+        Truth = false,
+        Truth = true
+       ).
+
+between_t(Q1, Q2, Q, Truth) :-
+    if_((Q1 '≺' Q, Q '≺' Q2),
+        Truth = true,
+        Truth = false
+       ).
+
+in_cover(Qs, Q1, Q2) :- in_cover_t(Qs, Q1, Q2, true).
+
+d_ncovers(D, N) :-
+    findall(Q, d_mendtally_rec(D,Q,_), Qs),
+    findall(Q1-Q2, in_cover(Qs, Q1, Q2), Covers),
+    length(Covers, N).
+
+%?- time(d_ncovers(2, N)).
+%@    % CPU time: 8.045s, 40_522_204 inferences
+%@    N = 50.
+
+%?- time(d_ncovers(3, N)).
+%@    % CPU time: 242.710s, 1_230_061_670 inferences
+%@    N = 194.
+```
