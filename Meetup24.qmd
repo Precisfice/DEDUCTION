@@ -246,7 +246,7 @@ An interpretation of the preceding axioms within set theory.
 
 * **Poset:** partially ordered sets and monotone maps
 
-* **Cat:** categories and arrow-respecting maps called *functors*
+* **Cat:** [small] categories and *functors*^[maps that respect the categories' arrows]
 
 ## Abstract Categories
 
