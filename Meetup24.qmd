@@ -246,6 +246,8 @@ An interpretation of the preceding axioms within set theory.
 
 * **Poset:** partially ordered sets and monotone maps
 
+* **Cat:** categories and arrow-respecting maps called *functors*
+
 ## Abstract Categories
 
 * **Monoid:** a category with 1 object
@@ -783,45 +785,276 @@ Lawvere & Schanuel (2009) *Conceptual Mathematics: A first introduction to categ
   \end{tikzcd}
 ```
 
-The 'pasting diagram' on the right states a *universal mapping property* of $G = \text{Lan}_F\iota$, that any *other* $\D \xrightarrow{G'} \Q$ with natural transformation $\gamma : \iota \Rightarrow G'\circ F$ must have $\gamma$ factoring uniquely through $\eta$.
+The RHS 'pasting diagram' states a *universal mapping property* of $G = \text{Lan}_F\iota$, that any *other* $\D \xrightarrow{G'} \Q$ with natural transformation $\gamma : \iota \Rightarrow G'\circ F$ must have $\gamma$ factoring uniquely through $\eta$.
 
+---
 
-## Computing *meets*
+### Conditions on $G$
+
+``` {.tikz}
+%%| width: 100%
+%%| height: 35%
+  \begin{tikzcd}[row sep=large,column sep=small]
+    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+    & \D\, \ar[ur,dashed,"G=\text{Lan}_F \iota"']
+      \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\eta"{pos=0.4}]
+  \end{tikzcd}
+  \begin{tikzcd}[row sep=large,column sep=small]
+    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+    & \D\, \ar[ur,"G'"']
+      \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\gamma"{pos=0.4}]
+  \end{tikzcd}
+  =
+  \begin{tikzcd}[row sep=large,column sep=small]
+    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+    & \D\, \ar[ur,bend left,"G"{pos=0.6,inner sep=0.2},""{name=H,below}]
+           \ar[ur,bend right,"G'"'{inner sep=0},""{pos=0.35,name=I,above}]
+           \ar[Rightarrow,from=H,to=I,"\exists !"{pos=0.4},"\alpha"'{pos=0.6}]
+    \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,shift right=2mm,"\eta"'{pos=0.4}]
+  \end{tikzcd}
+```
+
+Natural transformations $\eta, \gamma, \alpha$ are simply finite collections of arrows '$\preceq$' of $\Q$, indexed either by $\Q_f$ or (in $\alpha$'s case) by $\D$.  Thus the diagrams relate the images of $\Q_f$ under $\iota$ and $G F$:
+$$
+  \iota\Q_f \equiv \Q_f \preceq G F \Q_f \preceq G' F \Q_f.
+$$
+
+---
+
+### Reframed in terms of *principal lower sets*
+
+By serially restricting the foregoing to the nested sequence
+$$
+\Q_{f\downarrow d} := F^{-1}(\downarrow\!d) \subset \Q_f
+$$
+of preimages of the lower sets of $\D$, we obtain equivalently
+$$
+\Q_{f\downarrow d} \subseteq\; \downarrow\!G(d) \quad \forall d \in \D,
+$$
+the $G(d)$ being *minimal* among tallies for which this holds.  This pointwise statement can in turn can be translated
+$$
+  F(q) \le d \Longleftarrow q \preceq G(d).
+$$
+
+---
+
+> Adjoint functors arise everywhere.
+>
+> --- Saunders Mac Lane
+
+``` {.tikz}
+%%| width: 80%
+%%| height: 30%
+\begin{tikzcd}[row sep=large,column sep=small]
+\Q \ar[rrr,"E"{name=E,description}]
+& & & \D
+\ar[lll,bend right,out=-45,in=-135,"G"'{name=G}]
+\arrow[phantom,from=G,to=E,"\dashv" rotate=90]
+\end{tikzcd}
+```
+
+Perhaps the right adjoint to an *incremental enrollment* $E$ that is concordant with $F$:
+
+$$
+E(q) \le d \iff q \preceq G(d)
+$$
+
+## Finding minimal and maximal subsets
 
 ```prolog
+qs_maxs([], []).
+qs_maxs([Q|Qs], Maxs) :-
+    tpartition('≽'(Q), Qs, _, Qs1),
+    if_(tmember_t('≼'(Q), Qs1), % ∃ Q' ∈ Qs s.t. Q ≼ Q' ?
+        qs_maxs(Qs1, Maxs),     % if so, Q is not maximal
+        (   Maxs = [Q|Maxs1],   % otherwise, it is
+            qs_maxs(Qs1, Maxs1)
+        )).
+
+qs_mins([], []).
+qs_mins([Q|Qs], Mins) :-
+    tpartition('≼'(Q), Qs, _, Qs1),
+    if_(tmember_t('≽'(Q), Qs1), % ∃ Q' ∈ Qs s.t. Q' ≼ Q ?
+        qs_mins(Qs1, Mins),     % if so, Q is not minimal
+        (   Mins = [Q|Mins1],   % otherwise, it is
+            qs_mins(Qs1, Mins1)
+        )).
+```
+
+## Computing $G(\D) = \{g_1, ..., g_D\}$
+
+```prolog
+qs_d_nmax(Qs, D, Nmax) :-
+    length(Qs, D),
+    maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
+    Ns ins 0..Nmax, label(Ns),
+    maplist(\T^N^(T in 0..N), Ts, Ns), label(Ts).
+
+d_gs_rec(D, Gs, X, Nmax) :-
+    X in 0..D, indomain(X),
+    % Calculate Qls = F⁻¹(0..X)
+    findall(Qf, (d_endtally_rec(D, Qf, Xi), Xi in 0..X), Qls),
+    qs_maxs(Qls, Qls1), % q ∈ Qls ⟹ ∃ q' ∈ Qls1 . q ≼ q'
+    % Having calculated the maximal elements of F⁻¹(0..X),
+    % we now proceed to search for all candidate gₓ's.
+    findall(C, (qs_d_nmax(C, D, Nmax),
+                maplist('≽'(C), Qls1)), Cs),
+    qs_mins(Cs, Gs).
+
+d_gs_rec(D, Gs, X) :- d_gs_rec(D, Gs, X, 6).
+```
+
+## Results for D in 2..3
+
+```prolog
+%?- time(d_gs_rec(2, Gs, X)).
+%@    % CPU time: 2.526s, 11_246_152 inferences
+%@    Gs = [[2/6,0/4]], X = 0
+%@ ;  % CPU time: 0.934s, 4_083_756 inferences
+%@    Gs = [[0/6,2/6]], X = 1
+%@ ;  % CPU time: 0.918s, 3_999_748 inferences
+%@    Gs = [[0/5,0/6]], X = 2.
+
+%?- time(d_gs_rec(3, Gs, X)).
+%@    % CPU time: 98.132s, 433_986_805 inferences
+%@    Gs = [[2/6,0/6,0/2]], X = 0
+%@ ;  % CPU time: 38.251s, 167_709_838 inferences
+%@    Gs = [[0/6,2/6,0/4]], X = 1
+%@ ;  % CPU time: 32.944s, 144_979_445 inferences
+%@    Gs = [[0/5,0/6,2/6]], X = 2
+%@ ;  % CPU time: 32.764s, 144_367_573 inferences
+%@    Gs = [[0/5,0/5,0/6]], X = 3.
+
+%?- time(d_gs_rec(4, Gs, X)).
+%@    error('$interrupt_thrown',repl/0). % unbounded mem growth
+```
+
+## Computing *meets* (1)
+
+```prolog
+maxs(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= max(#N1, #N2)), N1s, N2s, Ns).
+mins(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= min(#N1, #N2)), N1s, N2s, Ns).
+
+% https://en.wikipedia.org/wiki/Monus#Natural_numbers
+monus_(X, Y, X_Y) :- #X #>= 0, #Y #>= 0, #X_Y #= max(0, #X - #Y).
+monus([X|Xs], [Y|Ys], [X_Y|Xs_Ys]) :-
+    monus_(X, Y, X_Y),
+    monus(Xs, Ys, Xs_Ys).
+monus([], [], []).
+    
+%?- X=[5,7], Y=[8,9], monus(X, Y, X_Y), monus(Y, X, Y_X).
+%@    X = [5,7], Y = [8,9], X_Y = [0,0], Y_X = [3,2].
+
+all_but_last(Xs, Xs1, X) :-
+    reverse(Xs, [X|Vs]),
+    reverse(Vs, Xs1).
+
+%?- all_but_last([1,2,3], B, L).
+%@    B = [1,2], L = 3.
+```
+
+---
+
+## Computing *meets* (2)
+
+```prolog
+% Find the maximal Ūs profile such that (Ts:Ūs) ≼ Qs.
+qs_Ts_maxŪs(Qs, Ts, Ūs) :-
+    qs_Ts_Ūs(Qs, Ts_, Ūs_), Ts_ '≤' Ts,
+    monus(Ts, Ts_, As_), all_but_last(As_, As, _),
+    same_length(Qs, Ūs),
+    maplist(\U^U_^A^(#U #= #U_ + #A), Ūs, Ūs_, [0|As]).
+
+meet(Q1s, Q2s, Qs) :-
+    same_length(Q1s, Q2s), same_length(Q2s, Qs),
+    qs_Ts_Ūs(Q1s, T1s, _), qs_Ts_Ūs(Q2s, T2s, _),
+    maxs(T1s, T2s, Ts), % q = q₁ ∧ q₂ ⟹ Ts ≥ T1s ∨ T2s
+    % Having set Ts to the bare-minimum T1s ∨ T2s compatible with
+    % q = q₁ ∧ q₂, we now seek the highest compatible Ūs profile:
+    qs_Ts_maxŪs(Q1s, Ts, Ū1s),
+    qs_Ts_maxŪs(Q2s, Ts, Ū2s),
+    mins(Ū1s, Ū2s, Ūs),
+    qs_Ts_Ūs(Qs, Ts, Ūs).
 ```
 
 NB: Therefore $(Q^D,\preceq)$ is (at least) a lower semilattice.
 
 
-# Testing Ti*k*Z
-``` {.tikz}
-%%| width: 50%
-%%| height: 50%
-\begin{tikzcd}
-    {\mathcal{M}} \ar[rr,hook]
-    & & {\mathcal{N}} \ar[ll,bend left,"\Sigma"]
-\end{tikzcd}
+## A first effort
+
+```prolog
+%?- time(d_gs(2, Gs)).
+%@ Listing Qs......    % CPU time: 0.072s, 249_966 inferences
+%@ Sorting length-784 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.636s, 3_382_043 inferences
+%@    % CPU time: 0.640s, 3_386_627 inferences
+%@ Stratifying Qf..    % CPU time: 0.769s, 3_442_312 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/4] ⊇ [[2/6,0/0],[2/6,2/6]].
+%@ ↓[0/6,2/6] ⊇ [[0/6,2/6]].
+%@ ↓[0/5,0/6] ⊇ [[0/3,0/6],[1/6,0/6]].
+%@    % CPU time: 0.893s, 3_980_654 inferences
+%@    % CPU time: 2.382s, 11_068_590 inferences
+%@    Gs = [[2/6,0/4],[0/6,2/6],[0/5,0/6]].
+
+e2(Q, X) :-
+    [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+    if_(Q '≼' G0, X = 0,
+        if_(Q '≼' G1, X = 1,
+            if_(Q '≼' G2, X = 2, false))).
+
+%?- e2([0/0,0/0], X).
+%@    X = 2. % Is the bottom-up cascade of a lower-Galois IE therefore unsafe?
 ```
 
+## Hints of a workable trial
 
-# Checking preamble ...
+```prolog
+% Suppose we want a 'cut-off' version c2/2 of the above.
+% The main deficiency of e2/2 to be remedied is that it
+% lets Q 'slip thru' to the highest dose, simply because
+% the po ≼ is too weak to catch it.  What we would need
+% then is to impose _additional_ requirements on upward
+% percolation of Q.
+c2(Q, X) :-
+    [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+    if_(Q '≼' G0,
+        X = 0,
+        if_(( Q '⋡' G0
+            ; Q '≼' G1
+            ), X = 1,
+            if_(( Q '⋡' G1
+                ; Q '≼' G2
+                ), X = 2,
+                false))).
 
-$$
-\Q \xrightarrow{E} \D.
-$$
+%?- c2([0/0,0/0], X).
+%@    X = 1.
 
+%?- c2([1/1,0/0], X).
+%@    X = 1.
 
-# Pending work
+%?- c2([2/2,0/0], X).
+%@    X = 0.
+```
 
-* More direct [yet still performant] implementation in CLP(Z)
+## Pending work {.scrollable}
+
+* Obtain workable 3+3-concordant incremental enrollments
+
+* More direct [yet still performant] CLP(ℤ) implementation
   - $\preceq$
   - covering relation via `library(clpb)`?
   
-* Generalize predicates to work more freely in several directions
+* Liberate predicates to work in several directions
+  - including with *fair enumeration* of $Q^D$
 
 * Exhaustive searches for counterexamples to Theorems
+
+* Apply to larger classes of dose-finding designs (BOIN, CRM)
 
 * Formalize the mathematics in Agda or Shen
 
 # Thank you!
+
+https://github.com/Precisfice/DEDUCTION/
