@@ -1882,6 +1882,7 @@ d_mendtally_rec_(D, Q, X, Xls) :-
 
 %?- d_mendtally_rec_(3, Q, D, [_|_]).
 %@    Q = [0/3,1/6,1/6], D = 2
+%@ ;  Q = [1/6,0/3,1/6], D = 2
 %@ ;  Q = [1/6,1/6,1/6], D = 2
 %@ ;  Q = [1/6,1/6,2/3], D = 1
 %@ ;  Q = [1/6,1/6,2/6], D = 1
@@ -1889,8 +1890,8 @@ d_mendtally_rec_(D, Q, X, Xls) :-
 %@ ;  Q = [1/6,1/6,3/6], D = 1
 %@ ;  Q = [1/6,1/6,4/6], D = 1
 %@ ;  false.
-% NB: Indeed there were only 7 unique Q1's
-%     among the 15 solutions found above.
+% NB: Indeed there were only 8 unique Q1's
+%     among the 16 solutions found above.
 
 % TODO: Bring the following explorations up-of-date
 %       with our now-expanded ≼.
