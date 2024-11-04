@@ -712,6 +712,40 @@ Recall that
 :::
 
 
+## Rectification
+
+```prolog
+d_mendtally_rec(D, Q, X) :- d_mendtally_rec_(D, Q, X, _).
+
+d_mendtally_rec_(D, Q, X, Xls) :-
+    d_endtally_rec(D, Q, Xu), % Xu w/ *unrectified* rec for Q ∈ 𝒬f
+    findall(Xl, (d_endtally_rec(D, Ql, Xl),
+                 Xu #> Xl,  % Ql ∈ 𝒬f received a rec *lower* than Xu,
+                 Q '≼' Ql), % yet is evidently at least as safe as Q.
+            Xls),
+    foldl(clpz:min_, Xls, Xu, X).
+
+?- d_mendtally_rec(2, Q1, D1),
+   d_mendtally_rec(2, Q2, D2),
+   Q1 '≼' Q2, % Q1 evidently no safer than Q2,
+   D1 #>  D2. % yet recommended D1 exceeds D2.
+%@    false. % Rectification was successful.
+
+?- d_mendtally_rec_(3, Q, D, [_|_]).
+%@    Q = [0/3,1/6,1/6], D = 2
+%@ ;  Q = [1/6,0/3,1/6], D = 2
+%@ ;  Q = [1/6,1/6,1/6], D = 2
+%@ ;  Q = [1/6,1/6,2/3], D = 1
+%@ ;  Q = [1/6,1/6,2/6], D = 1
+%@ ;  Q = [1/6,1/6,3/3], D = 1
+%@ ;  Q = [1/6,1/6,3/6], D = 1
+%@ ;  Q = [1/6,1/6,4/6], D = 1
+%@ ;  false.
+% NB: Indeed there were only 8 unique Q1's
+%     among the 16 solutions found above.
+
+```
+
 ## What can we do *constructively*?
 
 ``` {.tikz}
