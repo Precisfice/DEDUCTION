@@ -215,7 +215,7 @@ Saunders Mac Lane. 1998. *Categories for the Working Mathematician.* 2ed.
     b \ar[rrr, "g"']
     \ar[uurrr, near end, "k\circ g"{description}]
     & & & c \ar[uu, "k"']
-\end{tikzcd}\qquad\text{and}\qquad
+\end{tikzcd}\qquad\text{and}\quad
 \begin{tikzcd}
     a \ar[ddrr, "f"'] \ar[rr, "f"] & & b \ar[dd, "1_b"] \ar[ddrr, "g"]
     \\ \\
@@ -758,34 +758,37 @@ Lawvere & Schanuel (2009) *Conceptual Mathematics: A first introduction to categ
 \end{tikzcd}
 ```
 
----
+$\text{Lan}_\iota F$ and $\text{Ran}_\iota F$ are respectively the left and right *Kan extensions*.
 
-### How about extending $\iota$ along $\Q_f \xrightarrow{F} \D$?
+## What if we trade roles of $\D$ and $\Q$?
+
+So, instead of extending $F$ along $\iota$, we extend $\iota$ along $F$?
 
 ``` {.tikz}
-%%| width: 100%
+%%| width: 90%
 %%| height: 40%
-  \begin{tikzcd}[row sep=large,column sep=small]
-    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
-    & \D\, \ar[ur,dashed,"G=\text{Lan}_F \iota"']
-      \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\eta"{pos=0.4}]
-  \end{tikzcd}
-  \begin{tikzcd}[row sep=large,column sep=small]
-    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
-    & \D\, \ar[ur,"G'"']
-      \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\gamma"{pos=0.4}]
-  \end{tikzcd}
-  =
-  \begin{tikzcd}[row sep=large,column sep=small]
-    \Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
-    & \D\, \ar[ur,bend left,"G"{pos=0.6,inner sep=0.2},""{name=H,below}]
-           \ar[ur,bend right,"G'"'{inner sep=0},""{pos=0.35,name=I,above}]
-           \ar[Rightarrow,from=H,to=I,"\exists !"{pos=0.4},"\alpha"'{pos=0.6}]
+\begin{tikzcd}[row sep=large,column sep=small]
+\Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+& \D\, \ar[ur,dashed,"G=\text{Lan}_F \iota"']
+\ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\eta"{pos=0.4}]
+\end{tikzcd}
+$\forall G'$
+\begin{tikzcd}[row sep=large,column sep=small]
+\Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+& \D\, \ar[ur,"G'"']
+\ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,"\gamma"{pos=0.4}]
+\end{tikzcd}
+,
+\begin{tikzcd}[row sep=large,column sep=small]
+\Q_f \ar[dr,"F"'] \ar[rr,hook,"\iota",""{name=U,below}] & & \Q \\
+& \D\, \ar[ur,bend left,"G"{pos=0.6,inner sep=0.2},""{name=H,below}]
+\ar[ur,bend right,"G'"'{inner sep=0},""{pos=0.35,name=I,above}]
+\ar[Rightarrow,from=H,to=I,"\exists !"{pos=0.4},"\alpha"'{pos=0.6}]
     \ar[Rightarrow,shorten <=2mm,shorten >=4mm,from=U,shift right=2mm,"\eta"'{pos=0.4}]
-  \end{tikzcd}
+\end{tikzcd}
 ```
 
-The RHS 'pasting diagram' states a *universal mapping property* of $G = \text{Lan}_F\iota$, that any *other* $\D \xrightarrow{G'} \Q$ with natural transformation $\gamma : \iota \Rightarrow G'\circ F$ must have $\gamma$ factoring uniquely through $\eta$.
+The RHS 'pasting diagram' states a *universal mapping property* of $G = \text{Lan}_F\iota$, that any 'pretender' $G':\D\rightarrow\Q$ with natural transformation $\gamma : \iota \Rightarrow G'\circ F$ must have $\gamma$ factoring uniquely through $\eta$.
 
 ---
 
@@ -853,7 +856,7 @@ $$
 \end{tikzcd}
 ```
 
-Perhaps the right adjoint to an *incremental enrollment* $E$ that is concordant with $F$:
+Might $G$ be right-adjoint to an *incremental enrollment* $E$ concordant with the final dose recommendations $F$?
 
 $$
 E(q) \le d \iff q \preceq G(d)
@@ -980,23 +983,9 @@ meet(Q1s, Q2s, Qs) :-
 Therefore $\Q$ is (at least) a lower semilattice.
 
 
-## A naive first effort
+## A naive first attempt
 
 ```prolog
-%?- time(d_gs(2, Gs)).
-%@ Listing Qs......    % CPU time: 0.072s, 249_966 inferences
-%@ Sorting length-784 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.636s, 3_382_043 inferences
-%@    % CPU time: 0.640s, 3_386_627 inferences
-%@ Stratifying Qf..    % CPU time: 0.769s, 3_442_312 inferences
-%@ Finding g's ..
-%@ ↓[2/6,0/4] ⊇ [[2/6,0/0],[2/6,2/6]].
-%@ ↓[0/6,2/6] ⊇ [[0/6,2/6]].
-%@ ↓[0/5,0/6] ⊇ [[0/3,0/6],[1/6,0/6]].
-%@    % CPU time: 0.893s, 3_980_654 inferences
-%@    % CPU time: 2.382s, 11_068_590 inferences
-%@    Gs = [[2/6,0/4],[0/6,2/6],[0/5,0/6]].
-
 e2(Q, X) :-
     [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
     if_(Q '≼' G0, X = 0,
@@ -1004,18 +993,17 @@ e2(Q, X) :-
             if_(Q '≼' G2, X = 2, false))).
 
 %?- e2([0/0,0/0], X).
-%@    X = 2. % Is the bottom-up cascade of a lower-Galois IE therefore unsafe?
+%@    X = 2.           # <1>
 ```
+1. The fault in `e2/2` to be remedied is that it lets Q
+   'slip thru' to the highest dose, because the po ≼ is
+   too weak to catch it.  So we need _further_ restraints
+   on Q's upward percolation.
 
 ## Hints of a workable trial
 
 ```prolog
-% Suppose we want a 'cut-off' version c2/2 of the above.
-% The main deficiency of e2/2 to be remedied is that it
-% lets Q 'slip thru' to the highest dose, simply because
-% the po ≼ is too weak to catch it.  What we would need
-% then is to impose _additional_ requirements on upward
-% percolation of Q.
+% A 'cut-off' version of the above.
 c2(Q, X) :-
     [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
     if_(Q '≼' G0,
@@ -1085,6 +1073,21 @@ d_gs(D, Gs) :-
     reverse(SQs, RQs),
     time(d_Qfstratamax(D, Mss)),
     time(galois(Mss, RQs, Gs)).
+
+%?- time(d_gs(3, Gs)).
+%@ Listing Qs......    % CPU time: 1.597s, 6_660_460 inferences
+%@ Sorting length-21952 list Qs:
+%@   .. encoding Qs:   % CPU time: 20.597s, 109_986_469 inferences
+%@    % CPU time: 20.665s, 110_054_609 inferences
+%@ Stratifying Qf..    % CPU time: 3.277s, 14_741_613 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/6,0/2] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
+%@    % CPU time: 36.546s, 163_202_935 inferences
+%@    % CPU time: 62.099s, 294_689_968 inferences
+%@    Gs = [[2/6,0/6,0/2],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
 ```
 1. Involves encoding $\Q \hookrightarrow (\mathbb{N},\le)$!
 
@@ -1186,32 +1189,23 @@ qs_int(Qs, K) :-
 
 ---
 
-### Computing the *covering* relation
+### The Hasse diagram's *covering* relation
 
 ```prolog
-% NB: The time-complexity of in_cover_t/3 could be reduced
-%     by exploiting the arithmetized sort behind d_strata/2.
-%     But we retain this implementation for the time being,
-%     since its simplicity renders it 'obviously' correct.
 in_cover_t(Qs, Q1, Q2, Truth) :-
-    member(Q1, Qs), member(Q2, Qs), Q1 '≺' Q2,
+    member(Q1, Qs), member(Q2, Qs), Q1 '≺' Q2,  # <1>
     if_(tmember_t(between_t(Q1,Q2), Qs),
         Truth = false,
-        Truth = true
-       ).
+        Truth = true).
 
 between_t(Q1, Q2, Q, Truth) :-
-    if_((Q1 '≺' Q, Q '≺' Q2),
-        Truth = true,
-        Truth = false
-       ).
+    if_((Q1 '≺' Q, Q '≺' Q2), Truth = true, Truth = false).
 
 in_cover(Qs, Q1, Q2) :- in_cover_t(Qs, Q1, Q2, true).
 
-d_ncovers(D, N) :-
-    findall(Q, d_mendtally_rec(D,Q,_), Qs),
-    findall(Q1-Q2, in_cover(Qs, Q1, Q2), Covers),
-    length(Covers, N).
+d_ncovers(D, N) :- findall(Q, d_mendtally_rec(D,Q,_), Qs),
+                   findall(Q1-Q2, in_cover(Qs, Q1, Q2), Covers),
+                   length(Covers, N).
 
 %?- time(d_ncovers(2, N)).
 %@    % CPU time: 8.045s, 40_522_204 inferences
@@ -1221,3 +1215,5 @@ d_ncovers(D, N) :-
 %@    % CPU time: 242.710s, 1_230_061_670 inferences
 %@    N = 194.
 ```
+1. The time-complexity of `in_cover_t/3` could be reduced
+   by exploiting the arithmetized sort behind `d_strata/2`.
