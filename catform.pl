@@ -182,6 +182,9 @@ as_Ts_Tas(As, Ts, Tas) :-
 %@ T2s ≤ T1as ? [0,0] ≤ [0,0]
 %@    Truth = true.
 
+%?- [1/6,1/6]'≼'[0/6,2/6].
+%@    true.
+
 %?- '≼'([1/6,1/6], [0/6,2/6], Truth).
 %@ T1s = [1,2] , T2s = [0,2]
 %@ Ū1s = [10,5] , Ū2s = [10,4]
@@ -252,6 +255,9 @@ intlist_partsums_acc([X|Xs], [Σ|Σs], A) :-
 
 %?- as_Ts_Tas(As, [1,2,3], [0,3,3]).
 %@    As = [1,-1].
+
+%?- as_Ts_Tas([1,0], [1,2,3], Ts1), as_Ts_Tas([0,-1], Ts1, Ts2).
+%@    Ts1 = [0,2,3], Ts2 = [0,3,3].
 
 maxs(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= max(#N1, #N2)), N1s, N2s, Ns).
 mins(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= min(#N1, #N2)), N1s, N2s, Ns).
@@ -689,7 +695,7 @@ d_int_ws(D, K, Ws) :-
 
 % I've already precomputed placevalues/1, but might I still
 % gain additional speedup by precomputing d_maxenc/2 also?
-%?- d_maxenc(D, Kmax).
+%?- D in 0..7, indomain(D), d_maxenc(D, Kmax).
 %@    D = 0, Kmax = 0
 %@ ;  D = 1, Kmax = 6
 %@ ;  D = 2, Kmax = 90
@@ -697,8 +703,7 @@ d_int_ws(D, K, Ws) :-
 %@ ;  D = 4, Kmax = 43224
 %@ ;  D = 5, Kmax = 1339974
 %@ ;  D = 6, Kmax = 49579074
-%@ ;  D = 7, Kmax = 2131900224
-%@ ;  error('$interrupt_thrown',repl/0).
+%@ ;  D = 7, Kmax = 2131900224.
 
 d_maxenc(1, 6).
 d_maxenc(2, 90).
@@ -1335,40 +1340,57 @@ d_gs_rec(D, Gs, X) :- d_gs_rec(D, Gs, X, 6).
 %@    Gs = [[0/5,0/6]], X = 2.
 
 %?- time(d_gs_rec(2, Gs, X)).
-%@    % CPU time: 1.199s, 5_774_900 inferences
+%@    % CPU time: 2.525s, 11_250_583 inferences
 %@    Gs = [[2/6,0/4]], X = 0
-%@ ;  % CPU time: 0.840s, 4_052_245 inferences
+%@ ;  % CPU time: 0.926s, 4_086_282 inferences
 %@    Gs = [[0/6,2/6]], X = 1
-%@ ;  % CPU time: 0.880s, 4_241_926 inferences
-%@    Gs = [[0/6,0/5]], X = 2.
+%@ ;  % CPU time: 0.912s, 4_002_226 inferences
+%@    Gs = [[0/5,0/6]], X = 2.
 
 %?- time(d_gs_rec(3, Gs, X)).
-%@    % CPU time: 101.280s, 433_764_185 inferences
+%@    % CPU time: 98.132s, 433_986_805 inferences
 %@    Gs = [[2/6,0/6,0/2]], X = 0
-%@ ;  % CPU time: 46.671s, 167_610_490 inferences
+%@ ;  % CPU time: 38.251s, 167_709_838 inferences
 %@    Gs = [[0/6,2/6,0/4]], X = 1
-%@ ;  % CPU time: 33.517s, 144_890_329 inferences
+%@ ;  % CPU time: 32.944s, 144_979_445 inferences
 %@    Gs = [[0/5,0/6,2/6]], X = 2
-%@ ;  % CPU time: 32.245s, 144_278_953 inferences
+%@ ;  % CPU time: 32.764s, 144_367_573 inferences
 %@    Gs = [[0/5,0/5,0/6]], X = 3.
 
+%?- time(d_gs_rec(4, Gs, X)).
+%@    error('$interrupt_thrown',repl/0). % unbounded mem growth
+
 %?- time(d_gs(3, Gs)).
-%@ Listing Qs......    % CPU time: 1.565s, 6_660_460 inferences
+%@ Listing Qs......    % CPU time: 1.597s, 6_660_460 inferences
 %@ Sorting length-21952 list Qs:
-%@   .. encoding Qs:   % CPU time: 20.463s, 109_986_469 inferences
-%@    % CPU time: 20.532s, 110_054_609 inferences
-%@ Stratifying Qf..    % CPU time: 3.261s, 14_740_333 inferences
+%@   .. encoding Qs:   % CPU time: 20.597s, 109_986_469 inferences
+%@    % CPU time: 20.665s, 110_054_609 inferences
+%@ Stratifying Qf..    % CPU time: 3.277s, 14_741_613 inferences
 %@ Finding g's ..
 %@ ↓[2/6,0/6,0/2] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
 %@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
 %@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
 %@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
-%@    % CPU time: 36.531s, 163_114_471 inferences
-%@    % CPU time: 61.902s, 294_600_224 inferences
+%@    % CPU time: 36.546s, 163_202_935 inferences
+%@    % CPU time: 62.099s, 294_689_968 inferences
 %@    Gs = [[2/6,0/6,0/2],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
 
 %?- [2/6,0/4,0/4] '≼' [0/6,2/6,0/4].
 %@    true.
+
+%?- time(d_gs(4, Gs)).
+%@ Listing Qs......    % CPU time: 45.892s, 182_781_614 inferences
+%@ Sorting length-614656 list Qs:
+%@   .. encoding Qs:   % CPU time: 672.529s, 3_595_990_719 inferences
+%@    % CPU time: 674.964s, 3_597_837_005 inferences
+%@ Stratifying Qf..    % CPU time: 11.176s, 50_148_136 inferences
+%@ Finding g's ..
+%@ Listing Qs......    % CPU time: 44.595s, 182_781_614 inferences
+%@ Sorting length-614656 list Qs:
+%@   .. encoding Qs:   % CPU time: 699.296s, 3_595_990_719 inferences
+%@    % CPU time: 702.410s, 3_597_837_005 inferences
+%@ Stratifying Qf..    % CPU time: 12.085s, 50_148_136 inferences
+%@ Finding g's ..
 
 %?- time(d_gs_rec(4, Gs, X)).
 %@    % CPU time: 1146.519s, 5_745_737_901 inferences
@@ -1476,7 +1498,19 @@ d_gs(D, Gs) :-
     format("Finding g's ..~n", []),
     time(galois(Mss, RQs, Gs)).
 
-%?- time(d_gs(2, Gs)). % After expanding ≼
+%?- time(d_gs(2, Gs)).
+%@ Listing Qs......    % CPU time: 0.072s, 249_966 inferences
+%@ Sorting length-784 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.636s, 3_382_043 inferences
+%@    % CPU time: 0.640s, 3_386_627 inferences
+%@ Stratifying Qf..    % CPU time: 0.769s, 3_442_312 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/4] ⊇ [[2/6,0/0],[2/6,2/6]].
+%@ ↓[0/6,2/6] ⊇ [[0/6,2/6]].
+%@ ↓[0/5,0/6] ⊇ [[0/3,0/6],[1/6,0/6]].
+%@    % CPU time: 0.893s, 3_980_654 inferences
+%@    % CPU time: 2.382s, 11_068_590 inferences
+%@    Gs = [[2/6,0/4],[0/6,2/6],[0/5,0/6]].
 %@ Listing Qs......    % CPU time: 0.067s, 249_966 inferences
 %@ Sorting length-784 list Qs:
 %@   .. encoding Qs:   % CPU time: 0.445s, 2_352_998 inferences
@@ -1809,6 +1843,7 @@ d_Qfstratamax(D, Mss) :-
    Q1 '≼' Q2, % Q1 evidently no safer than Q2,
    D1 #>  D2. % yet recommended D1 exceeds D2.
 %@    Q1 = [0/3,1/6,1/6], D1 = 3, Q2 = [0/3,0/6,2/6], D2 = 2
+%@ ;  Q1 = [1/6,0/3,1/6], D1 = 3, Q2 = [0/3,0/6,2/6], D2 = 2
 %@ ;  Q1 = [1/6,1/6,1/6], D1 = 3, Q2 = [1/6,0/6,2/6], D2 = 2
 %@ ;  Q1 = [1/6,1/6,2/3], D1 = 2, Q2 = [0/6,2/6,2/3], D2 = 1
 %@ ;  Q1 = [1/6,1/6,2/3], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
@@ -1823,7 +1858,7 @@ d_Qfstratamax(D, Mss) :-
 %@ ;  Q1 = [1/6,1/6,4/6], D1 = 2, Q2 = [0/6,2/6,2/6], D2 = 1
 %@ ;  Q1 = [1/6,1/6,4/6], D1 = 2, Q2 = [0/6,2/6,3/6], D2 = 1
 %@ ;  Q1 = [1/6,1/6,4/6], D1 = 2, Q2 = [0/6,2/6,4/6], D2 = 1
-%@ ;  false. % 15 non-functorial pairs in D=3 trial!
+%@ ;  false. % 16 non-functorial pairs in D=3 trial!
 */
 
 % Are any of these pharmacologic non-monotonicities genuinely new?
