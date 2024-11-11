@@ -174,6 +174,130 @@ as_Ts_Tas(As, Ts, Tas) :-
         Truth = false
        ).
 
+% Given [see below] that I must now add yet another collection
+% of arrows to this preorder, the importance of a highly general
+% and nimble, fully declarative CLP(ℤ) implementation has again
+% impressed itself upon me!
+% So, before adding the new '1:1' arrows, let me next develop
+% a more directly declarative implementation of '≼'/3 as above,
+% and demonstrate equivalence.
+%
+% I'm beginning to see that there may be 2 types of arrows,
+% from a technical-implementation perspective:
+% - Arrows like [tox] and [tol] that have <0/0> on one side;
+% - arrows with central Q and paired multipliers either side.
+% These latter arrows would include [I think] everything
+% involving inter-dose movement, such as [exch] and [titr*].
+% I will need to find a suitable way to implement each type,
+% with the right relational 'signature'.  (I wonder if the
+% latter type of arrow might best have the 'pivot' tally
+% as a _first_ argument.)
+:- op(900, xfx, '⊑'). % symbol chosen for visual likeness to ≼
+'⊑'(QAs, QZs) :- % QAs ≼tox QBs ≼exch QAs ≼tox QAs ≼tox 
+    D = 2, % TODO: generalize to D>2
+    % QAs --[toxD]--> QBs --[tol1]--> QCs --[exch(Q)]--> QZs.
+    length(QAs, D), length(QZs, D),
+    d_q(D, QBs),
+    toxD(QAs, QBs),
+    d_q(D, QCs),
+    tol1(QBs, QCs),
+    d_q(D, Qs),
+    exch(QCs, Qs, QZs, _),
+    * format("~w ≼toxD ~w ≼tol1 ~w ≼exch{~w} ~w~n", [QAs, QBs, QCs, Qs, QZs]).
+
+%?- [1/6,1/6] '⊑' [0/6,2/6].
+%@    true. % correct
+
+% Try to find Q1 ≼ Q2 for which ¬(Q1 ⊑ Q2).
+wrong(Q1, Q2) :-
+    d_q(2, Q1), Q1 = [T11/N11,T12/N12],
+    d_q(2, Q2), Q2 = [T21/N21,T22/N22],
+    label([T11,T12,T21,T22]),
+    label([N11,N12,N21,N22]),
+    Q1 '⊑' Q2,
+    Q1 '⋠' Q2.
+
+%?- wrong(Q1, Q2).
+%@    error('$interrupt_thrown',repl/0). % ran >30 mins w/o finding error
+% TODO: Develop a way to search fairly in Qᴰ✕Qᴰ,
+%       working outward from the origin, with
+%       optional progress-bar feedback to user.
+
+% Qs ≼ Qs + Σ ɣᵢ<1/1>ᵢ = Q2s
+% In the presence of the 'tolerance-titration' arrows [titro],
+% the entire set of [tol]ᵢ arrows follows in fact from [tox]₁,
+% since [tox]ᵢ = [tox]₁;[titro]ⁱ⁻¹.
+% Accordingly, to reduce redundant solutions and to simplify
+% the implementation, we simply work at the lowest dose.
+tol1([T/N|Qs], [T/N2|Qs]) :- #N #=< #N2.
+
+% But as with tox/2 below, to aid exploration at the toplevel,
+% we collect the full set of [tol]ᵢ arrows in one predicate:
+tol([Q|Qs], [Q2|Q2s]) :-
+    tol1(Q, Q2),
+    tol(Qs, Q2s).
+tol([], []).
+
+% Q1s = Σ λᵢ<1/1>ᵢ + Qs ≼ Qs
+% In the presence of the 'toxicity-titration' arrows [titrx],
+% the entire set of [tox]ᵢ arrows follows in fact from [tox]_D,
+% since [tox]ᵢ = [titrx]ᴰ⁻ⁱ;[tox]_D.
+% Accordingly, to reduce redundant solutions and to simplify
+% the implementation, we simply work at the top dose.
+% TODO: Revisit this decision; could extra λ's help the constraint solver?
+toxD(Q1s, Qs) :-
+    reverse(Q1s, [Q1D|Same]),
+    reverse(Qs,  [QD |Same]),
+    tox_(Q1D, QD).
+
+tox_(T1/N1, T/N) :-
+    0 #=< #Lambda,
+    #T1 #= #T + #Lambda,
+    #N1 #= #N + #Lambda.
+
+% As an aid to free exploration at the toplevel, however,
+% we implement as well the full set of [tox]ᵢ arrows,
+% such as one would specify in a Definition aiming primarily
+% to express _intuition_ rather than to achieve parsimony.
+tox([Q1|Q1s], [Q|Qs]) :-
+    tox_(Q1, Q),
+    tox(Q1s, Qs).
+tox([], []).
+
+%?- toxD([0/3,2/3], [0/3,0/1]).
+%@    true. % correct
+
+%?- toxD([1/3,0/1], [0/2,0/1]).
+%@    false. % correct
+
+%?- tox([1/3,0/1], [0/2,0/1]).
+%@    true. % correct
+
+% Q1s = Σ ηⱼₖ<1/1,0/1>ⱼₖ + Qs ≼ Qs + Σ ηⱼₖ<0/1,1/1>ⱼₖ = Q2s
+exch(Q1s, Qs, Q2s, Hs) :-
+    %same_length(Q1s, Q2s), same_length(Q1s, Qs),
+    length(Q1s, 2), length(Q2s, 2), length(Qs, 2),
+    Hs = [H], % With D=2 fixed as above, ηs = [η₁₂].
+    0 #=< #H, % Reverse-exchange not valid!
+    m_xs_bs_ys(H, [1/1,0/1], Qs, Q1s),
+    m_xs_bs_ys(H, [0/1,1/1], Qs, Q2s).
+
+%?- Q1s=[1/1,0/1], Q2s=[0/1,1/1], exch(Q1s, Qs, Q2s, Hs).
+%@    Q1s = [1/1,0/1], Q2s = [0/1,1/1], Qs = [0/0,0/0], Hs = [1]. % correct
+
+m_x_b_y(M, X, B, Y):- % Y=M*X+B for M ∈ ℕ and Y,X,B ∈ Q.
+    q_r(X, Xt:Xu),
+    q_r(B, Bt:Bu),
+    q_r(Y, Yt:Yu),
+    #Yt #= #M * #Xt + #Bt,
+    #Yu #= #M * #Xu + #Bu.
+
+m_xs_bs_ys(M, Xs, Bs, Ys) :- % Y=M*X+B for M ∈ ℕ and Y,X,B ∈ Qᴰ.
+    maplist(m_x_b_y(M), Xs, Bs, Ys).
+
+%?- m_xs_bs_ys(5, [0/1,2/3], [7/10,3/3], [Y1,Y2]).
+%@    Y1 = 7/15, Y2 = 13/18. % correct
+
 % Investigating whether certain arrows 'discovered' during Meetup
 % and on return flight are present in '≼' as already defined:
 %
@@ -2377,7 +2501,12 @@ d_Qfstratamin(D, Mss) :-
 
 d_q(D, Qs) :-
     length(Qs, D),
-    maplist(\Q^(Q = T/N, N in 0..6, indomain(N), T in 0..N, indomain(T)), Qs).
+    %%maplist(\Q^(Q = T/N, N in 0..6, indomain(N), T in 0..N, indomain(T)), Qs).
+    % indomain/1 leaves choice points
+    maplist(\Q^(Q = T/N, N in 0..6, 0 #=< #T, #T #=< N), Qs).
+
+%?- d_q(2, Qs).
+%@    Qs = [_B/_A,_D/_C], clpz:(_A in 0..6), clpz:(#_A#>= #_B), clpz:(_B in 0..6), clpz:(_C in 0..6), clpz:(#_C#>= #_D), clpz:(_D in 0..6).
 
 % This is promising, at least.  Can I set forth
 % some reasonable conditions on H0?
