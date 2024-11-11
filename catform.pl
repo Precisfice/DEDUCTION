@@ -174,6 +174,42 @@ as_Ts_Tas(As, Ts, Tas) :-
         Truth = false
        ).
 
+% Investigating whether certain arrows 'discovered' during Meetup
+% and on return flight are present in '≼' as already defined:
+%
+%         [exch]     [titro]      [1:1]
+% [1/1,0/1] ≼ [0/1,1/1] ≼ [0/0,1/2] ≼ [0/0,0/0]
+%      \             \_________≼_________/ /
+%       \_______________≼_________________/
+%
+% If I am guessing right, only the [exch] arrow is already present
+% in '≼' as currently defined.  But I do wonder if either of the
+% composite arrows shown might somehow be present already.
+
+%?- [1/1,0/1] '≼' [0/1,1/1].
+%@    true. % as expected [exch]
+
+%?- [0/0,1/2] '≼' [0/0,0/0].
+%@    false. % [1:1] absent (as anticipated)
+
+%?- [0/1,1/1] '≼' [0/0,1/2].
+%@    true. % ah, but of course: [titro] is basically monotonicity
+
+%?- [0/1,1/1] '≼' [0/0,0/0].
+%@    false. % [titro];[1:1] absent (as anticipated)
+
+%?- [1/1,0/1] '≼' [0/0,0/0].
+%@    false. % [exch];[titro];[1:1] also absent (as anticipated)
+
+% So the addition of these [1:1] arrows does augment the existing
+% order relation, perhaps quite substantially!  Such augmentation
+% is sorely needed at this point, given the existing definition's
+% refusal to yield up workable Galois trials.
+% Furthermore, given how the [1:1] arrows support an intuitive
+% argument (based on safety-derogatory information content) for
+% the [exch] arrows, including [1:1] would add also _conceptual_
+% depth to our partial order.
+
 %?- '≼'([0/1,0/0], [0/0,0/1], Truth).
 %@ T1s = [0,0] , T2s = [0,0]
 %@ Ū1s = [1,0] , Ū2s = [1,1]
@@ -2620,13 +2656,13 @@ d_q(D, Qs) :-
 
 h2(Q, X) :-
     [H0,H1,H2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
-    if_(Q '≼' G0,
+    if_(Q '≼' H0,
         X = 0,
-        if_(( Q '⋡' G0
-            ; Q '≼' G1
+        if_(( Q '⋡' H0
+            ; Q '≼' H1
             ), X = 1,
-            if_(( Q '⋡' G1
-                ; Q '≼' G2
+            if_(( Q '⋡' H1
+                ; Q '≼' H2
                 ), X = 2,
                 false))).
 
