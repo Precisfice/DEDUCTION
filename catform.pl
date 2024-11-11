@@ -1793,12 +1793,15 @@ d_gs(D, Gs) :-
 % do just fine to start.  (TODO: But I really should test this
 % claim once gₓ calculations for higher D's become feasible!)
 
-d_Qfstratamax(D, Mss) :-
+d_Qfstrata(D, Qss) :-
     must_be(integer, D),
     findall(X-Q, d_endtally_rec(D,Q,X), XQs),
     sort(XQs, SXQs),
     group_pairs_by_key(SXQs, GXQs),
-    pairs_values(GXQs, Qss),
+    pairs_values(GXQs, Qss).
+
+d_Qfstratamax(D, Mss) :-
+    d_Qfstrata(D, Qss),
     maplist(qs_maxs, Qss, Mss).
 
 % These queries corroborate the d_Qfstratamax/2 results below.
@@ -1953,6 +1956,68 @@ c2(Q, X) :-
 %?- c2([2/2,0/0], X).
 %@    X = 0.
 
+d_path(D, Path) :-
+    length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
+    phrase(path([I]-Is), Path).
+
+%?- d_path(2, Path).
+%@    Path = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[0/6,0/3]-[],stop,recommend_dose(2)]
+%@ ;  Path = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[1/6,0/3]-[],stop,recommend_dose(2)]
+%@ ;  Path = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[2/6,0/3]-[],des,[0/6]-[2/6],stop,recommend_dose(1)]
+%@ ;  Path = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[2/6,0/3]-[],des,[1/6]-[2/6],stop,recommend_dose(1)]
+%@ ;  ... .
+
+%?- J+\(findall(Path, user:d_path(2, Path), Paths), lists:length(Paths, J)).
+%@    J = 46.
+
+% Let's enable checking all the interim tallies and dose recs
+d_tally_next(D, Tally, Next) :-
+    length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
+    phrase(path([I]-Is), Path),
+    phrase((..., [State0,E,Ls-_], ...), Path),
+    member(E, [esc,des,sta]),
+    state_tallies(State0, Tally), % I think this calculation is wrong.
+    length(Ls, Next).
+
+% How, in general, do I transform a trial _state_
+% (in the form of a pair of lists) into the tally
+% applicable at that time?
+% The LHS list is a descending 
+
+%?- setof(Q-X, d_tally_next(2, Q, X), QXs).
+%@    QXs = [[0/3,0/0]-2,
+%            [0/3,0/3]-2,
+%            [0/3,1/3]-2,
+%            [0/3,2/3]-1,
+%            [0/3,2/6]-1,
+%            [0/3,3/3]-1,
+%            [0/3,3/6]-1,
+%            [0/3,4/6]-1,
+%            [1/3,0/0]-1,
+%            [1/6,0/0]-2,
+%            [1/6,0/3]-2,
+%            [1/6,1/3]-2].
+% The above look all correct.  Now let's check against c2 ...
+
+%?- setof(Q^X^Y, (d_tally_next(2, Q, X), c2(Q, Y)), QXYs).
+%@    QXYs = [[0/3,0/0]^2^1,
+%             [0/3,0/3]^2^1,
+%             [0/3,1/3]^2^1,
+%             [0/3,2/3]^1^1,
+%             [0/3,2/6]^1^1,
+%             [0/3,3/3]^1^1,
+%             [0/3,3/6]^1^1,
+%             [0/3,4/6]^1^1,
+%             [1/3,0/0]^1^1,
+%             [1/6,0/0]^2^1, % **
+%             [1/6,0/3]^2^2, % **
+%             [1/6,1/3]^2^1].
+
+% The starred (**) rows are quite interesting.
+% Apparently, c2/2 is trapped in a 'Catch-22',
+% such that it cannot escalate even from [1/6,0/0]
+% without already having some data at dose level 2!
+
 % Thus, it would appear that I need to define my 'ladder' to propel
 % dose escalation.  Let's investigate the _meets_ of the several
 % Qf strata.
@@ -2057,6 +2122,10 @@ RQss = [[[0/6,2/6],[1/6,0/6],[0/3,0/6]],
 % Let's make sure to gain access to upper-Galois enrollments, too.
 % These correspond to the lower (left) adjoint L of Def 4.2.
 
+% Interestingly, I now seem to have found a use for '⋡'/3 below!
+'⋠'(Q1s, Q2s, Truth) :- '≼'(Q1s, Q2s, Untruth),
+                        reif:non(Untruth, Truth).
+
 % lgalois/3 ought to be _dual_ to galois/3, and the
 % dual construction may prove quite straighforward!
 % Here the Mss should be an _ascending_ sequence of
@@ -2080,11 +2149,486 @@ d_ls(D, Ls) :-
     format("Listing Qs...... ", []),
     time(findall(Q, qs_d_nmax(Q, D, 6), Qs)),
     qs_sorted(Qs, SQs), % instrumentation included
-    reverse(SQs, RQs),
+    %%reverse(SQs, RQs),
     format("Stratifying Qf.. ", []),
-    time(d_Qfstratamax(D, Mss)), % TODO: Do I need MINIMAL strata here?
+    time(d_Qfstratamin(D, Mss)), % NB: We require MINIMAL strata here.
     format("Finding g's ..~n", []),
-    time(lgalois(Mss, RQs, Ls)).
+    %%time(lgalois(Mss, RQs, Ls)).
+    time(lgalois(Mss, SQs, Ls)).
+
+%?- d_ls(2, Ls). % (After switching to d_mendtally_rec/3 in d_Qfstratamin/2)
+%@ Listing Qs......    % CPU time: 0.067s, 249_943 inferences
+%@ Sorting length-784 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.646s, 3_382_043 inferences
+%@    % CPU time: 0.650s, 3_386_626 inferences
+%@ Stratifying Qf..    % CPU time: 1.134s, 5_056_454 inferences
+%@ Finding g's ..
+%@ ↑[4/4,3/3] ⊇ [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
+%@ ↑[5/6,2/6] ⊇ [[1/6,3/3],[1/6,4/6]].
+%@ ↑[5/5,2/6] ⊇ [[0/3,1/6],[1/6,0/6]].
+%@    % CPU time: 0.744s, 3_284_627 inferences
+%@    Ls = [[4/4,3/3],[5/6,2/6],[5/5,2/6]]. % Unchanged with rectified d_mendtally_rec/3.
+%?- d_ls(2, Ls).
+%@ Listing Qs......    % CPU time: 0.068s, 249_943 inferences
+%@ Sorting length-784 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.649s, 3_382_043 inferences
+%@    % CPU time: 0.652s, 3_386_626 inferences
+%@ Stratifying Qf..    % CPU time: 0.861s, 3_801_888 inferences
+%@ Finding g's ..
+%@ ↑[4/4,3/3] ⊇ [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
+%@ ↑[5/6,2/6] ⊇ [[1/6,3/3],[1/6,4/6]].
+%@ ↑[5/5,2/6] ⊇ [[0/3,1/6],[1/6,1/6]].
+%@    % CPU time: 0.747s, 3_284_633 inferences
+%@    Ls = [[4/4,3/3],[5/6,2/6],[5/5,2/6]].
+
+% These look a bit more reasonable now.  Can I check 'by hand'
+% that they obey the conditions I expect?
+%?- X^Mxs+\(X in 0..2, clpz:indomain(X), findall(Qfx, user:d_endtally_rec(2, Qfx, X), Qfxs), user:qs_mins(Qfxs, Mxs)).
+%@    X = 0, Mxs = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]]
+%@ ;  X = 1, Mxs = [[1/6,3/3],[1/6,4/6]]
+%@ ;  X = 2, Mxs = [[0/3,1/6],[1/6,1/6]].
+% Thus, the minimal subsets of the several Qf strata look correct.
+
+%?- [4/4,3/3] '≼' [3/3,0/0].
+%@    true.
+%?- [4/4,3/3] '≼' [3/6,3/3].
+%@    true.
+%?- [4/4,3/3] '≼' [3/6,4/6].
+%@    true.
+%?- [4/4,3/3] '≼' [4/6,0/0].
+%@    true.
+% So the given L0 is indeed below all of X=0 Qf's.
+
+%?- [0/0,0/0] '≽' [4/4,3/3].
+%@    true.
+%?- [0/0,0/0] '≽' [5/6,2/6].
+%@    false.
+%?- [0/0,0/0] '≽' [5/5,2/6].
+%@    false.
+% According to the above, we would at least *start* the trial
+% at does level 1.
+
+%?- [2/3,0/0] '≽' [4/4,3/3].
+%@    true.
+% But here we see that a trial based naively on (L0,L1,L2)
+% would continue to enroll even after 2/3 toxicities at
+% the lowest dose!
+% But this now leads me to question whether these L's
+% truly capture what I thought!
+% 1. Is [2/3,0/0] in Qf0s?
+%?- d_endtally_rec(2, [2/3,0/0], X).
+%@    X = 0 % Yes.
+%@ ;  false.
+% 2. What are the supposed relations of L0 & L1 to this?
+%?- [L0,L1,L2] = [[4/4,3/3],[5/6,2/6],[5/5,2/6]], Q0 = [2/3,0/0], L0 '≼' Q0.
+%@    L0 = [4/4,3/3], L1 = [5/6,2/6], L2 = [5/5,2/6], Q0 = [2/3,0/0].
+%?- [L0,L1,L2] = [[4/4,3/3],[5/6,2/6],[5/5,2/6]], Q0 = [2/3,0/0], L1 '≼' Q0.
+%@    false.
+% Is this what I expected or hoped?  Yes, I think so!
+% We have L0 indeed being under all of F⁻¹(0), but L1 not being below
+% at least this one value.  Might L1 sit below any elements of F⁻¹(0)?
+%?- d_endtally_rec(2,Qf,0), L1 = [5/6,2/6], L1 '≼' Qf.
+%@    Qf = [2/6,2/3], L1 = [5/6,2/6]
+%@ ;  Qf = [2/6,2/6], L1 = [5/6,2/6]
+%@ ;  Qf = [2/6,3/6], L1 = [5/6,2/6]
+%@ ;  Qf = [2/6,4/6], L1 = [5/6,2/6]
+%@ ;  Qf = [3/6,2/6], L1 = [5/6,2/6]
+%@ ;  Qf = [3/6,3/6], L1 = [5/6,2/6]
+%@ ;  Qf = [3/6,4/6], L1 = [5/6,2/6]
+%@ ;  false.
+% So this partition does a pretty poor job of separating
+% even the final tallies!
+
+/*
+What if I ultimately need two distinct sets of cutoffs?
+During the calculation of Gs, we learn that
+ ↓[2/6,0/4] ⊇ [[2/6,0/0],[2/6,2/6]].
+
+*/
+%?- [2/6,0/4] '≽' [2/6,0/0]. % G0 is above all of F⁻¹(0).
+%@    true.
+%?- [2/6,0/4] '≽' [2/6,2/6].
+%@    true.
+%?- d_mendtally_rec(2, Qrf, 0), Qrf '⋠' [2/6,0/4].
+%@    false.
+%?- d_endtally_rec(2, Qrf, 0), Qrf '⋠' [2/6,0/4].
+%@    false.
+/*
+?- Gs = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+   X in 0..2, indomain(X),
+   d_endtally_rec(2, Qf, X),
+   nth0(X, Gs, Gx), Qf '⋠' Gx.
+%@    false.
+% Does this just trivially recapitulate some part of
+% the definition of the G's?  Does it say anything new?
+*/
+
+d_Qfstratamin(D, Mss) :-
+    d_Qfstrata(D, Qss),
+    maplist(qs_mins, Qss, Mss). % qs_maxs/2 ~~> qs_mins/2 is all that changed!
+
+%?- d_ls(3, Ls).
+%@ Listing Qs......    % CPU time: 1.585s, 6_660_437 inferences
+%@ Sorting length-21952 list Qs:
+%@   .. encoding Qs:   % CPU time: 20.381s, 109_986_469 inferences
+%@    % CPU time: 20.448s, 110_054_608 inferences
+%@ Stratifying Qf..    % CPU time: 4.332s, 19_509_965 inferences
+%@ Finding g's ..
+%@ ↑[4/4,3/3,3/3] ⊇ [[3/3,0/0,0/0],[3/6,3/3,0/0],[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]].
+%@ ↑[5/6,2/4,3/5] ⊇ [[1/6,3/3,0/0],[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0]].
+%@ ↑[5/5,2/4,3/5] ⊇ [[0/3,1/6,3/3],[1/6,1/6,3/3],[1/6,1/6,4/6]].
+%@ ↑[5/6,2/3,3/5] ⊇ [[0/3,0/3,1/6],[1/6,0/3,1/6],[1/6,1/6,1/6]].
+%@    % CPU time: 27.944s, 124_266_679 inferences
+%@    Ls = [[4/4,3/3,3/3],[5/6,2/4,3/5],[5/5,2/4,3/5],[5/6,2/3,3/5]].
+%@ Listing Qs......    % CPU time: 1.583s, 6_660_437 inferences
+%@ Sorting length-21952 list Qs:
+%@   .. encoding Qs:   % CPU time: 20.625s, 109_772_974 inferences
+%@    % CPU time: 20.626s, 109_775_250 inferences
+%@    error('$interrupt_thrown',repl/0).
+%@ Listing Qs......    % CPU time: 1.592s, 6_660_460 inferences
+%@ Sorting length-21952 list Qs:
+%@   .. encoding Qs:   % CPU time: 20.488s, 109_986_469 inferences
+%@    % CPU time: 20.556s, 110_054_608 inferences
+%@ Stratifying Qf..    % CPU time: 4.339s, 19_509_999 inferences
+%@ Finding g's ..
+%@ ↑[4/4,3/3,3/3] ⊇ [[3/3,0/0,0/0],[3/6,3/3,0/0],[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]].
+%@ ↑[5/6,2/4,3/5] ⊇ [[1/6,3/3,0/0],[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0]].
+%@ ↑[5/5,2/4,3/5] ⊇ [[0/3,1/6,3/3],[1/6,1/6,3/3],[1/6,1/6,4/6]].
+%@ ↑[5/6,2/3,3/5] ⊇ [[0/3,0/3,1/6],[1/6,0/3,1/6],[1/6,1/6,1/6]].
+%@    % CPU time: 28.044s, 124_266_679 inferences
+%@    Ls = [[4/4,3/3,3/3],[5/6,2/4,3/5],[5/5,2/4,3/5],[5/6,2/3,3/5]].
+
+% Let's try 'hand-crafting' a 2-dose trial with reasonable properties.
+% This needs to begin with liveness at [0/0,0/0]!  So we might do well
+% to let an X=0 recommendation happen for a positive finding of Q ≼ H0.
+%?- Q = [T1/N1,T2/N2], maplist(q_r, Q, _), N1 #=< 6, N2 #=< 6, [0/0,0/0] '≼' Q, label([T1,N1,T2,N2]).
+%@    Q = [0/0,0/0], T1 = 0, N1 = 0, T2 = 0, N2 = 0
+%@ ;  Q = [0/0,0/1], T1 = 0, N1 = 0, T2 = 0, N2 = 1
+%@ ;  Q = [0/0,0/2], T1 = 0, N1 = 0, T2 = 0, N2 = 2
+%@ ;  Q = [0/0,0/3], T1 = 0, N1 = 0, T2 = 0, N2 = 3
+%@ ;  Q = [0/0,0/4], T1 = 0, N1 = 0, T2 = 0, N2 = 4
+%@ ;  Q = [0/0,0/5], T1 = 0, N1 = 0, T2 = 0, N2 = 5
+%@ ;  Q = [0/0,0/6], T1 = 0, N1 = 0, T2 = 0, N2 = 6
+%@ ;  Q = [0/1,0/0], T1 = 0, N1 = 1, T2 = 0, N2 = 0
+%@ ;  Q = [0/1,0/1], T1 = 0, N1 = 1, T2 = 0, N2 = 1
+%@ ;  Q = [0/1,0/2], T1 = 0, N1 = 1, T2 = 0, N2 = 2
+%@ ;  Q = [0/1,0/3], T1 = 0, N1 = 1, T2 = 0, N2 = 3
+%@ ;  Q = [0/1,0/4], T1 = 0, N1 = 1, T2 = 0, N2 = 4
+%@ ;  Q = [0/1,0/5], T1 = 0, N1 = 1, T2 = 0, N2 = 5
+%@ ;  Q = [0/1,0/6], T1 = 0, N1 = 1, T2 = 0, N2 = 6
+%@ ;  Q = [0/2,0/0], T1 = 0, N1 = 2, T2 = 0, N2 = 0
+%@ ;  Q = [0/2,0/1], T1 = 0, N1 = 2, T2 = 0, N2 = 1
+%@ ;  Q = [0/2,0/2], T1 = 0, N1 = 2, T2 = 0, N2 = 2
+%@ ;  Q = [0/2,0/3], T1 = 0, N1 = 2, T2 = 0, N2 = 3
+%@ ;  Q = [0/2,0/4], T1 = 0, N1 = 2, T2 = 0, N2 = 4
+%@ ;  Q = [0/2,0/5], T1 = 0, N1 = 2, T2 = 0, N2 = 5
+%@ ;  Q = [0/2,0/6], T1 = 0, N1 = 2, T2 = 0, N2 = 6
+%@ ;  Q = [0/3,0/0], T1 = 0, N1 = 3, T2 = 0, N2 = 0
+%@ ;  Q = [0/3,0/1], T1 = 0, N1 = 3, T2 = 0, N2 = 1
+%@ ;  Q = [0/3,0/2], T1 = 0, N1 = 3, T2 = 0, N2 = 2
+%@ ;  Q = [0/3,0/3], T1 = 0, N1 = 3, T2 = 0, N2 = 3
+%@ ;  Q = [0/3,0/4], T1 = 0, N1 = 3, T2 = 0, N2 = 4
+%@ ;  Q = [0/3,0/5], T1 = 0, N1 = 3, T2 = 0, N2 = 5
+%@ ;  Q = [0/3,0/6], T1 = 0, N1 = 3, T2 = 0, N2 = 6
+%@ ;  Q = [0/4,0/0], T1 = 0, N1 = 4, T2 = 0, N2 = 0
+%@ ;  ... .
+%@    Q = [T1/N1,T2/N2], clpz:(T1 in 0..sup), clpz:(#T1+ #_A#= #N1), clpz:(_A in 0..sup), clpz:(N1 in 0..sup), clpz:(T2 in 0..sup), clpz:(#T2+ #_B#= #N2), clpz:(_B in 0..sup), clpz:(N2 in 0..sup).
+%@    error(instantiation_error,instantiation_error(unknown(from_to(n(0),sup)),1)).
+%@    error(instantiation_error,instantiation_error(unknown(from_to(n(0),sup)),1)).
+%@    error(type_error(integer,0/_151),must_be/2).
+%@    error(existence_error(procedure,labeling/1),labeling/1).
+%@    Q = [0/_A,0/_B], clpz:(_A in 0..sup), clpz:(#_A+ #_B#= #_C), clpz:(_B in 0..sup), clpz:(#_D+ #_B#=0), clpz:(_D in inf..0), clpz:(_C in 0..sup).
+
+d_q(D, Qs) :-
+    length(Qs, D),
+    maplist(\Q^(Q = T/N, N in 0..6, indomain(N), T in 0..N, indomain(T)), Qs).
+
+% This is promising, at least.  Can I set forth
+% some reasonable conditions on H0?
+% Or maybe what this means, is deciding how a
+% small set of comparator tallies is supposed
+% to shape a dose-escalation protocol.
+% And yet, I already HAVE this, in the form of
+% upper and lower adjoints G ⊢ E and L ⊣ E.
+
+% How about something like this?
+% Q ≼ H0 => X=0 [stop trial]
+% Q ⋠ H0 => can continue, at least with DL-1
+% - H0 ⋡ Q ≼ H1 => X=1
+% - H1 ⋡ Q ≼ H2 => X=2.
+% If I really pursue something like that,
+% the value of H2 becomes trivial, and I
+% truly need only (H0, H1).  That's a
+% pretty small parameter space, which I
+% should be able to search tonight!
+% _BUT_ more to the point, perhaps I've
+% [effectively] *already* searched this,
+% and come up empty-handed?
+
+% TONIGHT:
+% Upon returning from dinner, I should find an H0
+% that correctly stops the trial in every situation
+% where this is required, yet also allows the trial
+% to begin by allowing X=1 at [0/0,0/0].
+
+%?- d_q(2, H0), [1/3,0/0] '⋠' H0, [2/3,0/0] '≼' H0.
+%@    H0 = [0/0,0/1]
+%@ ;  H0 = [0/0,1/2]
+%@ ;  H0 = [0/0,2/3]
+%@ ;  H0 = [0/0,2/4]
+%@ ;  ... .
+%@    H0 = [0/0,0/1]
+%@ ;  H0 = [0/0,1/2]
+%@ ;  H0 = [0/0,2/3]
+%@ ;  H0 = [0/0,2/4]
+%@ ;  H0 = [0/0,2/5]
+%@ ;  H0 = [0/0,2/6]
+%@ ;  H0 = [0/1,0/0]
+%@ ;  H0 = [0/1,1/1]
+%@ ;  H0 = [0/1,2/2]
+%@ ;  H0 = [0/1,2/3]
+%@ ;  H0 = [0/1,2/4]
+%@ ;  H0 = [0/1,2/5]
+%@ ;  H0 = [0/1,2/6]
+%@ ;  H0 = [1/1,0/1]
+%@ ;  H0 = [1/1,1/2]
+%@ ;  H0 = [1/1,1/3]
+%@ ;  H0 = [1/1,1/4]
+%@ ;  H0 = [1/1,1/5]
+%@ ;  H0 = [1/1,1/6]
+%@ ;  H0 = [0/2,2/2]
+%@ ;  H0 = [0/2,2/3]
+%@ ;  H0 = [0/2,2/4]
+%@ ;  H0 = [0/2,2/5]
+%@ ;  H0 = [0/2,2/6]
+%@ ;  H0 = [1/2,0/0]
+%@ ;  H0 = [1/2,1/1]
+%@ ;  H0 = [1/2,1/2]
+%@ ;  H0 = [1/2,1/3]
+%@ ;  H0 = [1/2,1/4]
+%@ ;  H0 = [1/2,1/5]
+%@ ;  H0 = [1/2,1/6]
+%@ ;  H0 = [2/2,0/1]
+%@ ;  H0 = [2/2,0/2]
+%@ ;  H0 = [2/2,0/3]
+%@ ;  H0 = [2/2,0/4]
+%@ ;  H0 = [2/2,0/5]
+%@ ;  H0 = [2/2,0/6]
+%@ ;  H0 = [0/3,2/2]
+%@ ;  H0 = [0/3,2/3]
+%@ ;  H0 = [0/3,2/4]
+%@ ;  H0 = [0/3,2/5]
+%@ ;  H0 = [0/3,2/6]
+%@ ;  H0 = [1/3,1/1]
+%@ ;  H0 = [1/3,1/2]
+%@ ;  H0 = [1/3,1/3]
+%@ ;  H0 = [1/3,1/4]
+%@ ;  H0 = [1/3,1/5]
+%@ ;  H0 = [1/3,1/6]
+%@ ;  H0 = [2/3,0/0]
+%@ ;  H0 = [2/3,0/1]
+%@ ;  H0 = [2/3,0/2]
+%@ ;  H0 = [2/3,0/3]
+%@ ;  H0 = [2/3,0/4]
+%@ ;  H0 = [2/3,0/5]
+%@ ;  H0 = [2/3,0/6]
+%@ ;  H0 = [0/4,2/2]
+%@ ;  H0 = [0/4,2/3]
+%@ ;  H0 = [0/4,2/4]
+%@ ;  H0 = [0/4,2/5]
+%@ ;  H0 = [0/4,2/6]
+%@ ;  H0 = [1/4,1/1]
+%@ ;  H0 = [1/4,1/2]
+%@ ;  H0 = [1/4,1/3]
+%@ ;  H0 = [1/4,1/4]
+%@ ;  H0 = [1/4,1/5]
+%@ ;  H0 = [1/4,1/6]
+%@ ;  H0 = [2/4,0/0]
+%@ ;  H0 = [2/4,0/1]
+%@ ;  H0 = [2/4,0/2]
+%@ ;  H0 = [2/4,0/3]
+%@ ;  H0 = [2/4,0/4]
+%@ ;  H0 = [2/4,0/5]
+%@ ;  H0 = [2/4,0/6]
+%@ ;  H0 = [0/5,2/2]
+%@ ;  H0 = [0/5,2/3]
+%@ ;  H0 = [0/5,2/4]
+%@ ;  H0 = [0/5,2/5]
+%@ ;  H0 = [0/5,2/6]
+%@ ;  H0 = [1/5,1/1]
+%@ ;  H0 = [1/5,1/2]
+%@ ;  H0 = [1/5,1/3]
+%@ ;  H0 = [1/5,1/4]
+%@ ;  H0 = [1/5,1/5]
+%@ ;  H0 = [1/5,1/6]
+%@ ;  H0 = [2/5,0/0]
+%@ ;  H0 = [2/5,0/1]
+%@ ;  H0 = [2/5,0/2]
+%@ ;  H0 = [2/5,0/3]
+%@ ;  H0 = [2/5,0/4]
+%@ ;  H0 = [2/5,0/5]
+%@ ;  H0 = [2/5,0/6]
+%@ ;  H0 = [0/6,2/2]
+%@ ;  ... .
+%@    H0 = [0/0,1/2]
+%@ ;  H0 = [0/0,1/3]
+%@ ;  H0 = [0/0,2/3]
+%@ ;  H0 = [0/0,1/4]
+%@ ;  H0 = [0/0,2/4]
+%@ ;  H0 = [0/0,1/5]
+%@ ;  H0 = [0/0,2/5]
+%@ ;  H0 = [0/0,1/6]
+%@ ;  H0 = [0/0,2/6]
+%@ ;  H0 = [0/1,1/1]
+%@ ;  H0 = [0/1,1/2]
+%@ ;  H0 = [0/1,2/2]
+%@ ;  H0 = [0/1,1/3]
+%@ ;  H0 = [0/1,2/3]
+%@ ;  H0 = [0/1,1/4]
+%@ ;  H0 = [0/1,2/4]
+%@ ;  H0 = [0/1,1/5]
+%@ ;  H0 = [0/1,2/5]
+%@ ;  H0 = [0/1,1/6]
+%@ ;  H0 = [0/1,2/6]
+%@ ;  H0 = [1/1,0/1]
+%@ ;  H0 = [1/1,0/2]
+%@ ;  H0 = [1/1,1/2]
+%@ ;  H0 = [1/1,0/3]
+%@ ;  H0 = [1/1,1/3]
+%@ ;  H0 = [1/1,0/4]
+%@ ;  H0 = [1/1,1/4]
+%@ ;  H0 = [1/1,0/5]
+%@ ;  H0 = [1/1,1/5]
+%@ ;  H0 = [1/1,0/6]
+%@ ;  H0 = [1/1,1/6]
+%@ ;  H0 = [0/2,1/1]
+%@ ;  H0 = [0/2,1/2]
+%@ ;  H0 = [0/2,2/2]
+%@ ;  H0 = [0/2,1/3]
+%@ ;  H0 = [0/2,2/3]
+%@ ;  H0 = [0/2,1/4]
+%@ ;  H0 = [0/2,2/4]
+%@ ;  H0 = [0/2,1/5]
+%@ ;  H0 = [0/2,2/5]
+%@ ;  H0 = [0/2,1/6]
+%@ ;  H0 = [0/2,2/6]
+%@ ;  H0 = [1/2,0/0]
+%@ ;  H0 = [1/2,0/1]
+%@ ;  H0 = [1/2,1/1]
+%@ ;  H0 = [1/2,0/2]
+%@ ;  H0 = [1/2,1/2]
+%@ ;  H0 = [1/2,0/3]
+%@ ;  H0 = [1/2,1/3]
+%@ ;  H0 = [1/2,0/4]
+%@ ;  H0 = [1/2,1/4]
+%@ ;  H0 = [1/2,0/5]
+%@ ;  H0 = [1/2,1/5]
+%@ ;  H0 = [1/2,0/6]
+%@ ;  H0 = [1/2,1/6]
+%@ ;  H0 = [2/2,0/1]
+%@ ;  H0 = [2/2,0/2]
+%@ ;  H0 = [2/2,0/3]
+%@ ;  H0 = [2/2,0/4]
+%@ ;  H0 = [2/2,0/5]
+%@ ;  H0 = [2/2,0/6]
+%@ ;  ... .
+%@    H0 = [0/0,1/1]
+%@ ;  H0 = [0/0,1/2]
+%@ ;  H0 = [0/0,2/2]
+%@ ;  H0 = [0/0,1/3]
+%@ ;  H0 = [0/0,2/3]
+%@ ;  H0 = [0/0,3/3]
+%@ ;  H0 = [0/0,1/4]
+%@ ;  H0 = [0/0,2/4]
+%@ ;  H0 = [0/0,3/4]
+%@ ;  H0 = [0/0,4/4]
+%@ ;  H0 = [0/0,1/5]
+%@ ;  H0 = [0/0,2/5]
+%@ ;  H0 = [0/0,3/5]
+%@ ;  H0 = [0/0,4/5]
+%@ ;  H0 = [0/0,5/5]
+%@ ;  H0 = [0/0,1/6]
+%@ ;  H0 = [0/0,2/6]
+%@ ;  H0 = [0/0,3/6]
+%@ ;  H0 = [0/0,4/6]
+%@ ;  H0 = [0/0,5/6]
+%@ ;  H0 = [0/0,6/6]
+%@ ;  H0 = [0/1,1/1]
+%@ ;  H0 = [0/1,1/2]
+%@ ;  H0 = [0/1,2/2]
+%@ ;  H0 = [0/1,1/3]
+%@ ;  H0 = [0/1,2/3]
+%@ ;  H0 = [0/1,3/3]
+%@ ;  H0 = [0/1,1/4]
+%@ ;  H0 = [0/1,2/4]
+%@ ;  H0 = [0/1,3/4]
+%@ ;  H0 = [0/1,4/4]
+%@ ;  H0 = [0/1,1/5]
+%@ ;  H0 = [0/1,2/5]
+%@ ;  H0 = [0/1,3/5]
+%@ ;  H0 = [0/1,4/5]
+%@ ;  H0 = [0/1,5/5]
+%@ ;  H0 = [0/1,1/6]
+%@ ;  H0 = [0/1,2/6]
+%@ ;  H0 = [0/1,3/6]
+%@ ;  H0 = [0/1,4/6]
+%@ ;  H0 = [0/1,5/6]
+%@ ;  H0 = [0/1,6/6]
+%@ ;  H0 = [1/1,0/0]
+%@ ;  H0 = [1/1,0/1]
+%@ ;  H0 = [1/1,1/1]
+%@ ;  H0 = [1/1,0/2]
+%@ ;  H0 = [1/1,1/2]
+%@ ;  ... .
+%@    H0 = [_A/_E,_B/_G], clpz:(_A in 1..sup), clpz:(#_B+ #_A#= #_C), clpz:(#_A+ #_D#= #_E), clpz:(_B in 0..sup), clpz:(#_B+ #_F#= #_G), clpz:(_F in 0..sup), clpz:(#_H+ #_F#=0), clpz:(#_D+ #_F#= #_I), clpz:(_H in inf..0), clpz:(_D in 0..sup), clpz:(_E in 1..sup), clpz:(_I in 0..sup), clpz:(_G in 0..sup), clpz:(_C in 1..sup)
+%@ ;  H0 = [0/_A,_E/_F], clpz:(_A in 0..sup), clpz:(#_A+ #_B#= #_C), clpz:(_B in 0..sup), clpz:(#_D+ #_B#=0), clpz:(#_E+ #_B#= #_F), clpz:(_D in inf..0), clpz:(_E in 1..sup), clpz:(_F in 1..sup), clpz:(_C in 0..sup)
+%@ ;  ... .
+%@    H0 = [_A/_E,_B/_G], clpz:(_A in 1..sup), clpz:(#_B+ #_A#= #_C), clpz:(#_A+ #_D#= #_E), clpz:(_B in 0..sup), clpz:(#_B+ #_F#= #_G), clpz:(_F in 0..sup), clpz:(#_H+ #_F#=0), clpz:(#_D+ #_F#= #_I), clpz:(_H in inf..0), clpz:(_D in 0..sup), clpz:(_E in 1..sup), clpz:(_I in 0..sup), clpz:(_G in 0..sup), clpz:(_C in 1..sup)
+%@ ;  H0 = [0/_A,_E/_F], clpz:(_A in 0..sup), clpz:(#_A+ #_B#= #_C), clpz:(_B in 0..sup), clpz:(#_D+ #_B#=0), clpz:(#_E+ #_B#= #_F), clpz:(_D in inf..0), clpz:(_E in 1..sup), clpz:(_F in 1..sup), clpz:(_C in 0..sup)
+%@ ;  ... .
+%@    H0 = [_A/_E,_B/_G], clpz:(_A in 1..sup), clpz:(#_B+ #_A#= #_C), clpz:(#_A+ #_D#= #_E), clpz:(_B in 0..sup), clpz:(#_B+ #_F#= #_G), clpz:(_F in 0..sup), clpz:(#_H+ #_F#=0), clpz:(#_D+ #_F#= #_I), clpz:(_H in inf..0), clpz:(_D in 0..sup), clpz:(_E in 1..sup), clpz:(_I in 0..sup), clpz:(_G in 0..sup), clpz:(_C in 1..sup)
+%@ ;  ... .
+%@    H0 = [_A/_E,_B/_G], clpz:(_A in 1..sup), clpz:(#_B+ #_A#= #_C), clpz:(#_A+ #_D#= #_E), clpz:(_B in 0..sup), clpz:(#_B+ #_F#= #_G), clpz:(_F in 0..sup), clpz:(#_H+ #_F#=0), clpz:(#_D+ #_F#= #_I), clpz:(_H in inf..0), clpz:(_D in 0..sup), clpz:(_E in 1..sup), clpz:(_I in 0..sup), clpz:(_G in 0..sup), clpz:(_C in 1..sup)
+%@ ;  H0 = [0/_A,_E/_F], clpz:(_A in 0..sup), clpz:(#_A+ #_B#= #_C), clpz:(_B in 0..sup), clpz:(#_D+ #_B#=0), clpz:(#_E+ #_B#= #_F), clpz:(_D in inf..0), clpz:(_E in 1..sup), clpz:(_F in 1..sup), clpz:(_C in 0..sup)
+%@ ;  ... .
+
+%?- d_q(2, Q).
+%@    Q = [0/0,0/0]
+%@ ;  Q = [0/0,_A/1], clpz:(_A in 0..1), clpz:(#_A+ #_B#=1), clpz:(_B in 0..1)
+%@ ;  Q = [0/0,_A/2], clpz:(_A in 0..2), clpz:(#_A+ #_B#=2), clpz:(_B in 0..2)
+%@ ;  Q = [0/0,_A/3], clpz:(_A in 0..3), clpz:(#_A+ #_B#=3), clpz:(_B in 0..3)
+%@ ;  Q = [0/0,_A/4], clpz:(_A in 0..4), clpz:(#_A+ #_B#=4), clpz:(_B in 0..4)
+%@ ;  Q = [0/0,_A/5], clpz:(_A in 0..5), clpz:(#_A+ #_B#=5), clpz:(_B in 0..5)
+%@ ;  Q = [0/0,_A/6], clpz:(_A in 0..6), clpz:(#_A+ #_B#=6), clpz:(_B in 0..6)
+%@ ;  Q = [_A/1,0/0], clpz:(_A in 0..1), clpz:(#_A+ #_B#=1), clpz:(_B in 0..1)
+%@ ;  Q = [_A/1,_C/1], clpz:(_A in 0..1), clpz:(#_A+ #_B#=1), clpz:(_B in 0..1), clpz:(_C in 0..1), clpz:(#_C+ #_D#=1), clpz:(_D in 0..1)
+%@ ;  Q = [_A/1,_C/2], clpz:(_A in 0..1), clpz:(#_A+ #_B#=1), clpz:(_B in 0..1), clpz:(_C in 0..2), clpz:(#_C+ #_D#=2), clpz:(_D in 0..2)
+%@ ;  Q = [_A/1,_C/3], clpz:(_A in 0..1), clpz:(#_A+ #_B#=1), clpz:(_B in 0..1), clpz:(_C in 0..3), clpz:(#_C+ #_D#=3), clpz:(_D in 0..3)
+%@ ;  Q = [_A/1,_C/4], clpz:(_A in 0..1), clpz:(#_A+ #_B#=1), clpz:(_B in 0..1), clpz:(_C in 0..4), clpz:(#_C+ #_D#=4), clpz:(_D in 0..4)
+%@ ;  Q = [_A/1,_C/5], clpz:(_A in 0..1), clpz:(#_A+ #_B#=1), clpz:(_B in 0..1), clpz:(_C in 0..5), clpz:(#_C+ #_D#=5), clpz:(_D in 0..5)
+%@ ;  ... .
+%@    error(instantiation_error,list_si/1).
+%@    error(instantiation_error,list_si/1).
+%@    error(instantiation_error,list_si/1).
+%@    error(instantiation_error,instantiation_error(unknown(from_to(inf,sup)),1)).
+%@    error(existence_error(procedure,labeling/1),labeling/1).
+%@    Q = [_A/_C,_D/_F], clpz:(_A in 0..6), clpz:(#_A+ #_B#= #_C), clpz:(_B in 0..6), clpz:(_C in 0..6), clpz:(_D in 0..6), clpz:(#_D+ #_E#= #_F), clpz:(_E in 0..6), clpz:(_F in 0..6).
+%@    Q = []
+%@ ;  error('$interrupt_thrown',repl/0).
+%@    error(existence_error(procedure,d_q/2),d_q/2).
+%@    error(existence_error(procedure,d_q/2),d_q/2).
+
+h2(Q, X) :-
+    [H0,H1,H2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+    if_(Q '≼' G0,
+        X = 0,
+        if_(( Q '⋡' G0
+            ; Q '≼' G1
+            ), X = 1,
+            if_(( Q '⋡' G1
+                ; Q '≼' G2
+                ), X = 2,
+                false))).
 
 /*
 TODO:
