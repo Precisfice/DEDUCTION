@@ -192,21 +192,34 @@ as_Ts_Tas(As, Ts, Tas) :-
 % with the right relational 'signature'.  (I wonder if the
 % latter type of arrow might best have the 'pivot' tally
 % as a _first_ argument.)
-:- op(900, xfx, '⊑'). % symbol chosen for visual likeness to ≼
-'⊑'(QAs, QZs) :- % QAs ≼tox QBs ≼exch QAs ≼tox QAs ≼tox 
+:- op(900, xfx, '⊑'). % symbol superficially resembles ≼
+'⊑'(QAs, QZs) :- % QAs ≼toxD QBs ≼tol1 QCs ≼exch QZs
     D = 2, % TODO: generalize to D>2
     % QAs --[toxD]--> QBs --[tol1]--> QCs --[exch(Q)]--> QZs.
     length(QAs, D), length(QZs, D),
-    d_q(D, QBs),
-    toxD(QAs, QBs),
-    d_q(D, QCs),
-    tol1(QBs, QCs),
-    d_q(D, Qs),
-    exch(QCs, Qs, QZs, _),
-    * format("~w ≼toxD ~w ≼tol1 ~w ≼exch{~w} ~w~n", [QAs, QBs, QCs, Qs, QZs]).
+    toxD_t(QAs, QBs, true),
+    tol1_t(QBs, QCs, true),
+    exch_t(QCs, QZs, _, true),
+    format("~w ≼toxD ~w ≼tol1 ~w ≼exch ~w~n", [QAs, QBs, QCs, QZs]).
 
 %?- [1/6,1/6] '⊑' [0/6,2/6].
-%@    true. % correct
+%@ [1/6,1/6] ≼toxD [1/6,1/6] ≼tol1 [1/6,1/6] ≼exch [0/6,2/6]
+%@    true
+%@ ;  false. % I suspect the choice point arises amid CLP(ℤ)-solving.
+% Reordering the toxD_t/3, tol1_t/3 and exch_t/4 calls above
+% does not change the behavior.  The format/2 statement does
+% not get backtracked-over, either. What happens is, I think,
+% that a massive constraint accumulates, and the choicepoint
+% arises [somehow] within the process of solving it.
+
+d_q(D, Qs) :-
+    length(Qs, D),
+    %%maplist(\Q^(Q = T/N, N in 0..6, indomain(N), T in 0..N, indomain(T)), Qs).
+    % indomain/1 leaves choice points
+    maplist(\Q^(Q = T/N, N in 0..6, 0 #=< #T, #T #=< N), Qs).
+
+%?- d_q(2, Qs).
+%@    Qs = [_B/_A,_D/_C], clpz:(_A in 0..6), clpz:(#_A#>= #_B), clpz:(_B in 0..6), clpz:(_C in 0..6), clpz:(#_C#>= #_D), clpz:(_D in 0..6).
 
 % Try to find Q1 ≼ Q2 for which ¬(Q1 ⊑ Q2).
 wrong(Q1, Q2) :-
@@ -229,12 +242,13 @@ wrong(Q1, Q2) :-
 % since [tox]ᵢ = [tox]₁;[titro]ⁱ⁻¹.
 % Accordingly, to reduce redundant solutions and to simplify
 % the implementation, we simply work at the lowest dose.
-tol1([T/N|Qs], [T/N2|Qs]) :- #N #=< #N2.
+tol1_t([T/N|Qs], [T/N2|Qs], Truth) :-
+    if_(clpz_t(#N #=< #N2), Truth = true, Truth = false).
 
 % But as with tox/2 below, to aid exploration at the toplevel,
 % we collect the full set of [tol]ᵢ arrows in one predicate:
 tol([Q|Qs], [Q2|Q2s]) :-
-    tol1(Q, Q2),
+    tol1_t(Q, Q2, true),
     tol(Qs, Q2s).
 tol([], []).
 
@@ -245,15 +259,22 @@ tol([], []).
 % Accordingly, to reduce redundant solutions and to simplify
 % the implementation, we simply work at the top dose.
 % TODO: Revisit this decision; could extra λ's help the constraint solver?
-toxD(Q1s, Qs) :-
-    reverse(Q1s, [Q1D|Same]),
-    reverse(Qs,  [QD |Same]),
-    tox_(Q1D, QD).
+toxD_t(Q1s, Qs, Truth) :-
+    same_length(Q1s, Qs),
+    reverse(Q1s, [Q1D|Rest1]),
+    reverse(Qs,  [QD |Rest]),
+    if_((tox_t(Q1D, QD), Rest1 = Rest),
+        Truth = true,
+        Truth = false
+       ).
 
-tox_(T1/N1, T/N) :-
-    0 #=< #Lambda,
-    #T1 #= #T + #Lambda,
-    #N1 #= #N + #Lambda.
+tox_t(T1/N1, T/N, Truth) :-
+    if_(clpz_t(0 #=< #Lambda #/\
+               #T1 #= #T + #Lambda #/\
+               #N1 #= #N + #Lambda),
+        Truth = true,
+        Truth = false
+       ).
 
 % As an aid to free exploration at the toplevel, however,
 % we implement as well the full set of [tox]ᵢ arrows,
@@ -264,39 +285,67 @@ tox([Q1|Q1s], [Q|Qs]) :-
     tox(Q1s, Qs).
 tox([], []).
 
-%?- toxD([0/3,2/3], [0/3,0/1]).
+tox_(T1/N1, T/N) :-
+    0 #=< #Lambda,
+    #T1 #= #T + #Lambda,
+    #N1 #= #N + #Lambda.
+
+%?- toxD_t([0/3,2/3], [0/3,0/1], true).
 %@    true. % correct
 
-%?- toxD([1/3,0/1], [0/2,0/1]).
+%?- toxD_t([1/3,0/1], [0/2,0/1], true).
 %@    false. % correct
 
 %?- tox([1/3,0/1], [0/2,0/1]).
 %@    true. % correct
 
 % Q1s = Σ ηⱼₖ<1/1,0/1>ⱼₖ + Qs ≼ Qs + Σ ηⱼₖ<0/1,1/1>ⱼₖ = Q2s
-exch(Q1s, Qs, Q2s, Hs) :-
+exch_t(Q1s, Q2s, Hs, Truth) :-
     %same_length(Q1s, Q2s), same_length(Q1s, Qs),
     length(Q1s, 2), length(Q2s, 2), length(Qs, 2),
     Hs = [H], % With D=2 fixed as above, ηs = [η₁₂].
-    0 #=< #H, % Reverse-exchange not valid!
-    m_xs_bs_ys(H, [1/1,0/1], Qs, Q1s),
-    m_xs_bs_ys(H, [0/1,1/1], Qs, Q2s).
+    if_((m_xs_bs_ys_t(H, [1/1,0/1], Qs, Q1s),
+         m_xs_bs_ys_t(H, [0/1,1/1], Qs, Q2s)
+        ), Truth = true,
+        Truth = false
+       ).
 
-%?- Q1s=[1/1,0/1], Q2s=[0/1,1/1], exch(Q1s, Qs, Q2s, Hs).
-%@    Q1s = [1/1,0/1], Q2s = [0/1,1/1], Qs = [0/0,0/0], Hs = [1]. % correct
+%?- Q1s=[1/1,0/1], Q2s=[0/1,1/1], exch_t(Q1s, Q2s, Hs, true).
+%@    Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [1].
 
-m_x_b_y(M, X, B, Y):- % Y=M*X+B for M ∈ ℕ and Y,X,B ∈ Q.
+%?- Q1s=[1/1,0/1], Q2s=[0/1,1/1], exch_t(Q1s, Q2s, Hs, Truth).
+%@    Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [_B], Truth = false, clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 0..1), clpz:(#_B+ #_D#=1), clpz:(_D in 0..1), clpz:(#_E+ #_D#= #_F), clpz:(_E in 1..sup), clpz:(_F in 1..sup), clpz:(_C in 0\/2..sup)
+%@ ;  Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [_B], Truth = false, clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 0..1), clpz:(#_B+ #_D#=1), clpz:(_D in 0..1), clpz:(_C in 0\/2..sup)
+%@ ;  Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [_B], Truth = false, clpz:(_A in 0..1), clpz:(#_B+ #_A#=1), clpz:(_B in 0..1), clpz:(#_B+ #_C#=1), clpz:(_C in 0..1), clpz:(#_D+ #_C#= #_E), clpz:(_D in 1..sup), clpz:(_E in 1..sup)
+%@ ;  Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [1], Truth = true.
+
+m_x_b_y_t(M, X, B, Y, Truth):- % Y=M*X+B for M ∈ ℕ and Y,X,B ∈ Q.
     q_r(X, Xt:Xu),
     q_r(B, Bt:Bu),
     q_r(Y, Yt:Yu),
-    #Yt #= #M * #Xt + #Bt,
-    #Yu #= #M * #Xu + #Bu.
+    0 #=< #M #<==> #NN,
+    #M * #Xt + #Bt #= #Yt #<==> #T,
+    #M * #Xu + #Bu #= #Yu #<==> #U,
+    #TU #= #T #/\ #U #/\ #NN,
+    clpz:zo_t(TU, Truth).
 
-m_xs_bs_ys(M, Xs, Bs, Ys) :- % Y=M*X+B for M ∈ ℕ and Y,X,B ∈ Qᴰ.
-    maplist(m_x_b_y(M), Xs, Bs, Ys).
+%?- m_x_b_y_t(3, 1/2, 0/3, Y, Truth).
+%@    Y = _A/_B, Truth = false, clpz:(_A in 0..2\/4..sup), clpz:(#_A+6#= #_B), clpz:(_B in 6..sup)
+%@ ;  Y = 3/9, Truth = true.
 
-%?- m_xs_bs_ys(5, [0/1,2/3], [7/10,3/3], [Y1,Y2]).
-%@    Y1 = 7/15, Y2 = 13/18. % correct
+m_xs_bs_ys_t(M, Xs, Bs, Ys, Truth) :- % Y=M*X+B for M ∈ ℕ and Y,X,B ∈ Qᴰ.
+    same_length(Xs, Truths),
+    maplist(m_x_b_y_t(M), Xs, Bs, Ys, Truths),
+    if_(memberd_t(false, Truths),
+        Truth = false,
+        Truth = true
+       ).
+
+%?- m_xs_bs_ys_t(5, [0/1,2/3], [7/10,3/3], [Y1,Y2], Truth).
+%@    Y1 = _A/_B, Y2 = _C/_D, Truth = false, clpz:(_A in 0..6\/8..sup), clpz:(#_A+8#= #_B), clpz:(_B in 8..sup), clpz:(_C in 0..12\/14..sup), clpz:(#_C+5#= #_D), clpz:(_D in 5..sup)
+%@ ;  Y1 = _A/_B, Y2 = 13/18, Truth = false, clpz:(_A in 0..6\/8..sup), clpz:(#_A+8#= #_B), clpz:(_B in 8..sup)
+%@ ;  Y1 = 7/15, Y2 = _A/_B, Truth = false, clpz:(_A in 0..12\/14..sup), clpz:(#_A+5#= #_B), clpz:(_B in 5..sup)
+%@ ;  Y1 = 7/15, Y2 = 13/18, Truth = true.
 
 % Investigating whether certain arrows 'discovered' during Meetup
 % and on return flight are present in '≼' as already defined:
@@ -2498,15 +2547,6 @@ d_Qfstratamin(D, Mss) :-
 %@    error(type_error(integer,0/_151),must_be/2).
 %@    error(existence_error(procedure,labeling/1),labeling/1).
 %@    Q = [0/_A,0/_B], clpz:(_A in 0..sup), clpz:(#_A+ #_B#= #_C), clpz:(_B in 0..sup), clpz:(#_D+ #_B#=0), clpz:(_D in inf..0), clpz:(_C in 0..sup).
-
-d_q(D, Qs) :-
-    length(Qs, D),
-    %%maplist(\Q^(Q = T/N, N in 0..6, indomain(N), T in 0..N, indomain(T)), Qs).
-    % indomain/1 leaves choice points
-    maplist(\Q^(Q = T/N, N in 0..6, 0 #=< #T, #T #=< N), Qs).
-
-%?- d_q(2, Qs).
-%@    Qs = [_B/_A,_D/_C], clpz:(_A in 0..6), clpz:(#_A#>= #_B), clpz:(_B in 0..6), clpz:(_C in 0..6), clpz:(#_C#>= #_D), clpz:(_D in 0..6).
 
 % This is promising, at least.  Can I set forth
 % some reasonable conditions on H0?
