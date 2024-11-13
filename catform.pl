@@ -679,6 +679,144 @@ d_ncovers(D, N) :-
 %?- findall(Q, d_mendtally_rec(2, Q, _), Qs), findall(Qm, minimal_in(Qm, Qs), Qms).
 %@    Qs = [[0/3,0/6],[0/3,1/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,0/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6],[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,... / ...],[... / ...|...]|...], Qms = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
 
+% In order to reconstitute the embedding (Qᴰ,≼) ↪ (ℕ²ᴰ,≤)
+% for our enlarged ≼, we need to investigate the ranges
+% of the 'digits' in the transformation.
+transform(Qs, Hs, Os) :-
+    same_length(Qs, Zeros),
+    maplist(=(0/0), Zeros),
+    transform(Zeros, Qs, Hs, Os).
+
+%?- transform([0/6,0/6,0/6], Hs, Os).
+%@    Hs = [0,0,0], Os = [18,12,6].
+%?- transform([6/6,6/6,6/6], Hs, Os).
+%@    Hs = [-6,-12,-18], Os = [-18,-24,-30].
+
+% Ah, this is a little surprising!  It shows I will need to
+% take care to use the correct 'base' for each 'digit' of
+% the arithmetized tally.
+
+% Furthermore, I'll need to search systematically over the
+% whole accessible 'sphere' of tallies to be sure I find
+% the entire range of each transformed coordinate.
+% Find min & max η₁₂ (the head element of Hs).
+d_nmax_minH12_maxH12(D, Nmax, MinH12, MaxH12) :-
+    findall(H12, (qs_d_nmax(Qs, D, Nmax),
+                  transform(Qs, [H12|_], _)
+                 ), H12s),
+    length(H12s, V),
+    format("found ~d η₁₂ values..", [V]),
+    foldl(clpz:min_, H12s, 1_000_000, MinH12),
+    foldl(clpz:max_, H12s, -1_000_000, MaxH12).
+
+%?- foldl(clpz:min_, [3,1,4,2,5,9,2], 100, Min).
+%@    Min = 1.
+%?- foldl(clpz:max_, [3,1,4,2,5,9,2], -100, Max).
+%@    Max = 9.
+
+%?- d_nmax_minH12_maxH12(2, 3, MinH12, MaxH12).
+%@ found 100 η₁₂ values..   MinH12 = -3, MaxH12 = 0.
+%?- d_nmax_minH12_maxH12(2, 4, MinH12, MaxH12).
+%@ found 225 η₁₂ values..   MinH12 = -4, MaxH12 = 0.
+%?- d_nmax_minH12_maxH12(2, 5, MinH12, MaxH12).
+%@ found 441 η₁₂ values..   MinH12 = -5, MaxH12 = 0.
+%?- d_nmax_minH12_maxH12(2, 6, MinH12, MaxH12).
+%@ found 784 η₁₂ values..   MinH12 = -6, MaxH12 = 0.
+%?- d_nmax_minH12_maxH12(3, 3, MinH12, MaxH12).
+%@ found 1000 η₁₂ values..   MinH12 = -3, MaxH12 = 0.
+%?- d_nmax_minH12_maxH12(3, 4, MinH12, MaxH12).
+%@ found 3375 η₁₂ values..   MinH12 = -4, MaxH12 = 0.
+%?- d_nmax_minH12_maxH12(3, 5, MinH12, MaxH12).
+%@ found 9261 η₁₂ values..   MinH12 = -5, MaxH12 = 0.
+%?- d_nmax_minH12_maxH12(3, 6, MinH12, MaxH12).
+%@ found 21952 η₁₂ values..   MinH12 = -6, MaxH12 = 0.
+
+% This suggests η₁₂ in -Nmax..0.
+
+d_nmax_minH23_maxH23(D, Nmax, MinH23, MaxH23) :-
+    D #>= 3,
+    findall(H23, (qs_d_nmax(Qs, D, Nmax),
+                  transform(Qs, [_,H23|_], _)
+                 ), H23s),
+    length(H23s, V),
+    format("found ~d η₂₃ values..", [V]),
+    foldl(clpz:min_, H23s, 1_000_000, MinH23),
+    foldl(clpz:max_, H23s, -1_000_000, MaxH23).
+
+%?- d_nmax_minH23_maxH23(3, 6, MinH23, MaxH23).
+%@ found 21952 η₂₃ values..   MinH23 = -12, MaxH23 = 0.
+%?- d_nmax_minH23_maxH23(3, 5, MinH23, MaxH23).
+%@ found 9261 η₂₃ values..   MinH23 = -10, MaxH23 = 0.
+
+% This suggests η₂₃ in -2*Nmax..0.
+
+d_nmax_minRho_maxRho(D, Nmax, MinRho, MaxRho) :-
+    findall(Rho, (qs_d_nmax(Qs, D, Nmax),
+                  transform(Qs, Hs, _),
+                  reverse(Hs, [Rho|_])
+                 ), Rhos),
+    length(Rhos, V),
+    format("found ~d ρ's..", [V]),
+    foldl(clpz:min_, Rhos, 1_000_000, MinRho),
+    foldl(clpz:max_, Rhos, -1_000_000, MaxRho).
+
+%?- d_nmax_minRho_maxRho(3, 6, MinRho, MaxRho).
+%@ found 21952 ρ's..   MinRho = -18, MaxRho = 0.
+
+% Thus, it seems k'th element of Hs ranges from -k*Nmax to 0.
+% This is at least rather simple!  But the Os look a bit more
+% complicated in this respect.
+
+d_nmax_minO12_maxO12(D, Nmax, MinO12, MaxO12) :-
+    findall(O12, (qs_d_nmax(Qs, D, Nmax),
+                  transform(Qs, _, [O12|_])
+                 ), O12s),
+    length(O12s, V),
+    format("found ~d σ₁₂ values..", [V]),
+    foldl(clpz:min_, O12s, 1_000_000, MinO12),
+    foldl(clpz:max_, O12s, -1_000_000, MaxO12).
+
+%?- d_nmax_minO12_maxO12(3, 6, MinO12, MaxO12).
+%@ found 21952 σ₁₂ values..   MinO12 = -18, MaxO12 = 18.
+
+d_nmax_minO23_maxO23(D, Nmax, MinO23, MaxO23) :-
+    D #>= 3,
+    findall(O23, (qs_d_nmax(Qs, D, Nmax),
+                  transform(Qs, _, [_,O23|_])
+                 ), O23s),
+    length(O23s, V),
+    format("found ~d σ₂₃ values..", [V]),
+    foldl(clpz:min_, O23s, 1_000_000, MinO23),
+    foldl(clpz:max_, O23s, -1_000_000, MaxO23).
+
+%?- d_nmax_minO23_maxO23(3, 6, MinO23, MaxO23).
+%@ found 21952 σ₂₃ values..   MinO23 = -24, MaxO23 = 12.
+
+d_nmax_minGamma_maxGamma(D, Nmax, MinGamma, MaxGamma) :-
+    findall(Gamma, (qs_d_nmax(Qs, D, Nmax),
+                    transform(Qs, _, Os),
+                    reverse(Os, [Gamma|_])
+                 ), Gammas),
+    length(Gammas, V),
+    format("found ~d γ's..", [V]),
+    foldl(clpz:min_, Gammas, 1_000_000, MinGamma),
+    foldl(clpz:max_, Gammas, -1_000_000, MaxGamma).
+
+%?- d_nmax_minGamma_maxGamma(3, 6, MinGamma, MaxGamma).
+%@ found 21952 γ's..   MinGamma = -30, MaxGamma = 6.
+
+% So interestingly the MAXima for Os are in descending
+% arithmetic sequence [18,12,6],
+% while the MINima are all 36 below these: [-18,-24,-30].
+% Accordingly, each of the Os will have to be encoded in
+% base-(D*Nmax + 1), after upward shifting by Nmax*(d+2)
+% for d in 1..D.
+
+% Given how all the transformed coordinates look quite 'negative',
+% I may do better to form my integer with their opposites -- and
+% of course keep track of this decision, since it should reverse
+% the order relation.
+
 % By embedding the partial order ≼ into a *complete* order,
 % I could sort 𝒬f so that all arrows of ≼ point left-to-right.
 % Then, minimal sets would be in contiguous stretches of this
