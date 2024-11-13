@@ -174,6 +174,44 @@ as_Ts_Tas(As, Ts, Tas) :-
         Truth = false
        ).
 
+% I've now worked out in detail a unique transformation of pair
+% Q1,Q2 ∈ Qᴰ into 2✕D parameters, *all* nonnegative iff Q1 ⊑ Q2.
+transform(Q1s, Q2s, Hs, Os) :-
+    same_length(Q1s, Q2s),
+    % We will set Hs = [ηs]+[ρ] (of length D),
+    % since ρ fits so smoothly into the sequence.
+    q1s_q2s_Δts_Δns(Q1s, Q2s, Δts, Δns),
+    maplist(\X^NegX^(#NegX #= -1 * #X), Δts, Δ_ts),
+    intlist_partsums(Δ_ts, Hs), reverse(Hs, [Rho|_]),
+    reverse(Δns, RΔns),
+    intlist_partsums(RΔns, Ňs),
+    maplist(\N^O^(#O #= #N + 2 * #Rho), Ňs, ROs),
+    reverse(ROs, Os). % Os = [σs]+[γ] (length-D).
+
+%?- Ňs = [1,2,3], reverse(Ňs, Ns).
+%@    Ňs = [1,2,3], Ns = [3,2,1].
+
+%?- transform([1/1,0/1], [0/1,1/1], Hs, Os).
+%@    Hs = [1,0], Os = [0,0].
+%?- transform([0/1,1/1], [0/0,1/2], Hs, Os).
+%@    Hs = [0,0], Os = [0,1].
+%?- transform([0/1,1/2], [0/1,0/0], Hs, Os).
+%@    Hs = [0,1], Os = [0,0].
+
+%?- transform([0/2,1/2], Q2, [0,1], [1,0]).
+%@    Q2 = [0/3,0/0].
+%?- transform([0/2,1/2], Q2, [0,1], [1,1]).
+%@    Q2 = [0/2,0/1].
+
+q1s_q2s_Δts_Δns(Q1s, Q2s, Δts, Δns) :-
+    maplist(\Q^T^N^(Q = T/N), Q1s, T1s, N1s),
+    maplist(\Q^T^N^(Q = T/N), Q2s, T2s, N2s),
+    maplist(\X1^X2^ΔX^(#ΔX #= #X2 - #X1), T1s, T2s, Δts),
+    maplist(\X1^X2^ΔX^(#ΔX #= #X2 - #X1), N1s, N2s, Δns).
+
+%?- q1s_q2s_Δts_Δns([1/1,0/1], [0/1,1/1], Δts, Δns).
+%@    Δts = [-1,1], Δns = [0,0].
+
 % Given [see below] that I must now add yet another collection
 % of arrows to this preorder, the importance of a highly general
 % and nimble, fully declarative CLP(ℤ) implementation has again
