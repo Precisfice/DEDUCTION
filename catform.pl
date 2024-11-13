@@ -212,58 +212,27 @@ q1s_q2s_Δts_Δns(Q1s, Q2s, Δts, Δns) :-
 %?- q1s_q2s_Δts_Δns([1/1,0/1], [0/1,1/1], Δts, Δns).
 %@    Δts = [-1,1], Δns = [0,0].
 
-% Given [see below] that I must now add yet another collection
-% of arrows to this preorder, the importance of a highly general
-% and nimble, fully declarative CLP(ℤ) implementation has again
-% impressed itself upon me!
-% So, before adding the new '1:1' arrows, let me next develop
-% a more directly declarative implementation of '≼'/3 as above,
-% and demonstrate equivalence.
-%
-% I'm beginning to see that there may be 2 types of arrows,
-% from a technical-implementation perspective:
-% - Arrows like [tox] and [tol] that have <0/0> on one side;
-% - arrows with central Q and paired multipliers either side.
-% These latter arrows would include [I think] everything
-% involving inter-dose movement, such as [exch] and [titr*].
-% I will need to find a suitable way to implement each type,
-% with the right relational 'signature'.  (I wonder if the
-% latter type of arrow might best have the 'pivot' tally
-% as a _first_ argument.)
 :- op(900, xfx, '⊑'). % symbol superficially resembles ≼
-'⊑'(QAs, QZs, Truth) :- % QAs ≼toxD QBs ≼tol1 QCs ≼exch QZs
-    D = 2, % TODO: generalize to D>2
-    % QAs --[toxD]--> QBs --[tol1]--> QCs --[exch(Q)]--> QZs.
-    length(QAs, D), length(QZs, D),
-    if_((toxD_t(QAs, QBs),
-         tol1_t(QBs, QCs),
-         exch_t(QCs, QZs, _)
-        ), Truth = true,
-        Truth = false
+'⊑'(Q1s, Q2s, Truth) :- % QAs ≼toxD QBs ≼tol1 QCs ≼exch QZs
+    transform(Q1s, Q2s, Hs, Os),
+    % It's as simple now as asserting all Hs & Os are nonnegative!
+    % But the more effective way to express this may be to look
+    % for any single negative value, then invert truth value.
+    if_((   tmember_t(#>(0), Hs)
+        ;   tmember_t(#>(0), Os)
+        ), Truth = false,
+        Truth = true
        ).
 
-%?- Q = [0/0,0/0], tol1_t(Q, Q, Truth).
-%@    Q = [0/0,0/0], Truth = true.
+#>(X, Y, Truth) :- clpz_t(X #> Y, Truth). % counterpart to clpz:(#<)/3
 
 %?- Q = [0/0,0/0], '⊑'(Q, Q, false).
-%@    Q = [0/0,0/0], clpz:(_A in 0..1), clpz:(#_A#/\ #_B#<==>0), clpz:(#_C#/\ #_D#<==> #_A), clpz:(0#= #_E#<==> #_B), clpz:(0#= #_E#<==> #_D), clpz:(#_E#>=0#<==> #_C), clpz:(_B in 0..1), clpz:(_D in 0..1), clpz:(_C in 0..1)
-%@ ;  false.
-%@    Q = [0/0,0/0], clpz:(_A in 0..1), clpz:(#_A#/\ #_B#<==>0), clpz:(#_C#/\ #_D#<==> #_A), clpz:(#_E+ #_F#= #_G), clpz:(#_H+ #_F#= #_I), clpz:(#_F#>=0#<==> #_C), clpz:(0#= #_G#<==> #_B), clpz:(_B in 0..1), clpz:(0#= #_I#<==> #_D), clpz:(_D in 0..1), clpz:(_C in 0..1)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(#_B+ #_A#=0), clpz:(#_C+ #_A#=0), clpz:(_B in inf..0), clpz:(_C in inf..0), dif:dif([0/0],[_D]).
-%@    Q = [0/0,0/0], clpz:(_A in 0..1), clpz:(#_A#/\ #_B#<==>0), clpz:(#_C#/\ #_D#<==> #_A), clpz:(#_E+ #_F#= #_G), clpz:(#_H+ #_F#= #_I), clpz:(#_F#>=0#<==> #_C), clpz:(0#= #_G#<==> #_B), clpz:(_B in 0..1), clpz:(0#= #_I#<==> #_D), clpz:(_D in 0..1), clpz:(_C in 0..1)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(#_B+ #_A#=0), clpz:(#_C+ #_A#=0), clpz:(_B in inf..0), clpz:(_C in inf..0), clpz:(_D in inf.. -1)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 1..sup), clpz:(_C in 1..sup), clpz:(_D in 1..sup)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 1..sup), clpz:(_C in 1..sup)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(_B in 1..sup)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(#_B+ #_A#=0), clpz:(#_C+ #_A#=0), clpz:(_B in inf..0), clpz:(_C in inf..0), dif:dif([0/0],[_D]).
+%@    false.
 
 '⊑'(QAs, QZs) :- '⊑'(QAs, QZs, true).
 
 %?- [1/6,1/6] '⊑' [0/6,2/6].
-%@    true
-%@ ;  false. % I suspect the choice point arises amid CLP(ℤ)-solving.
-% What happens is, I think, that a massive constraint accumulates,
-% and a choicepoint arises [somehow] within the process of solving it.
+%@    true.
 
 d_q_nmax(D, Qs, Nmax) :-
     length(Qs, D),
@@ -278,199 +247,111 @@ d_q(D, Qs) :-
 %?- d_q(2, Qs).
 %@    Qs = [_B/_A,_D/_C], clpz:(_A in 0..6), clpz:(#_A#>= #_B), clpz:(_B in 0..6), clpz:(_C in 0..6), clpz:(#_C#>= #_D), clpz:(_D in 0..6).
 
-% Try to find Q1 ⊑ Q2 for which Q1 ⋠ Q2.
+% Try to find Q1 ≼ Q2 for which ¬(Q1 ⊑ Q2).
 wrong(Q1, Q2, Nmax) :-
     d_q_nmax(2, Q1, Nmax), Q1 = [T11/N11,T12/N12],
     d_q_nmax(2, Q2, Nmax), Q2 = [T21/N21,T22/N22],
     label([T11,T12,T21,T22]),
     label([N11,N12,N21,N22]),
-    Q1 '⊑' Q2, % '⊑' draws an arrow ..
-    Q1 '⋠' Q2. % ..not recognized by ≼.
+    Q1 '≼' Q2,
+    '⊑'(Q1, Q2, false).
 
 %?- time(wrong(Q1, Q2, 1)).
-%@    % CPU time: 1.404s, 7_573_428 inferences
+%@    % CPU time: 0.185s, 747_342 inferences
 %@    false.
 %?- time(wrong(Q1, Q2, 2)).
-%@    % CPU time: 22.655s, 124_215_915 inferences
+%@    % CPU time: 2.632s, 10_688_026 inferences
 %@    false.
 %?- time(wrong(Q1, Q2, 3)).
-%@    % CPU time: 182.278s, 975_605_007 inferences
+%@    % CPU time: 18.754s, 78_525_842 inferences
 %@    false.
-% TODO: Develop a way to search fairly in Qᴰ✕Qᴰ,
-%       working outward from the origin, with
-%       optional progress-bar feedback to user.
+%?- time(wrong(Q1, Q2, 4)).
+%@    % CPU time: 94.127s, 386_541_144 inferences
+%@    false.
+%?- time(wrong(Q1, Q2, 5)).
+%@    % CPU time: 364.077s, 1_458_047_877 inferences
+%@    false.
+% TODO: Develop a user-friendly interface to fair search in Qᴰ✕Qᴰ,
+%       working outward from the origin, emitting progress feedback
+%       at suitable 'milestones'.
 
-% Try to find Q1 ≼ Q2 for which ¬(Q1 ⊑ Q2).
-missed(Q1, Q2, Nmax) :-
+% Find 'new' arrows Q1 ⊑ Q2 for which Q1 ⋠ Q2.
+newarrow(Q1, Q2, Nmax) :-
     d_q_nmax(2, Q1, Nmax), Q1 = [T11/N11,T12/N12],
     d_q_nmax(2, Q2, Nmax), Q2 = [T21/N21,T22/N22],
     label([T11,T12,T21,T22]),
     label([N11,N12,N21,N22]),
-    Q1 '≼' Q2, % there is a ≼-arrow
-    '⊑'(Q1, Q2, false). % ..not recognized by ⊑.
+    Q1 '⊑' Q2,
+    Q1 '⋠' Q2.
 
-%?- Q = [0/0,0/0], '⊑'(Q, Q, Truth).
-%@    Q = [0/0,0/0], Truth = false, clpz:(_A in 0..1), clpz:(#_A#/\ #_B#<==>0), clpz:(0#>= #_C#<==> #_A), clpz:(#_D+ #_C#= #_E), clpz:(0#= #_D#<==> #_B), clpz:(_B in 0..1)
-%@ ;  Q = [0/0,0/0], Truth = false, clpz:(_A in inf..0), clpz:(_B in inf.. -1)
-%@ ;  Q = [0/0,0/0], Truth = false, clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 1..sup), clpz:(_C in 1..sup), clpz:(_D in 1..sup)
-%@ ;  Q = [0/0,0/0], Truth = false, clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 1..sup), clpz:(_C in 1..sup)
-%@ ;  Q = [0/0,0/0], Truth = false, clpz:(_A in 0..sup), clpz:(_B in 1..sup)
-%@ ;  Q = [0/0,0/0], Truth = true.
+%?- newarrow(Q1, Q2, 2).
+%@    Q1 = [0/0,1/2], Q2 = [0/0,0/0]
+%@ ;  Q1 = [0/0,1/2], Q2 = [0/1,0/0]
+%@ ;  Q1 = [0/0,1/2], Q2 = [0/2,0/0]
+%@ ;  Q1 = [0/1,1/1], Q2 = [0/0,0/0]
+%@ ;  Q1 = [0/1,1/2], Q2 = [0/0,0/1]
+%@ ;  Q1 = [0/1,1/2], Q2 = [0/1,0/0]
+%@ ;  Q1 = [0/1,1/2], Q2 = [0/2,0/0]
+%@ ;  ... . % as expected, '1:1'-type arrows are salient
 
-%?- Q = [0/0,0/0], '⊑'(Q, Q, false).
-%@    Q = [0/0,0/0], clpz:(_A in 0..1), clpz:(#_A#/\ #_B#<==>0), clpz:(#_C#/\ #_D#<==> #_A), clpz:(#_E+ #_F#= #_G), clpz:(#_H+ #_F#= #_I), clpz:(#_F#>=0#<==> #_C), clpz:(0#= #_G#<==> #_B), clpz:(_B in 0..1), clpz:(0#= #_I#<==> #_D), clpz:(_D in 0..1), clpz:(_C in 0..1)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(#_B+ #_A#=0), clpz:(#_C+ #_A#=0), clpz:(_B in inf..0), clpz:(_C in inf..0), clpz:(_D in inf.. -1)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 1..sup), clpz:(_C in 1..sup), clpz:(_D in 1..sup)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 1..sup), clpz:(_C in 1..sup)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(_B in 1..sup)
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(#_B+ #_A#=0), clpz:(#_C+ #_A#=0), clpz:(_B in inf..0), clpz:(_C in inf..0), dif:dif([0/0],[_D]).
+% However, the '1:1' arrows cannot be removed by zeroing ρ:
 
-% Hmm!  Something is just plain wrong here!
-% Consider the residual constraint [next-to-last answer above],
-%@ ;  Q = [0/0,0/0], clpz:(_A in 0..sup), clpz:(_B in 1..sup)
-% This is actually satisfiable!
-
-% Qs ≼ Qs + Σ ɣᵢ<1/1>ᵢ = Q2s
-% In the presence of the 'tolerance-titration' arrows [titro],
-% the entire set of [tol]ᵢ arrows follows in fact from [tox]₁,
-% since [tox]ᵢ = [tox]₁;[titro]ⁱ⁻¹.
-% Accordingly, to reduce redundant solutions and to simplify
-% the implementation, we simply work at the lowest dose.
-tol1_t([T/N|Qs], [T/N2|Qs], Truth) :-
-    if_(clpz_t(#N #=< #N2), Truth = true, Truth = false).
-
-% But as with tox/2 below, to aid exploration at the toplevel,
-% we collect the full set of [tol]ᵢ arrows in one predicate:
-tol([Q|Qs], [Q2|Q2s]) :-
-    tol1_t(Q, Q2, true),
-    tol(Qs, Q2s).
-tol([], []).
-
-% Q1s = Σ λᵢ<1/1>ᵢ + Qs ≼ Qs
-% In the presence of the 'toxicity-titration' arrows [titrx],
-% the entire set of [tox]ᵢ arrows follows in fact from [tox]_D,
-% since [tox]ᵢ = [titrx]ᴰ⁻ⁱ;[tox]_D.
-% Accordingly, to reduce redundant solutions and to simplify
-% the implementation, we simply work at the top dose.
-% TODO: Revisit this decision; could extra λ's help the constraint solver?
-toxD_t(Q1s, Qs, Truth) :-
-    same_length(Q1s, Qs),
-    reverse(Q1s, [Q1D|Rest]),
-    reverse(Qs,  [QD |Rest]),
-    if_((tox_t(Q1D, QD)),
+'⊑_ρ0'(Q1s, Q2s, Truth) :- % ⊑ w/ constraint ρ≡0
+    transform(Q1s, Q2s, Hs, _),
+    reverse(Hs, [Rho|_]),
+    if_((Q1s '⊑' Q2s, #Rho #= 0),
         Truth = true,
         Truth = false
        ).
 
-tox_t(T1/N1, T/N, Truth) :-
-    % The Lambda parameter gives rise to nuisance false solutions.
-    %% if_(clpz_t(0 #=< #Lambda #/\
-    %%            #T1 #= #T + #Lambda #/\
-    %%            #N1 #= #N + #Lambda),
-    % Originating this parameter _outside_ the if_/3 doesn't help:
-    %% 0 #=< #Lambda,
-    %% if_(clpz_t(#T1 #= #T + #Lambda #/\
-    %%            #N1 #= #N + #Lambda),
-    % ..but eliminating it altogether removes the nuisance solutions:
-    if_(clpz_t(#T1 #>= #T #/\ (#N1 - #T1) #= (#N - #T)),
-        Truth = true,
-        Truth = false
-       ).
+newarrow_ρ0(Q1, Q2, Nmax) :-
+    d_q_nmax(2, Q1, Nmax), Q1 = [T11/N11,T12/N12],
+    d_q_nmax(2, Q2, Nmax), Q2 = [T21/N21,T22/N22],
+    label([T11,T12,T21,T22]),
+    label([N11,N12,N21,N22]),
+    '⊑_ρ0'(Q1, Q2, true),
+    Q1 '⋠' Q2.
 
-%?- Q = [0/0,0/0], toxD_t(Q, Q, Truth).
-%@    Q = [0/0,0/0], Truth = true.
+%?- time(newarrow_ρ0(Q1, Q2, 4)).
+%@    % CPU time: 81.674s, 256_295_706 inferences
+%@    false. % as expected, (⊑|ρ≡0) ⊆ ≼. 
 
-% As an aid to free exploration at the toplevel, however,
-% we implement as well the full set of [tox]ᵢ arrows,
-% such as one would specify in a Definition aiming primarily
-% to express _intuition_ rather than to achieve parsimony.
-tox([Q1|Q1s], [Q|Qs]) :-
-    tox_(Q1, Q),
-    tox(Q1s, Qs).
-tox([], []).
+% Let's investigate ≼ ∖ (⊑|ρ≡0), however:
+missed_ρ0(Q1, Q2, Nmax) :- % relations in ≼ missed by (⊑_ρ0)
+    d_q_nmax(2, Q1, Nmax), Q1 = [T11/N11,T12/N12],
+    d_q_nmax(2, Q2, Nmax), Q2 = [T21/N21,T22/N22],
+    label([T11,T12,T21,T22]),
+    label([N11,N12,N21,N22]),
+    '⊑_ρ0'(Q1, Q2, Ω),
+    '≼'(Q1, Q2, Ωo),
+    Ω \== Ωo.
 
-tox_(T1/N1, T/N) :-
-    0 #=< #Lambda,
-    #T1 #= #T + #Lambda,
-    #N1 #= #N + #Lambda.
+%?- missed_ρ0(Q1, Q2, 1).
+%@    Q1 = [0/0,1/1], Q2 = [0/0,0/0]
+%@ ;  Q1 = [0/0,1/1], Q2 = [0/0,0/1]
+%@ ;  Q1 = [0/0,1/1], Q2 = [0/1,0/0]
+%@ ;  ... . % So  (≼) ⊃ (⊑|ρ≡0) [strictly]!
 
-%?- toxD_t([0/3,2/3], [0/3,0/1], true).
-%@    true. % correct
+% Taking the first example,
+%?- Q1 = [0/0,1/1], Q2 = [0/0,0/0], Q1 '≼' Q2.
+%@    Q1 = [0/0,1/1], Q2 = [0/0,0/0].
+%?- Q1 = [0/0,1/1], Q2 = [0/0,0/0], Q1 '⊑' Q2.
+%@    Q1 = [0/0,1/1], Q2 = [0/0,0/0].
+%?- Q1 = [0/0,1/1], Q2 = [0/0,0/0], '⊑_ρ0'(Q1, Q2, true).
+%@    false.
 
-%?- toxD_t([1/3,0/1], [0/2,0/1], true).
-%@    false. % correct
-
-%?- tox([1/3,0/1], [0/2,0/1]).
-%@    true. % correct
-
-% Q1s = Σ ηⱼₖ<1/1,0/1>ⱼₖ + Qs ≼ Qs + Σ ηⱼₖ<0/1,1/1>ⱼₖ = Q2s
-exch_t(Q1s, Q2s, Hs, Truth) :-
-    %same_length(Q1s, Q2s), same_length(Q1s, Qs),
-    length(Q1s, 2), length(Q2s, 2), length(Qs, 2),
-    Hs = [H], % With D=2 fixed as above, ηs = [η₁₂].
-    % I suspect this free Qs parameter gives rise to
-    % nuisance false-branch solutions.  Probably I cannot
-    % in fairness ask library(clpz) to 'do my math' for me!
-    % Have to find crisp and unique solutions somehow.
-    % But then this would seem to lead BACK to the original
-    % approach, and AWAY from increased reliance on CLP(ℤ).
-    if_((m_xs_bs_ys_t(H, [1/1,0/1], Qs, Q1s),
-         m_xs_bs_ys_t(H, [0/1,1/1], Qs, Q2s)
-        ), Truth = true,
-        Truth = false
-       ).
-
-%?- Q = [0/0,0/0], exch_t(Q, Q, [0], Truth).
-%@    Q = [0/0,0/0], Truth = false, clpz:(_A in 1..sup), clpz:(_B in 1..sup)
-%@ ;  Q = [0/0,0/0], Truth = false, clpz:(_A in 1..sup)
-%@ ;  Q = [0/0,0/0], Truth = false, clpz:(_A in 1..sup)
-%@ ;  Q = [0/0,0/0], Truth = true.
-
-%?- Q1s=[1/1,0/1], Q2s=[0/1,1/1], exch_t(Q1s, Q2s, Hs, true).
-%@    Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [1].
-
-%?- Q1s=[1/1,0/1], Q2s=[0/1,1/1], exch_t(Q1s, Q2s, Hs, false).
-%@    Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [_B], clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 0..1), clpz:(#_B+ #_D#=1), clpz:(_D in 0..1), clpz:(#_E+ #_D#= #_F), clpz:(_E in 1..sup), clpz:(_F in 1..sup), clpz:(_C in 0\/2..sup)
-%@ ;  Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [_B], clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 0..1), clpz:(#_B+ #_D#=1), clpz:(_D in 0..1), clpz:(_C in 0\/2..sup)
-%@ ;  Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [_B], clpz:(_A in 0..1), clpz:(#_B+ #_A#=1), clpz:(_B in 0..1), clpz:(#_B+ #_C#=1), clpz:(_C in 0..1), clpz:(#_D+ #_C#= #_E), clpz:(_D in 1..sup), clpz:(_E in 1..sup)
-%@ ;  false.
-
-%?- Q1s=[1/1,0/1], Q2s=[0/1,1/1], exch_t(Q1s, Q2s, Hs, Truth).
-%@    Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [_B], Truth = false, clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 0..1), clpz:(#_B+ #_D#=1), clpz:(_D in 0..1), clpz:(#_E+ #_D#= #_F), clpz:(_E in 1..sup), clpz:(_F in 1..sup), clpz:(_C in 0\/2..sup)
-%@ ;  Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [_B], Truth = false, clpz:(_A in 0..sup), clpz:(#_B+ #_A#= #_C), clpz:(_B in 0..1), clpz:(#_B+ #_D#=1), clpz:(_D in 0..1), clpz:(_C in 0\/2..sup)
-%@ ;  Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [_B], Truth = false, clpz:(_A in 0..1), clpz:(#_B+ #_A#=1), clpz:(_B in 0..1), clpz:(#_B+ #_C#=1), clpz:(_C in 0..1), clpz:(#_D+ #_C#= #_E), clpz:(_D in 1..sup), clpz:(_E in 1..sup)
-%@ ;  Q1s = [1/1,0/1], Q2s = [0/1,1/1], Hs = [1], Truth = true.
-
-m_x_b_y_t(M, X, B, Y, Truth):- % Y=M*X+B for M ∈ ℕ and Y,X,B ∈ Q.
-    q_r(X, Xt:Xu),
-    q_r(B, Bt:Bu),
-    q_r(Y, Yt:Yu),
-    0 #=< #M #<==> #NN,
-    #M * #Xt + #Bt #= #Yt #<==> #T,
-    #M * #Xu + #Bu #= #Yu #<==> #U,
-    #TU #= #T #/\ #U #/\ #NN,
-    clpz:zo_t(TU, Truth).
-
-%?- m_x_b_y_t(3, 1/2, 0/3, Y, Truth).
-%@    Y = _A/_B, Truth = false, clpz:(_A in 0..2\/4..sup), clpz:(#_A+6#= #_B), clpz:(_B in 6..sup)
-%@ ;  Y = 3/9, Truth = true.
-
-m_xs_bs_ys_t(M, Xs, Bs, Ys, Truth) :- % Y=M*X+B for M ∈ ℕ and Y,X,B ∈ Qᴰ.
-    same_length(Xs, Truths),
-    maplist(m_x_b_y_t(M), Xs, Bs, Ys, Truths),
-    if_(memberd_t(false, Truths),
-        Truth = false,
-        Truth = true
-       ).
-
-%?- m_xs_bs_ys_t(5, [0/1,2/3], [7/10,3/3], [Y1,Y2], Truth).
-%@    Y1 = _A/_B, Y2 = _C/_D, Truth = false, clpz:(_A in 0..6\/8..sup), clpz:(#_A+8#= #_B), clpz:(_B in 8..sup), clpz:(_C in 0..12\/14..sup), clpz:(#_C+5#= #_D), clpz:(_D in 5..sup)
-%@ ;  Y1 = _A/_B, Y2 = 13/18, Truth = false, clpz:(_A in 0..6\/8..sup), clpz:(#_A+8#= #_B), clpz:(_B in 8..sup)
-%@ ;  Y1 = 7/15, Y2 = _A/_B, Truth = false, clpz:(_A in 0..12\/14..sup), clpz:(#_A+5#= #_B), clpz:(_B in 5..sup)
-%@ ;  Y1 = 7/15, Y2 = 13/18, Truth = true.
-
-%?- m_xs_bs_ys_t(5, [0/1,2/3], [7/10,3/3], [7/15,13/18], Truth).
-%@    Truth = true.
+% Thus, fixing ρ=0 has *removed* [0/0,1/1] ≼ [0/0,0/0].
+% Let's observe how:
+%?- Q1 = [0/0,1/1], Q2 = [0/0,0/0], transform(Q1, Q2, Hs, Os).
+%@    Q1 = [0/0,1/1], Q2 = [0/0,0/0], Hs = [0,1], Os = [1,1].
+% In this case, we have η₁₂=0, ρ=1, γ=1, σ₁₂=1.
+% Do these values correctly account for Q1 → Q2?
+% Yes, and in fact we actually depend on σ₁₂ - ρ = Δu₂
+% to achieve unchanged u₂.  Thus, ρ insinuates itself
+% quite deeply into the computation.  This is fine!
+% After all, this kind of phenomenon is precisely what
+% has forced me to abandon a 'purely CLP(ℤ) approach'
+% [a dubious notion to begin with!] for defining ⊑.
 
 % Investigating whether certain arrows 'discovered' during Meetup
 % and on return flight are present in '≼' as already defined:
