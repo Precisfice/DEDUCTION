@@ -149,7 +149,7 @@ as_Ts_Tas(As, Ts, Tas) :-
     same_length(Ts, Tas), % which is invariant under x-o exchange.
     maplist(\T^A^Ta^(#T - #A #= #Ta), Ts, As0, Tas).
 
-'≼'(Q1s, Q2s, Truth) :-
+'≼old'(Q1s, Q2s, Truth) :-
     qs_Ts_Ūs(Q1s, T1s, Ū1s),
     qs_Ts_Ūs(Q2s, T2s, Ū2s),
     %%format("T1s = ~w , T2s = ~w~n", [T1s, T2s]),
@@ -212,8 +212,7 @@ q1s_q2s_Δts_Δns(Q1s, Q2s, Δts, Δns) :-
 %?- q1s_q2s_Δts_Δns([1/1,0/1], [0/1,1/1], Δts, Δns).
 %@    Δts = [-1,1], Δns = [0,0].
 
-:- op(900, xfx, '⊑'). % symbol superficially resembles ≼
-'⊑'(Q1s, Q2s, Truth) :- % QAs ≼toxD QBs ≼tol1 QCs ≼exch QZs
+'≼'(Q1s, Q2s, Truth) :- % QAs ≼toxD QBs ≼tol1 QCs ≼exch QZs
     transform(Q1s, Q2s, Hs, Os),
     % It's as simple now as asserting all Hs & Os are nonnegative!
     % But the more effective way to express this may be to look
@@ -225,14 +224,6 @@ q1s_q2s_Δts_Δns(Q1s, Q2s, Δts, Δns) :-
        ).
 
 #>(X, Y, Truth) :- clpz_t(X #> Y, Truth). % counterpart to clpz:(#<)/3
-
-%?- Q = [0/0,0/0], '⊑'(Q, Q, false).
-%@    false.
-
-'⊑'(QAs, QZs) :- '⊑'(QAs, QZs, true).
-
-%?- [1/6,1/6] '⊑' [0/6,2/6].
-%@    true.
 
 d_q_nmax(D, Qs, Nmax) :-
     length(Qs, D),
@@ -247,112 +238,8 @@ d_q(D, Qs) :-
 %?- d_q(2, Qs).
 %@    Qs = [_B/_A,_D/_C], clpz:(_A in 0..6), clpz:(#_A#>= #_B), clpz:(_B in 0..6), clpz:(_C in 0..6), clpz:(#_C#>= #_D), clpz:(_D in 0..6).
 
-% Try to find Q1 ≼ Q2 for which ¬(Q1 ⊑ Q2).
-wrong(Q1, Q2, Nmax) :-
-    d_q_nmax(2, Q1, Nmax), Q1 = [T11/N11,T12/N12],
-    d_q_nmax(2, Q2, Nmax), Q2 = [T21/N21,T22/N22],
-    label([T11,T12,T21,T22]),
-    label([N11,N12,N21,N22]),
-    Q1 '≼' Q2,
-    '⊑'(Q1, Q2, false).
-
-%?- time(wrong(Q1, Q2, 1)).
-%@    % CPU time: 0.185s, 747_342 inferences
-%@    false.
-%?- time(wrong(Q1, Q2, 2)).
-%@    % CPU time: 2.632s, 10_688_026 inferences
-%@    false.
-%?- time(wrong(Q1, Q2, 3)).
-%@    % CPU time: 18.754s, 78_525_842 inferences
-%@    false.
-%?- time(wrong(Q1, Q2, 4)).
-%@    % CPU time: 94.127s, 386_541_144 inferences
-%@    false.
-%?- time(wrong(Q1, Q2, 5)).
-%@    % CPU time: 364.077s, 1_458_047_877 inferences
-%@    false.
-% TODO: Develop a user-friendly interface to fair search in Qᴰ✕Qᴰ,
-%       working outward from the origin, emitting progress feedback
-%       at suitable 'milestones'.
-
-% Find 'new' arrows Q1 ⊑ Q2 for which Q1 ⋠ Q2.
-newarrow(Q1, Q2, Nmax) :-
-    d_q_nmax(2, Q1, Nmax), Q1 = [T11/N11,T12/N12],
-    d_q_nmax(2, Q2, Nmax), Q2 = [T21/N21,T22/N22],
-    label([T11,T12,T21,T22]),
-    label([N11,N12,N21,N22]),
-    Q1 '⊑' Q2,
-    Q1 '⋠' Q2.
-
-%?- newarrow(Q1, Q2, 2).
-%@    Q1 = [0/0,1/2], Q2 = [0/0,0/0]
-%@ ;  Q1 = [0/0,1/2], Q2 = [0/1,0/0]
-%@ ;  Q1 = [0/0,1/2], Q2 = [0/2,0/0]
-%@ ;  Q1 = [0/1,1/1], Q2 = [0/0,0/0]
-%@ ;  Q1 = [0/1,1/2], Q2 = [0/0,0/1]
-%@ ;  Q1 = [0/1,1/2], Q2 = [0/1,0/0]
-%@ ;  Q1 = [0/1,1/2], Q2 = [0/2,0/0]
-%@ ;  ... . % as expected, '1:1'-type arrows are salient
-
-% However, the '1:1' arrows cannot be removed by zeroing ρ:
-
-'⊑_ρ0'(Q1s, Q2s, Truth) :- % ⊑ w/ constraint ρ≡0
-    transform(Q1s, Q2s, Hs, _),
-    reverse(Hs, [Rho|_]),
-    if_((Q1s '⊑' Q2s, #Rho #= 0),
-        Truth = true,
-        Truth = false
-       ).
-
-newarrow_ρ0(Q1, Q2, Nmax) :-
-    d_q_nmax(2, Q1, Nmax), Q1 = [T11/N11,T12/N12],
-    d_q_nmax(2, Q2, Nmax), Q2 = [T21/N21,T22/N22],
-    label([T11,T12,T21,T22]),
-    label([N11,N12,N21,N22]),
-    '⊑_ρ0'(Q1, Q2, true),
-    Q1 '⋠' Q2.
-
-%?- time(newarrow_ρ0(Q1, Q2, 4)).
-%@    % CPU time: 81.674s, 256_295_706 inferences
-%@    false. % as expected, (⊑|ρ≡0) ⊆ ≼. 
-
-% Let's investigate ≼ ∖ (⊑|ρ≡0), however:
-missed_ρ0(Q1, Q2, Nmax) :- % relations in ≼ missed by (⊑_ρ0)
-    d_q_nmax(2, Q1, Nmax), Q1 = [T11/N11,T12/N12],
-    d_q_nmax(2, Q2, Nmax), Q2 = [T21/N21,T22/N22],
-    label([T11,T12,T21,T22]),
-    label([N11,N12,N21,N22]),
-    '⊑_ρ0'(Q1, Q2, Ω),
-    '≼'(Q1, Q2, Ωo),
-    Ω \== Ωo.
-
-%?- missed_ρ0(Q1, Q2, 1).
-%@    Q1 = [0/0,1/1], Q2 = [0/0,0/0]
-%@ ;  Q1 = [0/0,1/1], Q2 = [0/0,0/1]
-%@ ;  Q1 = [0/0,1/1], Q2 = [0/1,0/0]
-%@ ;  ... . % So  (≼) ⊃ (⊑|ρ≡0) [strictly]!
-
-% Taking the first example,
-%?- Q1 = [0/0,1/1], Q2 = [0/0,0/0], Q1 '≼' Q2.
-%@    Q1 = [0/0,1/1], Q2 = [0/0,0/0].
-%?- Q1 = [0/0,1/1], Q2 = [0/0,0/0], Q1 '⊑' Q2.
-%@    Q1 = [0/0,1/1], Q2 = [0/0,0/0].
-%?- Q1 = [0/0,1/1], Q2 = [0/0,0/0], '⊑_ρ0'(Q1, Q2, true).
-%@    false.
-
-% Thus, fixing ρ=0 has *removed* [0/0,1/1] ≼ [0/0,0/0].
-% Let's observe how:
-%?- Q1 = [0/0,1/1], Q2 = [0/0,0/0], transform(Q1, Q2, Hs, Os).
-%@    Q1 = [0/0,1/1], Q2 = [0/0,0/0], Hs = [0,1], Os = [1,1].
-% In this case, we have η₁₂=0, ρ=1, γ=1, σ₁₂=1.
-% Do these values correctly account for Q1 → Q2?
-% Yes, and in fact we actually depend on σ₁₂ - ρ = Δu₂
-% to achieve unchanged u₂.  Thus, ρ insinuates itself
-% quite deeply into the computation.  This is fine!
-% After all, this kind of phenomenon is precisely what
-% has forced me to abandon a 'purely CLP(ℤ) approach'
-% [a dubious notion to begin with!] for defining ⊑.
-
+% (Below I redo this earlier investigation, after overwriting
+% the 'old' ≼ with the 'new' one initially introduced as '⊑'.)
 % Investigating whether certain arrows 'discovered' during Meetup
 % and on return flight are present in '≼' as already defined:
 %
@@ -366,18 +253,23 @@ missed_ρ0(Q1, Q2, Nmax) :- % relations in ≼ missed by (⊑_ρ0)
 % composite arrows shown might somehow be present already.
 
 %?- [1/1,0/1] '≼' [0/1,1/1].
+%@    true. % (still true after renaming '⊑' ↦ '≼')
 %@    true. % as expected [exch]
 
 %?- [0/0,1/2] '≼' [0/0,0/0].
+%@    true. % after renaming '⊑' ↦ '≼'
 %@    false. % [1:1] absent (as anticipated)
 
 %?- [0/1,1/1] '≼' [0/0,1/2].
+%@    true. % (still true after renaming '⊑' ↦ '≼')
 %@    true. % ah, but of course: [titro] is basically monotonicity
 
 %?- [0/1,1/1] '≼' [0/0,0/0].
+%@    true. % after renaming '⊑' ↦ '≼'
 %@    false. % [titro];[1:1] absent (as anticipated)
 
 %?- [1/1,0/1] '≼' [0/0,0/0].
+%@    true. % after renaming '⊑' ↦ '≼'
 %@    false. % [exch];[titro];[1:1] also absent (as anticipated)
 
 % What about tol1 arrows?
@@ -395,9 +287,11 @@ missed_ρ0(Q1, Q2, Nmax) :- % relations in ≼ missed by (⊑_ρ0)
 %@    true.
 
 %?- [1/1,1/2] '≼' [1/1,0/0]. % a 1:1 arrow
+%@    true. % after renaming '⊑' ↦ '≼'
 %@    false.
 
 %?- [1/1,1/3] '≼' [1/1,0/1]. % a 1:1 arrow
+%@    true. % after renaming '⊑' ↦ '≼'
 %@    false.
 
 % I believe that [1:1] = toxD - tol1 - titro, yet that
