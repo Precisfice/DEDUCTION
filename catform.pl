@@ -817,6 +817,82 @@ d_nmax_minGamma_maxGamma(D, Nmax, MinGamma, MaxGamma) :-
 % of course keep track of this decision, since it should reverse
 % the order relation.
 
+% To encode the Hs, we can reuse existing infrastructure, as-is
+hs_enc(Hs, K) :- ws_int(Hs, K).
+
+% To encode Os, we need only shift the values downward
+% so they are non-positive, then encode a base-(6*D+1)
+% integer from them.
+os_enc(Os, K) :-
+    os_shifted(Os, Zs), % TODO: Eliminate; see note below.
+    os_base(Os, B),
+    foldl(base_(B), Zs, 0, K).
+
+% Although this shifting helps 'see' the resulting Zs
+% as suitable 'digits' of a base-(6*D+1) integer,
+% It's likely this it totally unnecessary, since it
+% merely shifts the whole integer downward by a fixed
+% amount that is a function of D only.
+% (Note that eliminating this shift might indicate a
+% revision of name d_maxenc/2 to (say) 'd_encspan'.)
+os_shifted(Os, Zs) :- % Zs ≤ 0, suitable as 'digits'
+    same_length(Os, Ns), maplist(=(6), Ns),
+    intlist_partsums(Ns, Xs),
+    reverse(Xs, Ys), % Now Ys can be used to shift Os
+    maplist(\O^Y^Z^(#Z #= #O - #Y), Os, Ys, Zs).
+
+os_base(Os, B) :- length(Os, D), #B #= 6 * #D + 1.
+
+base_(B, A, N0, N) :- #N #= #B * #N0 + #A.
+
+%?- foldl(base_(10), [1,2,3,4], 0, N).
+%@    N = 1234.
+
+%?- Os = [18,12,6], os_enc(Os, K).
+%@    Os = [18,12,6], K = 0.
+
+qs_int(Qs, K) :-
+    transform(Qs, Hs, Os),
+    hs_enc(Hs, HK),
+    os_enc(Os, OK),
+    % I know what range of HK is, thanks to existing d_maxenc/2,
+    % and so can use it as the less-significant part of K.
+    length(Os, D), d_maxenc(D, Hmax),
+    #K #= #OK * #Hmax + #HK.
+
+%?- Qs = [0/0,0/0], qs_int(Qs, K).
+%@    Qs = [0/0,0/0], K = -14580.
+
+% Let's now check this encoding, to be sure it embeds every
+% arrow of ≼.
+d_nmax_wrongway(D, Nmax, Q1s, Q2s) :-
+    qs_d_nmax(Q1s, D, Nmax), qs_int(Q1s, K1),
+    qs_d_nmax(Q2s, D, Nmax), qs_int(Q2s, K2),
+    #K1 #> #K2, % fail faster
+    Q1s '≼' Q2s.
+
+%?- time(d_nmax_wrongway(2, 3, Q1, Q2)).
+%@    % CPU time: 11.571s, 31_337_713 inferences
+%@    false.
+%?- time(d_nmax_wrongway(2, 4, Q1, Q2)).
+%@    % CPU time: 57.830s, 159_669_617 inferences
+%@    false.
+%?- time(d_nmax_wrongway(2, 5, Q1, Q2)).
+%@    % CPU time: 228.107s, 610_835_708 inferences
+%@    false.
+%?- time(d_nmax_wrongway(2, 6, Q1, Q2)).
+%@    % CPU time: 738.227s, 1_937_260_157 inferences
+%@    false.
+%?- time(d_nmax_wrongway(3, 1, Q1, Q2)).
+%@    % CPU time: 1.092s, 2_704_737 inferences
+%@    false.
+%?- time(d_nmax_wrongway(3, 2, Q1, Q2)).
+%@    % CPU time: 70.300s, 168_714_623 inferences
+%@    false.
+%?- time(d_nmax_wrongway(3, 3, Q1, Q2)).
+%@    % CPU time: 1524.397s, 3_540_029_316 inferences
+%@    false.
+
 % By embedding the partial order ≼ into a *complete* order,
 % I could sort 𝒬f so that all arrows of ≼ point left-to-right.
 % Then, minimal sets would be in contiguous stretches of this
@@ -985,6 +1061,9 @@ d_int_ws(D, K, Ws) :-
 %@ ;  D = 6, Kmax = 49579074
 %@ ;  D = 7, Kmax = 2131900224.
 
+% TODO: Consider whether this name must be changed to
+%       (say) d_encspan/2, if I allow encodings with
+%       digits that aren't all one side of zero.
 d_maxenc(1, 6).
 d_maxenc(2, 90).
 d_maxenc(3, 1728).
@@ -1015,13 +1094,14 @@ d_maxenc(7, 2131900224).
 % so that the Key sorting can discriminate between q's
 % sharing the same Ts profile but differing in the Us.
 % (The weaker implication ≼ ⟹ ≤ simply won't suffice.)
+/* Now replaced; see above.
 qs_int(Qs, K) :-
     qs_Ts_Ūs(Qs, Ts, Ūs),
     ws_int(Ts, KT),
     ws_int(Ūs, KŪ),
     length(Qs, D), d_maxenc(D, Kmax),
     #K #= (#Kmax + 1) * #KT + (#Kmax - #KŪ).
-
+*/
 %?- Qs = [[1/6,1/6],[0/6,2/6]], qs_sorted(Qs, SQs).
 %@ Sorting length-2 list Qs:
 %@   .. encoding Qs:   % CPU time: 0.002s, 6_220 inferences
