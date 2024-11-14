@@ -824,22 +824,8 @@ hs_enc(Hs, K) :- ws_int(Hs, K).
 % so they are non-positive, then encode a base-(6*D+1)
 % integer from them.
 os_enc(Os, K) :-
-    os_shifted(Os, Zs), % TODO: Eliminate; see note below.
     os_base(Os, B),
-    foldl(base_(B), Zs, 0, K).
-
-% Although this shifting helps 'see' the resulting Zs
-% as suitable 'digits' of a base-(6*D+1) integer,
-% It's likely this it totally unnecessary, since it
-% merely shifts the whole integer downward by a fixed
-% amount that is a function of D only.
-% (Note that eliminating this shift might indicate a
-% revision of name d_maxenc/2 to (say) 'd_encspan'.)
-os_shifted(Os, Zs) :- % Zs ≤ 0, suitable as 'digits'
-    same_length(Os, Ns), maplist(=(6), Ns),
-    intlist_partsums(Ns, Xs),
-    reverse(Xs, Ys), % Now Ys can be used to shift Os
-    maplist(\O^Y^Z^(#Z #= #O - #Y), Os, Ys, Zs).
+    foldl(base_(B), Os, 0, K).
 
 os_base(Os, B) :- length(Os, D), #B #= 6 * #D + 1.
 
@@ -849,7 +835,7 @@ base_(B, A, N0, N) :- #N #= #B * #N0 + #A.
 %@    N = 1234.
 
 %?- Os = [18,12,6], os_enc(Os, K).
-%@    Os = [18,12,6], K = 0.
+%@    Os = [18,12,6], K = 6732.
 
 qs_int(Qs, K) :-
     transform(Qs, Hs, Os),
@@ -858,7 +844,7 @@ qs_int(Qs, K) :-
     % I know what range of HK is, thanks to existing d_maxenc/2,
     % and so can use it as the less-significant part of K.
     length(Os, D), d_maxenc(D, Hmax),
-    #K #= #OK * #Hmax + #HK.
+    #K #= #OK * (#Hmax + 1) + #HK.
 
 %?- Qs = [0/0,0/0], qs_int(Qs, K).
 %@    Qs = [0/0,0/0], K = -14580.
@@ -872,25 +858,25 @@ d_nmax_wrongway(D, Nmax, Q1s, Q2s) :-
     Q1s '≼' Q2s.
 
 %?- time(d_nmax_wrongway(2, 3, Q1, Q2)).
-%@    % CPU time: 11.571s, 31_337_713 inferences
+%@    % CPU time: 10.501s, 30_671_113 inferences
 %@    false.
 %?- time(d_nmax_wrongway(2, 4, Q1, Q2)).
-%@    % CPU time: 57.830s, 159_669_617 inferences
+%@    % CPU time: 53.085s, 156_313_540 inferences
 %@    false.
 %?- time(d_nmax_wrongway(2, 5, Q1, Q2)).
-%@    % CPU time: 228.107s, 610_835_708 inferences
+%@    % CPU time: 204.149s, 597_970_856 inferences
 %@    false.
 %?- time(d_nmax_wrongway(2, 6, Q1, Q2)).
-%@    % CPU time: 738.227s, 1_937_260_157 inferences
+%@    % CPU time: 640.739s, 1_896_641_140 inferences
 %@    false.
 %?- time(d_nmax_wrongway(3, 1, Q1, Q2)).
-%@    % CPU time: 1.092s, 2_704_737 inferences
+%@    % CPU time: 0.993s, 2_631_428 inferences
 %@    false.
 %?- time(d_nmax_wrongway(3, 2, Q1, Q2)).
-%@    % CPU time: 70.300s, 168_714_623 inferences
+%@    % CPU time: 61.371s, 164_168_062 inferences
 %@    false.
 %?- time(d_nmax_wrongway(3, 3, Q1, Q2)).
-%@    % CPU time: 1524.397s, 3_540_029_316 inferences
+%@    % CPU time: 1305.276s, 3_442_932_293 inferences
 %@    false.
 
 % By embedding the partial order ≼ into a *complete* order,
