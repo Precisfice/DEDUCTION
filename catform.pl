@@ -841,13 +841,14 @@ qs_int(Qs, K) :-
     transform(Qs, Hs, Os),
     hs_enc(Hs, HK),
     os_enc(Os, OK),
-    % I know what range of HK is, thanks to existing d_maxenc/2,
-    % and so can use it as the less-significant part of K.
-    length(Os, D), d_maxenc(D, Hmax),
-    #K #= #OK * (#Hmax + 1) + #HK.
+    same_length(Hs, _s), placevalues([P|_s]),
+    #K #= #OK * #P + #HK.
+
+%?- qs_int([1/1,2/3], K).
+%@    K = -2661.
 
 %?- Qs = [0/0,0/0], qs_int(Qs, K).
-%@    Qs = [0/0,0/0], K = -14580.
+%@    Qs = [0/0,0/0], K = 0.
 
 % Let's now check this encoding, to be sure it embeds every
 % arrow of ≼.
@@ -948,123 +949,6 @@ ws_int(Ws, K) :-
     reverse(Ws, RWs), % our Us and Ts are typically indexed 1..D
     scalar_product(RWs, Ps, #=, #K).
 
-%?- ws_int([3,7,13], K).
-%@    K = 1235.
-
-%?- #W1 #= 1235 mod 7.
-%@    W1 = 3.
-
-%?- #W2 #= (1235 div 7) mod 13.
-%@    W2 = 7.
-
-%?- #W3 #= (1235 div 7) div 13.
-%@    W3 = 13.
-
-%?- placevalues([P3,P2,P1]).
-%@    P3 = 91, P2 = 7, P1 = 1.
-
-%?- #K #= 91*13 + 7*7 + 3.
-%@    K = 1235.
-
-%?- #W3 #= 1235 div 91.
-%@    W3 = 13.
-
-%?- #W2 #= (1235 mod 91) div 7.
-%@    W2 = 7.
-
-%?- #W1 #= ((1235 mod 91) mod 7) div 1.
-%@    W1 = 3.
-
-% Finally, I need to write int_ws/2 implementing the _decoding_.
-% Again, I will suppose Ws is an uninstantiated list that is
-% however of known length.
-
-% Ah, after our afternoon walk (70F!) I see that the needed predicate is:
-int_bases_digits(K, [B|Bs], [W|Ws]) :-
-    same_length(Bs, Ws),
-    #W #= #K mod #B,
-    #K1 #= #K div #B,
-    int_bases_digits(K1, Bs, Ws).
-
-int_bases_digits(_, [], []). % ... or something like that!
-
-%?- int_bases_digits(Y, [], []).
-%@    true.
-
-%?- int_bases_digits(1023, [2,2,2,2,2,2,2,2,2,2], Ds).
-%@    Ds = [1,1,1,1,1,1,1,1,1,1].
-
-%?- int_bases_digits(1023, [16,16,2,2], Ds).
-%@    Ds = [15,15,1,1].
-
-%?- int_bases_digits(1235, [7,13,19], Ws).
-%@    Ws = [3,7,13].
-
-% The length-D list of bases starts with 6 + 1 = 7,
-% and adds 6 at each level.  What is the simplest way
-% to create such an arithmetic sequence in Prolog?
-d_bases(D, [B|Bs]) :-
-    length([B|Bs], D),
-    same_length(Xs, Bs),
-    maplist(=(6), Xs),
-    intlist_partsums([7|Xs], [B|Bs]).
-
-d_int_ws(D, K, Ws) :-
-    d_bases(D, Bs),
-    int_bases_digits(K, Bs, Ws).
-    
-%?- d_bases(3, Bs).
-%@    Bs = [7,13,19].
-
-%?- d_int_ws(3, 1235, Ws).
-%@    Ws = [3,7,13].
-
-% What about complements in general?
-
-%?- ws_int([1,2,3,4,5], K).
-%@    K = 223329.
-
-%?- ws_int([1,2,3,4,5], K).
-%@    K = 223329.
-
-%% d_maxenc(D, Kmax) :-
-%%     length(Ps, D),
-%%     placevalues([Kmax1|Ps]),
-%%     #Kmax #= Kmax1 - 1.
-
-%?- d_maxenc(5, Kmax).
-%@    Kmax = 1339974.
-
-% I've already precomputed placevalues/1, but might I still
-% gain additional speedup by precomputing d_maxenc/2 also?
-%?- D in 0..7, indomain(D), d_maxenc(D, Kmax).
-%@    D = 0, Kmax = 0
-%@ ;  D = 1, Kmax = 6
-%@ ;  D = 2, Kmax = 90
-%@ ;  D = 3, Kmax = 1728
-%@ ;  D = 4, Kmax = 43224
-%@ ;  D = 5, Kmax = 1339974
-%@ ;  D = 6, Kmax = 49579074
-%@ ;  D = 7, Kmax = 2131900224.
-
-% TODO: Consider whether this name must be changed to
-%       (say) d_encspan/2, if I allow encodings with
-%       digits that aren't all one side of zero.
-d_maxenc(1, 6).
-d_maxenc(2, 90).
-d_maxenc(3, 1728).
-d_maxenc(4, 43224).
-d_maxenc(5, 1339974).
-d_maxenc(6, 49579074).
-d_maxenc(7, 2131900224).
-
-%?- d_maxenc(5, Kmax).
-%@    Kmax = 1339974.
-
-% NB: We could encode D=7 tallies in 62-bit integers!
-%?- #M #= 2^31, d_maxenc(7, Kmax), M > Kmax.
-%@    M = 2147483648, Kmax = 2131900224.
-
 % Contrary to my presumptions in that last commit, our
 % previous encoding should be retained, and continues
 % to support sorting of the Qs by their unique keys.
@@ -1080,88 +964,6 @@ d_maxenc(7, 2131900224).
 % so that the Key sorting can discriminate between q's
 % sharing the same Ts profile but differing in the Us.
 % (The weaker implication ≼ ⟹ ≤ simply won't suffice.)
-/* Now replaced; see above.
-qs_int(Qs, K) :-
-    qs_Ts_Ūs(Qs, Ts, Ūs),
-    ws_int(Ts, KT),
-    ws_int(Ūs, KŪ),
-    length(Qs, D), d_maxenc(D, Kmax),
-    #K #= (#Kmax + 1) * #KT + (#Kmax - #KŪ).
-*/
-%?- Qs = [[1/6,1/6],[0/6,2/6]], qs_sorted(Qs, SQs).
-%@ Sorting length-2 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.002s, 6_220 inferences
-%@    % CPU time: 0.005s, 8_395 inferences
-%@    Qs = [[1/6,1/6],[0/6,2/6]], SQs = [[0/6,2/6],[1/6,1/6]].
-
-%?- Qs=[1/6,0/3,2/6], time(qs_int(Qs, K)). % now TABLING d_placevalues/2
-%@ qs_Ts_Us/3 ..   % CPU time: 0.002s, 2_356 inferences
-%@ ws_int/2 ....   % CPU time: 0.000s, 1_473 inferences
-%@ ws_cint/2 ...   % CPU time: 0.002s, 4_912 inferences
-%@ d_maxenc/2 ..   % CPU time: 0.000s, 2_752 inferences
-%@    % CPU time: 0.015s, 19_172 inferences
-%@    Qs = [1/6,0/3,2/6], K = 486424
-%@ ;  % CPU time: 0.000s, 31 inferences
-%@    % CPU time: 0.000s, 62 inferences
-%@    % CPU time: 0.000s, 31 inferences
-%@    % CPU time: 0.011s, 5_356 inferences
-%@    false.
-%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_356 inferences
-%@ ws_int/2 ....   % CPU time: 0.004s, 16_480 inferences
-%@ ws_cint/2 ...   % CPU time: 0.001s, 4_912 inferences
-%@ d_maxenc/2 ..   % CPU time: 0.000s, 2_752 inferences
-%@    % CPU time: 0.015s, 34_176 inferences
-%@    Qs = [1/6,0/3,2/6], K = 486424
-%@ ;  % CPU time: 0.000s, 31 inferences
-%@    % CPU time: 0.000s, 62 inferences
-%@    % CPU time: 0.000s, 31 inferences
-%@    % CPU time: 0.009s, 5_356 inferences
-%@    false.
-%@ qs_Ts_Us/3 ..   % CPU time: 0.002s, 2_356 inferences
-%@ ws_int/2 ....   % CPU time: 0.000s, 1_492 inferences
-%@ ws_cint/2 ...   % CPU time: 0.001s, 4_950 inferences
-%@ d_maxenc/2 ..   % CPU time: 0.000s, 2_771 inferences
-%@    % CPU time: 0.014s, 19_248 inferences
-%@    Qs = [1/6,0/3,2/6], K = 486424
-%@ ;  % CPU time: 0.000s, 31 inferences
-%@    % CPU time: 0.000s, 62 inferences
-%@    % CPU time: 0.000s, 31 inferences
-%@    % CPU time: 0.009s, 5_356 inferences
-%@    false.
-%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_356 inferences
-%@ ws_int/2 ....   % CPU time: 0.008s, 17_777 inferences
-%@ ws_cint/2 ...   % CPU time: 0.002s, 4_950 inferences
-%@ d_maxenc/2 ..   % CPU time: 0.001s, 2_771 inferences
-%@    % CPU time: 0.025s, 35_530 inferences
-%@    Qs = [1/6,0/3,2/6], K = 486424
-%@ ;  % CPU time: 0.000s, 31 inferences
-%@    % CPU time: 0.000s, 62 inferences
-%@    % CPU time: 0.000s, 31 inferences
-%@    % CPU time: 0.013s, 5_356 inferences
-%@    false.
-
-%?- Qs=[1/6,0/3,2/6], time(qs_int(Qs, K)). % AFTER placevalues/1 ~~> d_placevalues/2
-%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_356 inferences
-%@ ws_int/2 ....   % CPU time: 0.001s, 6_338 inferences
-%@ ws_cint/2 ...   % CPU time: 0.003s, 14_662 inferences
-%@ d_maxenc/2 ..   % CPU time: 0.001s, 7_627 inferences
-%@    % CPU time: 0.016s, 38_770 inferences
-%@    Qs = [1/6,0/3,2/6], K = 486424.
-
-%?- Qs=[1/6,0/3,2/6], time(qs_int(Qs, K)).
-%@ qs_Ts_Us/3 ..   % CPU time: 0.001s, 2_356 inferences
-%@ ws_int/2 ....   % CPU time: 0.002s, 5_049 inferences
-%@ ws_cint/2 ...   % CPU time: 0.005s, 12_084 inferences
-%@ d_maxenc/2 ..   % CPU time: 0.002s, 6_338 inferences
-%@    % CPU time: 0.024s, 33_614 inferences
-%@    Qs = [1/6,0/3,2/6], K = 486424.
-%@    % CPU time: 0.003s, 2_333 inferences
-%@    % CPU time: 0.001s, 5_049 inferences
-%@    % CPU time: 0.003s, 12_084 inferences
-%@    % CPU time: 0.001s, 6_338 inferences
-%@    Qs = [1/6,0/3,2/6], K = 486424.
-%@    error(existence_error(procedure,qs_int/3),qs_int/3).
-
 
 d_sortedQfs(D, SQs) :-
     findall(Q, d_mendtally_rec(D,Q,_), Qs),
@@ -1360,7 +1162,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ Collecting final tallies ..
 %@  sorting 29 final tallies ..Sorting length-29 list Qs:
 %@   .. encoding Qs:   % CPU time: 0.018s, 50_122 inferences
-%@    % CPU time: 0.019s, 52_406 inferences
+%@    % CPU time: 0.020s, 52_406 inferences
 %@ 
 %@  stratifying ..
 %@ [[0/3,0/6],[1/6,0/6]].
@@ -1374,7 +1176,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,2/3],[3/6,3/6]].
 %@ [[3/6,3/3],[3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 6.534s, 22_554_960 inferences
+%@  writing covering relation ..   % CPU time: 6.548s, 22_554_960 inferences
 %@ .. done.
 %@    true.
 
@@ -1382,8 +1184,8 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ Opening file 'HasseD3.dot'...
 %@ Collecting final tallies ..
 %@  sorting 93 final tallies ..Sorting length-93 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.069s, 161_234 inferences
-%@    % CPU time: 0.070s, 163_794 inferences
+%@   .. encoding Qs:   % CPU time: 0.068s, 162_815 inferences
+%@    % CPU time: 0.070s, 165_375 inferences
 %@ 
 %@  stratifying ..
 %@ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
@@ -1405,7 +1207,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,3/6,2/3],[3/6,3/6,3/6]].
 %@ [[3/6,3/6,3/3],[3/6,3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 162.558s, 500_731_951 inferences
+%@  writing covering relation ..   % CPU time: 156.673s, 500_731_951 inferences
 %@ .. done.
 %@    true.
 
@@ -1849,92 +1651,6 @@ d_gs(D, Gs) :-
 %@ Reversing.......    % CPU time: 0.280s, 614_658 inferences
 %@ Stratifying Qf..    % CPU time: 12.384s, 57_444_988 inferences
 %@ Finding g's ..
-
-%?- time(d_gs(3, Gs)). % After #'ing everything in q_r/2
-%@ Listing Qs......    % CPU time: 1.588s, 6_660_460 inferences
-%@ Sorting Qs...... Encoding Qs...    % CPU time: 20.434s, 109_988_099 inferences
-%@ Sorting Qs....    % CPU time: 0.017s, 2 inferences
-%@ Sizing Qs.....    % CPU time: 0.019s, 175_617 inferences
-%@ Decoding......    % CPU time: 31.490s, 207_539_697 inferences
-%@    % CPU time: 51.972s, 317_755_335 inferences
-%@ Reversing.......    % CPU time: 0.005s, 21_954 inferences
-%@ Stratifying Qf..    % CPU time: 3.393s, 15_670_513 inferences
-%@ Finding g's ..
-%@ ↓[2/6,0/4,0/4] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
-%@ Mss = [[[0/6,2/6,0/0],[0/6,2/6,2/6]],[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 2494, Gs1 = [[2/6,0/4,0/4]].
-%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
-%@ Mss = [[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1978, Gs1 = [[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
-%@ Mss = [[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1228, Gs1 = [[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
-%@ Mss = [], |Qs| = 8, Gs1 = [[0/5,0/5,0/6],[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@    % CPU time: 29.991s, 153_168_191 inferences
-%@    % CPU time: 86.957s, 493_286_608 inferences
-%@    Gs = [[2/6,0/4,0/4],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
-
-%?- time(d_gs(3, Gs)). % After #'ing stuff in d_int_kt_ku/4
-%@ Listing Qs......    % CPU time: 1.610s, 6_660_460 inferences
-%@ Sorting Qs...... Encoding Qs...    % CPU time: 19.827s, 106_168_451 inferences
-%@ Sorting Qs....    % CPU time: 0.018s, 2 inferences
-%@ Sizing Qs.....    % CPU time: 0.020s, 175_617 inferences
-%@ Decoding......    % CPU time: 38.164s, 245_604_465 inferences
-%@    % CPU time: 58.040s, 352_000_455 inferences
-%@ Reversing.......    % CPU time: 0.006s, 21_954 inferences
-%@ Stratifying Qf..    % CPU time: 3.358s, 15_549_757 inferences
-%@ Finding g's ..
-%@ ↓[2/6,0/4,0/4] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
-%@ Mss = [[[0/6,2/6,0/0],[0/6,2/6,2/6]],[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 2494, Gs1 = [[2/6,0/4,0/4]].
-%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
-%@ Mss = [[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1978, Gs1 = [[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
-%@ Mss = [[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1228, Gs1 = [[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
-%@ Mss = [], |Qs| = 8, Gs1 = [[0/5,0/5,0/6],[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@    % CPU time: 28.801s, 145_469_735 inferences
-%@    % CPU time: 91.824s, 519_712_516 inferences
-%@    Gs = [[2/6,0/4,0/4],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
-
-%?- time(d_gs(3, Gs)). % After precomputing d_maxenc/2
-%@ Listing Qs......    % CPU time: 1.603s, 6_660_460 inferences
-%@ Sorting Qs...... Encoding Qs...    % CPU time: 20.060s, 106_168_451 inferences
-%@ Sorting Qs....    % CPU time: 0.017s, 2 inferences
-%@ Sizing Qs.....    % CPU time: 0.019s, 175_617 inferences
-%@ Decoding......    % CPU time: 45.324s, 286_742_507 inferences
-%@    % CPU time: 65.432s, 393_138_497 inferences
-%@ Reversing.......    % CPU time: 0.006s, 21_954 inferences
-%@ Stratifying Qf..    % CPU time: 3.404s, 15_549_757 inferences
-%@ Finding g's ..
-%@ ↓[2/6,0/4,0/4] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
-%@ Mss = [[[0/6,2/6,0/0],[0/6,2/6,2/6]],[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 2494, Gs1 = [[2/6,0/4,0/4]].
-%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
-%@ Mss = [[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1978, Gs1 = [[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
-%@ Mss = [[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1228, Gs1 = [[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
-%@ Mss = [], |Qs| = 8, Gs1 = [[0/5,0/5,0/6],[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@    % CPU time: 29.085s, 145_469_735 inferences
-%@    % CPU time: 99.538s, 560_850_558 inferences
-%@    Gs = [[2/6,0/4,0/4],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
-%@ Listing Qs......    % CPU time: 1.613s, 6_660_460 inferences
-%@ Sorting Qs...... Encoding Qs...    % CPU time: 22.714s, 121_049_849 inferences
-%@ Sorting Qs....    % CPU time: 0.019s, 2 inferences
-%@ Sizing Qs.....    % CPU time: 0.019s, 175_617 inferences
-%@ Decoding......    % CPU time: 47.516s, 299_452_715 inferences
-%@    % CPU time: 70.279s, 420_730_103 inferences
-%@ Reversing.......    % CPU time: 0.005s, 21_954 inferences
-%@ Stratifying Qf..    % CPU time: 3.404s, 15_549_757 inferences
-%@ Finding g's ..
-%@ ↓[2/6,0/4,0/4] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
-%@ Mss = [[[0/6,2/6,0/0],[0/6,2/6,2/6]],[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 2494, Gs1 = [[2/6,0/4,0/4]].
-%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
-%@ Mss = [[[0/3,0/6,2/6],[1/6,0/6,2/6]],[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1978, Gs1 = [[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
-%@ Mss = [[[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]]], |Qs| = 1228, Gs1 = [[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
-%@ Mss = [], |Qs| = 8, Gs1 = [[0/5,0/5,0/6],[0/5,0/6,2/6],[0/6,2/6,0/4],[2/6,0/4,0/4]].
-%@    % CPU time: 29.068s, 145_469_735 inferences
-%@    % CPU time: 104.378s, 588_442_164 inferences
-%@    Gs = [[2/6,0/4,0/4],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
 
 %?- time(d_gs(4, Gs)). % Has this become feasible? (ALMOST!)
 %@ Listing Qs......    % CPU time: 43.552s, 182_781_614 inferences
