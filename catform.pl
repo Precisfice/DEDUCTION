@@ -969,16 +969,19 @@ d_sortedQfs(D, SQs) :-
     findall(Q, d_mendtally_rec(D,Q,_), Qs),
     qs_sorted(Qs, SQs).
 
-qs_sorted(Qs, SQs) :-
-    length(Qs, LQs), format("Sorting length-~d list Qs:~n", [LQs]),
-    time((
-    format("  .. encoding Qs:", []),
-    time(maplist(qs_int, Qs, Ks)),
+% TODO: Clear up this 'legacy' default descending sort.
+qs_sorted(Qs, DescQs) :- po_qs_sorted('≽', Qs, DescQs).
+
+po_qs_sorted('≼', Qs, AscQs) :-
+    maplist(qs_int, Qs, Ks),
     pairs_keys_values(KQs, Ks, Qs),
-    sort(KQs, SKQs0), % too fast to be worth timing!
-    reverse(SKQs0, SKQs),
-    pairs_values(SKQs, SQs)
-    )).
+    sort(KQs, SKQs),
+    pairs_values(SKQs, AscQs).
+    
+po_qs_sorted('≽', Qs, DescQs) :-
+    po_qs_sorted('≼', Qs, AscQs),
+    reverse(AscQs, DescQs).
+    
 
 %?- d_sortedQfs(2, Qfs).
 %@ Sorting length-29 list Qs:
@@ -1126,9 +1129,9 @@ d_writehassedot(D) :-
                            pairs_keys(QXs, Qs),
                            length(Qs, Nf),
                            format("~n sorting ~d final tallies ..", [Nf]),
-                           qs_sorted(Qs, SQs),
+                           po_qs_sorted('≽', Qs, DescQs),
                            format("~n stratifying ..~n", []),
-                           foldl(sift, SQs, [[]], Qss),
+                           foldl(sift, DescQs, [[]], Qss),
                            reverse(Qss, RQss), maplist(portray_clause, RQss),
                            format(OS, "strict digraph hasseD~d {~n", [D]),
                            format(OS, "  rankdir=~a;~n", ['BT']),
@@ -1138,8 +1141,8 @@ d_writehassedot(D) :-
                            list_to_assoc(QXs, QXassoc),
                            maplist(write_stratum(OS,QXassoc), Qss),
                            format("~n writing covering relation ..", []) ->
-                           reverse(SQs, RSQs), % speeds cover calculation
-                           time((   in_cover(RSQs, Q1, Q2),
+                           reverse(DescQs, AscQs), % speeds cover calculation
+                           time((   in_cover(AscQs, Q1, Q2),
 			            format(OS, "  \"~w\" -> \"~w\";~n", [Q1,Q2]),
 			            fail % exhaust all (Q1 -> Q2) arrows
 			        ;   true
@@ -1157,13 +1160,10 @@ write_stratum(OS, QXassoc, Qs) :-
             Qs),
     format(OS, "  }~n", []).
 
-%?- d_writehassedot(2). % after implementing new, post-Meetup ≼
+%?- d_writehassedot(2). % after reworking qs_mins/2 & qs_maxs/2 ..
 %@ Opening file 'HasseD2.dot'...
 %@ Collecting final tallies ..
-%@  sorting 29 final tallies ..Sorting length-29 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.018s, 50_122 inferences
-%@    % CPU time: 0.020s, 52_406 inferences
-%@ 
+%@  sorting 29 final tallies ..
 %@  stratifying ..
 %@ [[0/3,0/6],[1/6,0/6]].
 %@ [[0/3,1/6],[0/6,2/6]].
@@ -1176,17 +1176,14 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,2/3],[3/6,3/6]].
 %@ [[3/6,3/3],[3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 6.548s, 22_554_960 inferences
+%@  writing covering relation ..   % CPU time: 6.579s, 22_554_937 inferences
 %@ .. done.
 %@    true.
 
 %?- d_writehassedot(3).
 %@ Opening file 'HasseD3.dot'...
 %@ Collecting final tallies ..
-%@  sorting 93 final tallies ..Sorting length-93 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.068s, 162_815 inferences
-%@    % CPU time: 0.070s, 165_375 inferences
-%@ 
+%@  sorting 93 final tallies ..
 %@  stratifying ..
 %@ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
 %@ [[0/3,0/3,1/6],[0/3,0/6,2/6],[1/6,0/3,0/6]].
@@ -1207,7 +1204,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,3/6,2/3],[3/6,3/6,3/6]].
 %@ [[3/6,3/6,3/3],[3/6,3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 156.673s, 500_731_951 inferences
+%@  writing covering relation ..   % CPU time: 158.969s, 500_731_928 inferences
 %@ .. done.
 %@    true.
 
@@ -1320,24 +1317,24 @@ po_elts_maxs(R_3, [X|Xs], Maxs) :-
 %?- D=3, X=3, findall(Qf, d_endtally_rec(D, Qf, X), Qfs), qs_maxs(Qfs, Maxs).
 %@    D = 3, X = 3, Qfs = [[0/3,0/3,0/6],[0/3,0/3,1/6],[0/3,1/6,0/6],[0/3,1/6,1/6],[1/6,0/3,0/6],[1/6,0/3,1/6],[1/6,1/6,0/6],[1/6,1/6,1/6]], Maxs = [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
 
-qs_maxs([], []).
-qs_maxs([Q|Qs], Maxs) :-
-    tpartition('≽'(Q), Qs, _, Qs1),
-    if_(tmember_t('≼'(Q), Qs1), % ∃ Q' ∈ Qs s.t. Q ≼ Q' ?
-        qs_maxs(Qs1, Maxs), % if so, Q is not maximal
-        (   Maxs = [Q|Maxs1], % otherwise, it is
-            qs_maxs(Qs1, Maxs1)
-        )
+qs_maxs(Qs, Maxs) :-
+    po_qs_sorted('≽', Qs, DescQs),
+    foldl(collect_maximal, DescQs, [], Maxs).
+
+collect_maximal(Q, Maxs0, Maxs) :-
+    if_(tmember_t('≼'(Q), Maxs0), % ∃ Q' ∈ Mins s.t. Q ≼ Q'?
+        Maxs = Maxs0,             % if so, Q is not maximal;
+        Maxs = [Q|Maxs0]          % otherwise, it is.
        ).
 
-qs_mins([], []).
-qs_mins([Q|Qs], Mins) :-
-    tpartition('≼'(Q), Qs, _, Qs1),
-    if_(tmember_t('≽'(Q), Qs1), % ∃ Q' ∈ Qs s.t. Q' ≼ Q ?
-        qs_mins(Qs1, Mins), % if so, Q is not minimal
-        (   Mins = [Q|Mins1], % otherwise, it is
-            qs_mins(Qs1, Mins1)
-        )
+qs_mins(Qs, Mins) :-
+    po_qs_sorted('≼', Qs, AscQs),
+    foldl(collect_minimal, AscQs, [], Mins).
+
+collect_minimal(Q, Mins0, Mins) :-
+    if_(tmember_t('≽'(Q), Mins0), % ∃ Q' ∈ Mins s.t. Q ≽ Q'?
+        Mins = Mins0,             % if so, Q is not minimal;
+        Mins = [Q|Mins0]          % otherwise, it is.
        ).
 
 % Regions near the origin
@@ -1358,11 +1355,67 @@ d_gs_rec(D, Gs, X, Nmax) :-
     qs_maxs(Qls, Qls1), % q ∈ Qls ⟹ ∃ q' ∈ Qls1 . q ≼ q'
     % Having calculated the maximal elements of F⁻¹(0..X),
     % we now proceed to search for all candidate gₓ's.
+    format("Found maximal elements of F⁻¹(~d)..~n", [X]),
+    % TODO: How might the encoding-based sort speed search for candidates?
     findall(C, (qs_d_nmax(C, D, Nmax),
                 maplist('≽'(C), Qls1)), Cs),
+    length(Cs, NC),
+    format("Found ~d G(~d) candidates 'Cs'..~n", [NC, X]),
+    format("Now we seek the minimal elements of this list..~n", []),
     qs_mins(Cs, Gs).
 
 d_gs_rec(D, Gs, X) :- d_gs_rec(D, Gs, X, 6).
+
+%?- time(d_gs_rec(2, Gs, X)). % After rendering qs_maxs/2 space-efficient also..
+%@ Found maximal elements of F⁻¹(0)..
+%@ Found 138 G(0) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@    % CPU time: 2.119s, 8_062_166 inferences
+%@    Gs = [[2/6,0/2]], X = 0
+%@ ;  Found maximal elements of F⁻¹(1)..
+%@ Found 22 G(1) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 0.762s, 2_347_773 inferences
+%@    Gs = [[0/6,2/6]], X = 1
+%@ ;  Found maximal elements of F⁻¹(2)..
+%@ Found 3 G(2) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 0.748s, 2_138_502 inferences
+%@    Gs = [[0/4,0/6]], X = 2.
+
+%?- time(d_gs_rec(2, Gs, X)). % Using space-efficient qs_mins/2 now..
+%@ Found maximal elements of F⁻¹(0).
+%@ Found 138 G(0) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ Sorting length-138 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.074s, 185_017 inferences
+%@    % CPU time: 0.076s, 187_781 inferences
+%@    % CPU time: 2.113s, 8_077_036 inferences
+%@    Gs = [[2/6,0/2]], X = 0
+%@ ;  Found maximal elements of F⁻¹(1).
+%@ Found 22 G(1) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ Sorting length-22 list Qs:
+%@   .. encoding Qs:% CPU time: 0.011s, 24_269 inferences
+%@    % CPU time: 0.013s, 26_550 inferences
+%@    % CPU time: 0.753s, 2_318_991 inferences
+%@    Gs = [[0/6,2/6]], X = 1
+%@ ;  Found maximal elements of F⁻¹(2).
+%@ Found 3 G(2) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ Sorting length-3 list Qs:
+%@   .. encoding Qs:% CPU time: 0.001s, 3_157 inferences
+%@    % CPU time: 0.003s, 5_342 inferences
+%@    % CPU time: 0.698s, 2_096_567 inferences
+%@    Gs = [[0/4,0/6]], X = 2.
+
+%?- time(d_gs_rec(2, Gs, X)). % With enlarged, post-Meetup ≼
+%@    % CPU time: 3.408s, 12_449_812 inferences
+%@    Gs = [[2/6,0/2]], X = 0
+%@ ;  % CPU time: 0.814s, 2_547_519 inferences
+%@    Gs = [[0/6,2/6]], X = 1
+%@ ;  % CPU time: 0.698s, 2_087_884 inferences
+%@    Gs = [[0/4,0/6]], X = 2.
 
 %?- time(d_gs_rec(2, Gs, X)). % After expanding ≼ to include 'escalation condition'
 %@    % CPU time: 2.526s, 11_246_152 inferences
@@ -1380,6 +1433,104 @@ d_gs_rec(D, Gs, X) :- d_gs_rec(D, Gs, X, 6).
 %@ ;  % CPU time: 0.912s, 4_002_226 inferences
 %@    Gs = [[0/5,0/6]], X = 2.
 
+%?- time(d_gs_rec(3, Gs, X)). % After rendering qs_maxs/2 space-efficient also..
+%@ Found maximal elements of F⁻¹(0)..
+%@ Found 1754 G(0) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@    % CPU time: 45.557s, 155_196_415 inferences
+%@    Gs = [[2/6,0/4,0/0]], X = 0
+%@ ;  Found maximal elements of F⁻¹(1)..
+%@ Found 424 G(1) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 25.356s, 72_762_939 inferences
+%@    Gs = [[0/6,2/6,0/2]], X = 1
+%@ ;  Found maximal elements of F⁻¹(2)..
+%@ Found 90 G(2) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 21.948s, 59_028_691 inferences
+%@    Gs = [[0/4,0/6,2/6]], X = 2
+%@ ;  Found maximal elements of F⁻¹(3)..
+%@ Found 12 G(3) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 21.371s, 56_737_885 inferences
+%@    Gs = [[0/4,0/4,0/6]], X = 3.
+
+%?- time(d_gs_rec(3, Gs, X)). % Using space-efficient qs_emins/2 now..
+%@ Found maximal elements of F⁻¹(0).
+%@ Found 1754 G(0) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ Sorting length-1754 list Qs:
+%@   .. encoding Qs:   % CPU time: 1.239s, 2_819_309 inferences
+%@    % CPU time: 1.246s, 2_828_559 inferences
+%@    % CPU time: 45.176s, 155_322_539 inferences
+%@    Gs = [[2/6,0/4,0/0]], X = 0
+%@ ;  Found maximal elements of F⁻¹(1).
+%@ Found 424 G(1) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ Sorting length-424 list Qs:
+%@   .. encoding Qs:% CPU time: 0.291s, 634_286 inferences
+%@    % CPU time: 0.293s, 638_195 inferences
+%@    % CPU time: 25.143s, 72_730_278 inferences
+%@    Gs = [[0/6,2/6,0/2]], X = 1
+%@ ;  Found maximal elements of F⁻¹(2).
+%@ Found 90 G(2) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ Sorting length-90 list Qs:
+%@   .. encoding Qs:% CPU time: 0.061s, 117_897 inferences
+%@    % CPU time: 0.063s, 120_470 inferences
+%@    % CPU time: 21.724s, 58_933_507 inferences
+%@    Gs = [[0/4,0/6,2/6]], X = 2
+%@ ;  Found maximal elements of F⁻¹(3).
+%@ Found 12 G(3) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ Sorting length-12 list Qs:
+%@   .. encoding Qs:% CPU time: 0.008s, 15_172 inferences
+%@    % CPU time: 0.010s, 17_413 inferences
+%@    % CPU time: 21.071s, 56_604_286 inferences
+%@    Gs = [[0/4,0/4,0/6]], X = 3.
+
+%?- time(d_gs_rec(3, Gs, X)). % More efficient d_placevalues/2?
+%@ Now we seek the minimal elements of this list.. % MEM starts growing, hits 19.9%
+%@    % CPU time: 235.606s, 775_247_646 inferences
+%@    Gs = [[2/6,0/4,0/0]], X = 0
+%@ ;  Found maximal elements of F⁻¹(1).
+%@ Found 424 all G(1) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 54.086s, 172_168_400 inferences
+%@    Gs = [[0/6,2/6,0/2]], X = 1
+%@ ;  Found maximal elements of F⁻¹(2).
+%@ Found 90 all G(2) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 23.072s, 63_984_172 inferences
+%@    Gs = [[0/4,0/6,2/6]], X = 2
+%@ ;  Found maximal elements of F⁻¹(3).
+%@ Found 12 all G(3) candidates 'Cs'.
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 21.216s, 56_657_453 inferences
+%@    Gs = [[0/4,0/4,0/6]], X = 3. % MEM use still 19.9%
+%@    % CPU time: 244.200s, 775_246_416 inferences
+%@    Gs = [[2/6,0/4,0/0]], X = 0
+%@ ;  % CPU time: 55.219s, 172_167_173 inferences
+%@    Gs = [[0/6,2/6,0/2]], X = 1
+%@ ;  % CPU time: 23.135s, 63_982_948 inferences
+%@    Gs = [[0/4,0/6,2/6]], X = 2
+%@ ;  % CPU time: 21.150s, 56_656_229 inferences
+%@    Gs = [[0/4,0/4,0/6]], X = 3.
+% Wow!  This change made zero difference, peak %MEM still 20%!
+
+%?- time(d_gs_rec(3, Gs, X)). % With enlarged, post-Meetup ≼
+%@    % CPU time: 239.333s, 775_246_474 inferences
+%@    Gs = [[2/6,0/4,0/0]], X = 0
+%@ ;  % CPU time: 54.181s, 172_167_180 inferences
+%@    Gs = [[0/6,2/6,0/2]], X = 1
+%@ ;  % CPU time: 23.115s, 63_982_955 inferences
+%@    Gs = [[0/4,0/6,2/6]], X = 2
+%@ ;  % CPU time: 21.077s, 56_656_236 inferences
+%@    Gs = [[0/4,0/4,0/6]], X = 3.
+% I wonder if the worsened performance here has anything to do
+% with qs_int/2's flamboyant memory allocation merely to find
+% the placevalue P.  Let's try changing that!
+
 %?- time(d_gs_rec(3, Gs, X)).
 %@    % CPU time: 98.132s, 433_986_805 inferences
 %@    Gs = [[2/6,0/6,0/2]], X = 0
@@ -1391,27 +1542,50 @@ d_gs_rec(D, Gs, X) :- d_gs_rec(D, Gs, X, 6).
 %@    Gs = [[0/5,0/5,0/6]], X = 3.
 
 %?- time(d_gs_rec(4, Gs, X)).
-%@    error('$interrupt_thrown',repl/0). % unbounded mem growth
+%@ Found maximal elements of F⁻¹(0)..
+%@ Found 19801 G(0) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@    % CPU time: 1170.849s, 3_573_545_956 inferences
+%@    Gs = [[2/6,0/6,0/0,0/0]], X = 0
+%@ ;  Found maximal elements of F⁻¹(1)..
+%@ Found 6494 G(1) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 824.815s, 2_165_017_840 inferences
+%@    Gs = [[0/6,2/6,0/4,0/0]], X = 1
+%@ ;  Found maximal elements of F⁻¹(2)..
+%@ Found 1911 G(2) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 716.367s, 1_809_452_129 inferences
+%@    Gs = [[0/4,0/6,2/6,0/2]], X = 2
+%@ ;  Found maximal elements of F⁻¹(3)..
+%@ Found 419 G(3) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 677.546s, 1_647_902_233 inferences
+%@    Gs = [[0/4,0/4,0/6,2/6]], X = 3
+%@ ;  Found maximal elements of F⁻¹(4)..
+%@ Found 55 G(4) candidates 'Cs'..
+%@ Now we seek the minimal elements of this list..
+%@ % CPU time: 673.530s, 1_626_275_209 inferences
+%@    Gs = [[0/4,0/4,0/4,0/6]], X = 4.
 
 %?- time(d_gs(3, Gs)).
-%@ Listing Qs......    % CPU time: 1.597s, 6_660_460 inferences
-%@ Sorting length-21952 list Qs:
-%@   .. encoding Qs:   % CPU time: 20.597s, 109_986_469 inferences
-%@    % CPU time: 20.665s, 110_054_609 inferences
-%@ Stratifying Qf..    % CPU time: 3.277s, 14_741_613 inferences
+%@ Listing Qs......    % CPU time: 1.577s, 6_660_460 inferences
+%@ Stratifying Qf..    % CPU time: 2.990s, 13_345_839 inferences
 %@ Finding g's ..
-%@ ↓[2/6,0/6,0/2] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
-%@ ↓[0/6,2/6,0/4] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
-%@ ↓[0/5,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
-%@ ↓[0/5,0/5,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
-%@    % CPU time: 36.546s, 163_202_935 inferences
-%@    % CPU time: 62.099s, 294_689_968 inferences
-%@    Gs = [[2/6,0/6,0/2],[0/6,2/6,0/4],[0/5,0/6,2/6],[0/5,0/5,0/6]].
-
-%?- [2/6,0/4,0/4] '≼' [0/6,2/6,0/4].
-%@    true.
+%@ ↓[2/6,0/4,0/0] ⊇ [[2/6,0/0,0/0],[2/6,2/6,0/0],[2/6,2/6,2/6]].
+%@ ↓[0/6,2/6,0/2] ⊇ [[0/6,2/6,0/0],[0/6,2/6,2/6]].
+%@ ↓[0/4,0/6,2/6] ⊇ [[0/3,0/6,2/6],[1/6,0/6,2/6]].
+%@ ↓[0/4,0/4,0/6] ⊇ [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,1/6,0/6]].
+%@    % CPU time: 26.587s, 81_393_524 inferences
+%@    % CPU time: 47.307s, 137_856_007 inferences
+%@    Gs = [[2/6,0/4,0/0],[0/6,2/6,0/2],[0/4,0/6,2/6],[0/4,0/4,0/6]].
 
 %?- time(d_gs(4, Gs)).
+%@ Listing Qs......    % CPU time: 43.200s, 182_781_614 inferences
+%@    error('$interrupt_thrown',repl/0). % MEM grows to >45% while listing Qs
+%@ Listing Qs......    % CPU time: 43.393s, 182_781_614 inferences
+%@ Stratifying Qf..    % CPU time: 9.599s, 42_142_294 inferences
+%@ Finding g's ..
 %@ Listing Qs......    % CPU time: 45.892s, 182_781_614 inferences
 %@ Sorting length-614656 list Qs:
 %@   .. encoding Qs:   % CPU time: 672.529s, 3_595_990_719 inferences
@@ -1511,6 +1685,8 @@ in a single pass.
 
 % Here, galois/3 is searching [Q|Qs] for the first Gx
 % satisfying Q ≼ Gx ∀ Q ∈ Ms, or equivalently ↓Gx ⊇ Ms.
+% Severe %MEM growth (as formerly with qs_maxs/2 and
+% qs_mins/2, e.g.) still occurs in this predicate.
 galois([Ms|Mss], [Q|Qs], [G|Gs]) :-
     if_(tmember_t('⋡'(Q), Ms),        % ∃ M ∈ Ms s.t. M ⋠ Q ?
         galois([Ms|Mss], Qs, [G|Gs]), % if so, Q is not a Gx;
@@ -1524,39 +1700,22 @@ galois([], _, []). % Succeed when all strata are accounted-for.
 d_gs(D, Gs) :-
     format("Listing Qs...... ", []),
     time(findall(Q, qs_d_nmax(Q, D, 6), Qs)),
-    qs_sorted(Qs, SQs), % instrumentation included
-    reverse(SQs, RQs),
+    po_qs_sorted('≼', Qs, AscQs), % instrumentation included
     format("Stratifying Qf.. ", []),
     time(d_Qfstratamax(D, Mss)),
     format("Finding g's ..~n", []),
-    time(galois(Mss, RQs, Gs)).
+    time(galois(Mss, AscQs, Gs)).
 
 %?- time(d_gs(2, Gs)).
-%@ Listing Qs......    % CPU time: 0.072s, 249_966 inferences
-%@ Sorting length-784 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.636s, 3_382_043 inferences
-%@    % CPU time: 0.640s, 3_386_627 inferences
-%@ Stratifying Qf..    % CPU time: 0.769s, 3_442_312 inferences
+%@ Listing Qs......    % CPU time: 0.066s, 249_966 inferences
+%@ Stratifying Qf..    % CPU time: 0.755s, 3_291_174 inferences
 %@ Finding g's ..
-%@ ↓[2/6,0/4] ⊇ [[2/6,0/0],[2/6,2/6]].
+%@ ↓[2/6,0/2] ⊇ [[2/6,0/0],[2/6,2/6]].
 %@ ↓[0/6,2/6] ⊇ [[0/6,2/6]].
-%@ ↓[0/5,0/6] ⊇ [[0/3,0/6],[1/6,0/6]].
-%@    % CPU time: 0.893s, 3_980_654 inferences
-%@    % CPU time: 2.382s, 11_068_590 inferences
-%@    Gs = [[2/6,0/4],[0/6,2/6],[0/5,0/6]].
-%@ Listing Qs......    % CPU time: 0.067s, 249_966 inferences
-%@ Sorting length-784 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.445s, 2_352_998 inferences
-%@    % CPU time: 0.450s, 2_357_582 inferences
-%@ Stratifying Qf..    % CPU time: 0.767s, 3_442_117 inferences
-%@ Finding g's ..
-%@ ↓[2/6,0/6] ⊇ [[2/6,0/0],[2/6,2/6]].
-%@ ↓[0/6,2/6] ⊇ [[0/6,2/6]].
-%@ ↓[0/6,0/6] ⊇ [[0/3,0/6],[1/6,0/6]].
-%@    % CPU time: 0.822s, 3_665_015 inferences
-%@    % CPU time: 2.114s, 9_723_711 inferences
-%@    Gs = [[2/6,0/6],[0/6,2/6],[0/6,0/6]].
-% TODO: These differ from the Gₓ's calculated by d_gs_rec/3; WHY?
+%@ ↓[0/4,0/6] ⊇ [[0/3,0/6],[1/6,0/6]].
+%@    % CPU time: 0.773s, 2_482_722 inferences
+%@    % CPU time: 2.064s, 7_288_408 inferences
+%@    Gs = [[2/6,0/2],[0/6,2/6],[0/4,0/6]].
 
 %?- time(d_gs(3, Gs)). % After refining qs_int/2
 %@ Listing Qs......    % CPU time: 1.674s, 6_660_460 inferences
@@ -2213,6 +2372,32 @@ During the calculation of Gs, we learn that
 d_Qfstratamin(D, Mss) :-
     d_Qfstrata(D, Qss),
     maplist(qs_mins, Qss, Mss). % qs_maxs/2 ~~> qs_mins/2 is all that changed!
+    %%%maplist(qs_emins, Qss, Mss). % qs_maxs/2 ~~> qs_mins/2 is all that changed!
+
+%?- D = 3, time(d_Qfstratamin(D, Mss)). % back to qs_mins/2 for comparison..
+%@    % CPU time: 3.803s, 15_635_161 inferences
+%@    D = 3, Mss = [[[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]],[[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0]],[[0/3,1/6,3/3],[1/6,1/6,3/3],[1/6,1/6,4/6]],[[0/3,0/3,1/6],[1/6,0/3,1/6],[1/6,1/6,1/6]]].
+
+%?- D = 3, time(d_Qfstratamin(D, Mss)). % using qs_emins/2
+%@ Sorting length-35 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.027s, 65_927 inferences
+%@    % CPU time: 0.029s, 68_259 inferences
+%@ Sorting length-30 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.022s, 52_321 inferences
+%@    % CPU time: 0.024s, 54_633 inferences
+%@ Sorting length-20 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.015s, 32_542 inferences
+%@    % CPU time: 0.016s, 34_814 inferences
+%@ Sorting length-8 list Qs:
+%@   .. encoding Qs:   % CPU time: 0.005s, 10_447 inferences
+%@    % CPU time: 0.006s, 12_671 inferences
+%@    % CPU time: 3.115s, 13_526_584 inferences
+%@    D = 3, Mss = [[[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6],[3/6,3/6,3/3]],[[1/6,4/6,0/0],[1/6,3/6,4/6],[1/6,3/6,3/3]],[[1/6,1/6,4/6],[1/6,1/6,3/3],[0/3,1/6,3/3]],[[1/6,1/6,1/6],[1/6,0/3,1/6],[0/3,0/3,1/6]]].
+
+%?- D = 3, time(d_Qfstratamin(D, Mss)).
+%@    % CPU time: 3.763s, 15_635_161 inferences
+%@    D = 3, Mss = [[[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]],[[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0]],[[0/3,1/6,3/3],[1/6,1/6,3/3],[1/6,1/6,4/6]],[[0/3,0/3,1/6],[1/6,0/3,1/6],[1/6,1/6,1/6]]].
+
 
 %?- d_ls(3, Ls).
 %@ Listing Qs......    % CPU time: 1.585s, 6_660_437 inferences
