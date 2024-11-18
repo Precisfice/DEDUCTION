@@ -1724,6 +1724,15 @@ d_gs(D, Gs) :-
     %%%time(galoisF(Mss, AscQs, Gs)).
 
 %?- time(d_gs(2, Gs)).
+%@ Listing Qs......    % CPU time: 0.063s, 249_966 inferences
+%@ Sorting Qs...Stratifying Qf..    % CPU time: 0.743s, 3_291_174 inferences
+%@ Finding g's ..
+%@ ↓[2/6,0/2] ⊇ [[2/6,0/0],[2/6,2/6]].
+%@ ↓[0/6,2/6] ⊇ [[0/6,2/6]].
+%@ ↓[0/4,0/6] ⊇ [[0/3,0/6],[1/6,0/6]].
+%@    % CPU time: 0.762s, 2_482_722 inferences
+%@    % CPU time: 2.032s, 7_288_555 inferences
+%@    Gs = [[2/6,0/2],[0/6,2/6],[0/4,0/6]].
 %@ Listing Qs......    % CPU time: 0.066s, 249_966 inferences
 %@ Stratifying Qf..    % CPU time: 0.755s, 3_291_174 inferences
 %@ Finding g's ..
@@ -2091,25 +2100,26 @@ d_mendtally_rec_(D, Q, X, Xls) :-
 %
 % So what may be needed ultimately is a reformulation
 % of the idea of Galois enrollment, either restoring
-% the enlargement ('strengthening') ≼ to  ≼* or else
+% the idea of enlarging ('strengthening') ≼ to  ≼* or else
 % *weakening* the iff at the heart of adjointness.
 e2(Q, X) :-
-    [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+    [G0,G1,G2] = [[2/6,0/2],[0/6,2/6],[0/4,0/6]],
     if_(Q '≼' G0, X = 0,
         if_(Q '≼' G1, X = 1,
             if_(Q '≼' G2, X = 2, false))).
 
 %?- e2([0/0,0/0], X).
+%@    X = 2.
 %@    X = 2. % Is the bottom-up cascade of a lower-Galois IE therefore unsafe?
 
 % Suppose we want a 'cut-off' version c2/2 of the above.
 % The main deficiency of e2/2 to be remedied is that it
 % lets Q 'slip thru' to the highest dose, simply because
-% the po ≼ is too weak to catch it.  What we would need
+% po ≼ remains too weak to catch it.  What we would need
 % then is to impose _additional_ requirements on upward
 % percolation of Q.
 c2(Q, X) :-
-    [G0,G1,G2] = [[2/6,0/4], [0/6,2/6], [0/5,0/6]],
+    [G0,G1,G2] = [[2/6,0/2],[0/6,2/6],[0/4,0/6]],
     if_(Q '≼' G0,
         X = 0,
         if_(( Q '⋡' G0
@@ -2128,6 +2138,39 @@ c2(Q, X) :-
 
 %?- c2([2/2,0/0], X).
 %@    X = 0.
+
+%?- c2([0/1,0/0], X).
+%@    X = 1.
+
+%?- c2([0/2,0/0], X).
+%@    X = 1.
+
+%?- c2([0/3,0/0], X).
+%@    X = 1.
+
+%?- c2([0/4,0/0], X).
+%@    X = 2.
+
+%?- c2([0/4,1/1], X).
+%@    X = 1.
+
+%?- c2([0/4,0/1], X).
+%@    X = 2.
+
+%?- c2([0/4,1/2], X).
+%@    X = 2.
+
+% From this we see that c2/2 at least does have potential
+% as a reasonable 'rolling' version of the 3+3 protocol.
+% To enable efficient exploration of such protocols, I'll
+% need some infrastructure -- esp. for *visualization*.
+
+% Might there be some small handful of *decision-points*
+% in D-E protocols, such that I could obtain a concise
+% summary, in textual or graphic form?
+
+% On a long walk with Plato yesterday 11/16, I stumbled on
+% the idea of using finite-state machine diagrams for this.
 
 d_path(D, Path) :-
     length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
@@ -2329,7 +2372,19 @@ d_ls(D, Ls) :-
     %%time(lgalois(Mss, RQs, Ls)).
     time(lgalois(Mss, SQs, Ls)).
 
-%?- d_ls(2, Ls). % (After switching to d_mendtally_rec/3 in d_Qfstratamin/2)
+%?- d_ls(2, Ls). % With new, post-Meetup ≼
+%@ Listing Qs......    % CPU time: 0.079s, 249_943 inferences
+%@ Stratifying Qf..    % CPU time: 0.762s, 3_304_065 inferences
+%@ Finding g's ..
+%@ ↑[4/6,3/5] ⊇ [[4/6,0/0],[3/6,4/6],[3/6,3/3]].
+%@ ↑[5/6,2/5] ⊇ [[1/6,4/6],[1/6,3/3]].
+%@ ↑[6/6,1/5] ⊇ [[1/6,1/6],[0/3,1/6]].
+%@    % CPU time: 0.486s, 1_396_488 inferences
+%@    Ls = [[4/6,3/5],[5/6,2/5],[6/6,1/5]].
+
+%?- [0/0,0/0] '≽' [4/6,3/5].
+%@    true.
+
 %@ Listing Qs......    % CPU time: 0.067s, 249_943 inferences
 %@ Sorting length-784 list Qs:
 %@   .. encoding Qs:   % CPU time: 0.646s, 3_382_043 inferences
