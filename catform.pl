@@ -436,31 +436,220 @@ qs_Ts_maxŪs(Qs, Ts, Ūs) :-
     same_length(Qs, Ūs),
     maplist(\U^U_^A^(#U #= #U_ + #A), Ūs, Ūs_, [0|As]).
 
+meet_(Q1s, Q2s, Hs, Os) :-
+    same_length(Q1s, Q2s),
+    transform(Q1s, H1s, O1s),
+    transform(Q2s, H2s, O2s),
+    mins(H1s, H2s, Hs),
+    mins(O1s, O2s, Os).
+
+meet_(Q1s, Q2s, Qs) :- % 'formal meet'
+    meet_(Q1s, Q2s, Hs, Os),
+    transform(Qs, Hs, Os).
+
+intlist_diffs(Xs, Ds) :-
+    all_but_last(Xs, Xs_, _),
+    Xs = [_|_Xs],
+    maplist(\X^X_^D^(#D #= #X - #X_), Xs_, _Xs, Ds).
+
 meet(Q1s, Q2s, Qs) :-
-    same_length(Q1s, Q2s), same_length(Q2s, Qs),
-    qs_Ts_Ūs(Q1s, T1s, _), qs_Ts_Ūs(Q2s, T2s, _),
-    maxs(T1s, T2s, Ts), % q = q₁ ∧ q₂ ⟹ Ts ≥ T1s ∨ T2s
-    % Having set Ts to the bare-minimum T1s ∨ T2s compatible with
-    % q = q₁ ∧ q₂, we now seek the highest compatible Ūs profile:
-    qs_Ts_maxŪs(Q1s, Ts, Ū1s),
-    qs_Ts_maxŪs(Q2s, Ts, Ū2s),
-    mins(Ū1s, Ū2s, Ūs),
-    qs_Ts_Ūs(Qs, Ts, Ūs).
+    meet_(Q1s, Q2s, Hs, Os),
+    % Now we must compute Adjusted Hs & Os ..
+    intlist_rollmin([0|Hs], [0|AHs]), % AHs = (η'ₖ,ρ'), 1≤k<D
+    format("η₁,...,ηD≡ρ : ~w~n", [Hs]),
+    format("ή₁,...,ήD≡ῤ : ~w~n", [AHs]),
+    % What is the cleanest way to express adjustment of Os?
+    % As worked out in notebook, we construct a length-D list
+    % (γ-0,σₖ-ηₖ'), k=1..D-1, denoting xₖ := xₖ,ₖ₊₁ for x=σ,η.
+    all_but_last(AHs, AHs_, ARho),
+    maplist(\O^H^X^(#X #= #O - #H), Os, [0|AHs_], Xs), % (γ-0,..σₖ-ηₖ'..), 1≤k<D
+    format("(γ,σ₁₂,...) : ~w~n", [Os]),
+    format("(γ-0,σ₁₂-ή₁₂,...) : ~w~n", [Xs]),
+    % Recall that *after* the (D-1) adjustments σₖ ↦ σₖ' we require that
+    %
+    %                   γ-0 ≥ σ₁'-η₁' ≥ ..σₖ-ηₖ'.. ≥ ρ'.  (*)
+    %
+    % We may effect only _downward_ adjustments to the Os=(γ,ηₖ), since we
+    % aim to construct a valid meet that is _below_ the formal meet.
+    % Furthermore, we aim to make _minimal_ such adjustments.  Thus γ must
+    % remain fixed, and only the σₖ (k=1..D-1), each in turn, gets adjusted
+    % only enough to guarantee each of the first D-1 inequalities (*) holds.
+    % These minimal adjustments are obtained precisely as the negative parts
+    % of the forward-differences between the chain of tallies in (*).
+    intlist_diffs(Xs, Diffs),
+    format("ΔXs : ~w~n", [Diffs]),
+    maplist(clpz:min_(0), Diffs, As),
+    format("min(0,ΔXs) : ~w~n", [As]),
+    % Partial sums of these differences yield our D-1 adjustments σₖ ↦ σₖ'.
+    intlist_partsums(As, ΣAs),
+    format("ΣAs : ~w~n", [ΣAs]),
+    maplist(\O^A^AO^(#AO #= #O + #A), Os, [0|ΣAs], AOs),
+    format("γ,ς₁₂,... : ~w~n", [AOs]),
+    % At this point, we should find that the final inequality in (*) holds.
+    % That is, we need to find after making all these *minimal* adjustments
+    % that we have not adjusted so much that the last σ'-η' is now < ρ'!
+    % (Or might yet further downward adjustment ρ' ↦ ρ'' be reasonable?)
+    format("ῤ : ~w~n", [ARho]),
+    all_but_last(AHs_, _, _AH), % _AH = ή_{D-1,D}
+    all_but_last(AOs, _, _AO),  % _AO = ς_{D-1,D}
+    #_AO - #_AH #>= ARho,
+    format("Phew! ~d-(~d) ≥ ~d !~n", [_AO, _AH, ARho]),
+    transform(Qs, AHs, AOs).
 
 %?- meet([3/3,4/4], [4/6,0/0], M).
-%@    M = [4/4,3/3].
+%@ η₁,...,ηD≡ρ : [-4,-7]
+%@ ή₁,...,ήD≡ῤ : [-4,-7]
+%@ (γ,σ₁₂,...) : [-7,-10]
+%@ (γ-0,σ₁₂-ή₁₂,...) : [-7,-6]
+%@ ΔXs : [-1]
+%@ min(0,ΔXs) : [-1]
+%@ ΣAs : [-1]
+%@ γ,ς₁₂,... : [-7,-11]
+%@ ῤ : -7
+%@ Phew! -11-(-4) ≥ -7 !
+%@    M = [4/4,3/3]. % Now a *valid* tally!
+
+%?- meet_([3/3,4/4], [4/6,0/0], M).
+%@    M = [4/3,3/4]. % Not a valid tally!
+
+%?- '≼'([4/3,3/4], [3/3,4/4], Truth).
+%@    Truth = true.
+%?- '≼'([4/3,3/4], [4/6,0/0], Truth).
+%@    Truth = true.
 
 %?- meet_def([3/3,4/4], [4/6,0/0], M).
 %@    M = [4/4,3/3].
 
+%?- '≼'([4/4,3/3], [3/3,4/4], Truth).
+%@    Truth = true.
+%?- '≼'([4/4,3/3], [4/6,0/0], Truth).
+%@    Truth = true.
+
+%?- [4/4,3/3] '≼' [4/3,3/4].
+%@    true.
+
+% What do we learn here?  My oh-so-clever computation
+% based on transformation to (Hs,Os) produced an invalid
+% tally which however _formally_ was a strictly 'better'
+% ('closer') meet than one restricted to valid tallies.
+
+% The 'gap' here consisted of an extra exchange arrow
+% which was of course invalid.  But why did my 'clever'
+% calculation not work?
+
+%?- M = [4/4,3/3], transform(M, Hs, Os), transform(_M, Hs, Os).
+%@    M = [4/4,3/3], Hs = [-4,-7], Os = [-7,-11], _M = [4/4,3/3].
+
+%?- M1 = [4/3,3/4], transform(M1, Hs, Os), transform(_M1, Hs, Os).
+%@    M1 = [4/3,3/4], Hs = [-4,-7], Os = [-7,-10], _M1 = [4/3,3/4].
+
+%?- A = [3/3,4/4], transform(A, Hs, Os), transform(_A, Hs, Os).
+%@    A = [3/3,4/4], Hs = [-3,-7], Os = [-7,-10], _A = [3/3,4/4].
+
+%?- B = [4/6,0/0], transform(B, Hs, Os), transform(_B, Hs, Os).
+%@    B = [4/6,0/0], Hs = [-4,-4], Os = [-2,-8], _B = [4/6,0/0].
+
+%?- M = [4/4,3/3], M1 = [4/3,3/4], M '≼' M1.
+%@    M = [4/4,3/3], M1 = [4/3,3/4].
+
+%?- M = [4/4,3/3], M1 = [4/3,3/4], M '≼' M1.
+
+%?- M1 = [4/3,3/4], A = [3/3,4/4], M1 '≼' A.
+%@    M1 = [4/3,3/4], A = [3/3,4/4].
+
+%?- M1 = [4/3,3/4], B = [4/6,0/0], M1 '≼' B.
+%@    M1 = [4/3,3/4], B = [4/6,0/0].
+
+% This all makes sense, in fact.
+% We have _formally_ that M1 ≼ M ≼ A and M1 ≼ M ≼ B.
+% The only 'surprise' here is that M is invalid /as a tally/.
+% There's nothing terribly 'devastating' about this development,
+% which resembles the discovery of 'imaginary numbers' that
+% greatly facilitate formal manipulations.
+
+% It would be nice, however, to know that exchange-adjustment
+% could always be relied upon to yield a unique valid tally
+% *below* any such purely formal meet.  How would a computation
+% of this proceed?
+
+% If in general a formal meet can be 'pushed down' to a unique
+% valid tally, this will imply at least one of the transformed
+% coordinates is actually *too high* [or not negative enough!]
+% given the others.  Might it be possible to set up CLP(ℤ)
+% constraints that define a unique adjustment?
+
+% To begin, since the Hs (η₁₂,η₂₃,...,ρ) are the partial sums
+% of _minus_ toxicity counts (-t₁,-t₂,...,-t_D) at doses 1..D,
+% and these must all be negative, the Hs must be a decreasing
+% sequence of non-positive numbers.  We obtain D inequalities
+% from this, which can [must!] be enforced independently of
+% any constraints on the Os.  Therefore, we can simply force
+% the whole Hs vector downward in our first adjustment step.
+
+% Next, given the ρ value (final element of Hs) we can set to
+% work on the _reversed_ Os!  By adding -2ρ (this is positive!)
+% to ROs, we get the right-to-left partial sums of (n₁,...,n_D),
+% which must be an *increasing* sequence of positive numbers.
+% As we did with Hs, we can then enforce monotonicity upon ROs.
+
+% This all looks extrememly promising, since it delivers the
+% desired _uniqueness_ of our result!  Moving to details of the
+% implementation, how shall we impose monotonicity?
+
+% Can we generalize a bit?
+intlist_rolled([X|Xs], G_3, [X|Zs]) :-
+    same_length(Xs, Zs),
+    intlist_rolled_(Xs, G_3, Zs, X).
+
+intlist_rolled_([X|Xs], G_3, [Z|Zs], R) :-
+    call(G_3, X, R, Z),
+    intlist_rolled_(Xs, G_3, Zs, Z).
+intlist_rolled_([], _, [], _).
+
+intlist_rollmin(Xs, As) :- intlist_rolled(Xs, clpz:min_, As).
+
+%?- intlist_rollmin([5,3,56,4,9], Ms).
+%@    Ms = [5,3,3,3,3].
+
+intlist_rollmax(Xs, Vs) :- intlist_rolled(Xs, clpz:max_, Vs).
+
+%?- intlist_rollmax([5,3,56,4,9], Ms).
+%@    Ms = [5,5,56,56,56].
+
+intlist_inverse(Xs, NegXs) :-
+    same_length(Xs, NegXs), % avoid choicepoint when used (-Xs, +NegXs)
+    maplist(\X^N^(#N #= - #X), Xs, NegXs).
+
+%?- intlist_inverse([5,3,56,4,9], Ns).
+%@    Ns = [-5,-3,-56,-4,-9].
+
+%?- intlist_inverse(Xs, [5,3,56,4,9]).
+%@    Xs = [-5,-3,-56,-4,-9].
+
+%?- M1 = [4/3,3/4], transform(M1, Hs, Os), transform(_M1, Hs, Os).
+%@    M1 = [4/3,3/4], Hs = [-4,-7], Os = [-7,-10], _M1 = [4/3,3/4].
+% What are the changes we can make that *increase* these
+% transformed coordinates, while 
+
+%?- M = [4/4,3/3], M1 = [4/3,3/4], transform(M, M1, Hs, Os).
+%@    M = [4/4,3/3], M1 = [4/3,3/4], Hs = [0,0], Os = [0,1].
+
 %?- meet([0/6,4/6], [1/6,2/3], Qs).
-%@    Qs = [1/6,3/4].
+%@    Qs = [1/6,3/5].
 
 %?- meet_def([0/6,4/6], [1/6,2/3], Qs).
-%@    Qs = [1/6,3/4].
+%@    Qs = [1/6,3/5].
 
-%?- [1/6,3/4] '≼' [0/6,4/6], [1/6,3/4] '≼' [0/6,2/3].
-%@    true.
+%?- AmB =[1/6,3/5], A=[0/6,4/6], B=[1/6,2/3], AmB '≼' A, AmB '≼' B.
+%@    AmB = [1/6,3/5], A = [0/6,4/6], B = [1/6,2/3].
+
+%?- A = [0/6,4/6], transform(A, Hs, Os), transform(_A, Hs, Os).
+%@    A = [0/6,4/6], Hs = [0,-4], Os = [4,-2], _A = [0/6,4/6].
+%?- B = [1/6,2/3], transform(B, Hs, Os), transform(_B, Hs, Os).
+%@    B = [1/6,2/3], Hs = [-1,-3], Os = [3,-3], _B = [1/6,2/3].
+%?- transform(AmB, [-1,-4], [3,-3]).
+%@    AmB = [1/6,3/5].
+
 
 % TODO: Compare the computation by meet/3 against a brute-force calculation
 %       that directly implements the _definition_ of meet.  This comparison
@@ -682,10 +871,16 @@ d_ncovers(D, N) :-
 % In order to reconstitute the embedding (Qᴰ,≼) ↪ (ℕ²ᴰ,≤)
 % for our enlarged ≼, we need to investigate the ranges
 % of the 'digits' in the transformation.
+% TODO: Consider defining transform/4 in terms of transform/3.
 transform(Qs, Hs, Os) :-
+    same_length(Qs, Hs), % allows usage (-Qs, +Hs, +Os)
     same_length(Qs, Zeros),
     maplist(=(0/0), Zeros),
     transform(Zeros, Qs, Hs, Os).
+
+% transform/3 works in reverse as well:
+%?- Hs = [0,0,0], Os = [18,12,6], transform(Qs, Hs, Os).
+%@    Hs = [0,0,0], Os = [18,12,6], Qs = [0/6,0/6,0/6].
 
 %?- transform([0/6,0/6,0/6], Hs, Os).
 %@    Hs = [0,0,0], Os = [18,12,6].
