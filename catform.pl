@@ -447,24 +447,26 @@ meet_(Q1s, Q2s, Qs) :- % 'formal meet'
     meet_(Q1s, Q2s, Hs, Os),
     transform(Qs, Hs, Os).
 
-intlist_diffs(Xs, Ds) :-
-    all_but_last(Xs, Xs_, _),
-    Xs = [_|_Xs],
-    maplist(\X^X_^D^(#D #= #X - #X_), Xs_, _Xs, Ds).
+sum_(Z1, Z2, Sum) :- #Sum #= #Z1 + #Z2.
+diff_(Z1, Z2, Diff) :- #Diff #= #Z1 - #Z2.
+
+intlist_downshift(Zs, ΔZs) :-
+    intlist_rollmin(Zs, Zs_),
+    maplist(diff_, Zs_, Zs, ΔZs).
 
 meet(Q1s, Q2s, Qs) :-
     meet_(Q1s, Q2s, Hs, Os),
     % Now we must compute Adjusted Hs & Os ..
     intlist_rollmin([0|Hs], [0|AHs]), % AHs = (η'ₖ,ρ'), 1≤k<D
-    format("η₁,...,ηD≡ρ : ~w~n", [Hs]),
-    format("ή₁,...,ήD≡ῤ : ~w~n", [AHs]),
+    %%format("η₁,...,ηD≡ρ : ~w~n", [Hs]),
+    %%format("ή₁,...,ήD≡ῤ : ~w~n", [AHs]),
     % What is the cleanest way to express adjustment of Os?
     % As worked out in notebook, we construct a length-D list
     % (γ-0,σₖ-ηₖ'), k=1..D-1, denoting xₖ := xₖ,ₖ₊₁ for x=σ,η.
     all_but_last(AHs, AHs_, ARho),
-    maplist(\O^H^X^(#X #= #O - #H), Os, [0|AHs_], Xs), % (γ-0,..σₖ-ηₖ'..), 1≤k<D
-    format("(γ,σ₁₂,...) : ~w~n", [Os]),
-    format("(γ-0,σ₁₂-ή₁₂,...) : ~w~n", [Xs]),
+    maplist(diff_, Os, [0|AHs_], Xs), % (γ-0,..σₖ-ηₖ'..), 1≤k<D
+    %%format("(γ,σ₁₂,...) : ~w~n", [Os]),
+    %%format("(γ-0,σ₁₂-ή₁₂,...) : ~w~n", [Xs]),
     % Recall that *after* the (D-1) adjustments σₖ ↦ σₖ' we require that
     %
     %                   γ-0 ≥ σ₁'-η₁' ≥ ..σₖ-ηₖ'.. ≥ ρ'.  (*)
@@ -474,27 +476,101 @@ meet(Q1s, Q2s, Qs) :-
     % Furthermore, we aim to make _minimal_ such adjustments.  Thus γ must
     % remain fixed, and only the σₖ (k=1..D-1), each in turn, gets adjusted
     % only enough to guarantee each of the first D-1 inequalities (*) holds.
-    % These minimal adjustments are obtained precisely as the negative parts
-    % of the forward-differences between the chain of tallies in (*).
-    intlist_diffs(Xs, Diffs),
-    format("ΔXs : ~w~n", [Diffs]),
-    maplist(clpz:min_(0), Diffs, As),
-    format("min(0,ΔXs) : ~w~n", [As]),
-    % Partial sums of these differences yield our D-1 adjustments σₖ ↦ σₖ'.
-    intlist_partsums(As, ΣAs),
-    format("ΣAs : ~w~n", [ΣAs]),
-    maplist(\O^A^AO^(#AO #= #O + #A), Os, [0|ΣAs], AOs),
-    format("γ,ς₁₂,... : ~w~n", [AOs]),
+    % These minimal adjustments are obtained precisely as the differences
+    % between D-vector Xs = (γ-0,σ₁-ή₁,...) and its rolling minimum.
+    % (Note how, expressed this way, we automatically keep γ unadjusted!)
+    intlist_downshift(Xs, ΔOs),
+    %%format("ΔOs : ~w~n", [ΔOs]),
+    maplist(sum_, Os, ΔOs, AOs),
+    %%format("γ,ς₁₂,... : ~w~n", [AOs]),
     % At this point, we should find that the final inequality in (*) holds.
     % That is, we need to find after making all these *minimal* adjustments
     % that we have not adjusted so much that the last σ'-η' is now < ρ'!
     % (Or might yet further downward adjustment ρ' ↦ ρ'' be reasonable?)
-    format("ῤ : ~w~n", [ARho]),
+    %%format("ῤ : ~w~n", [ARho]),
     all_but_last(AHs_, _, _AH), % _AH = ή_{D-1,D}
     all_but_last(AOs, _, _AO),  % _AO = ς_{D-1,D}
     #_AO - #_AH #>= ARho,
-    format("Phew! ~d-(~d) ≥ ~d !~n", [_AO, _AH, ARho]),
+    %%format("Phew! ~d-(~d) ≥ ~d !~n", [_AO, _AH, ARho]),
     transform(Qs, AHs, AOs).
+
+% Let's check systematically
+d_nmax_wrongmeet(D, Nmax, Q1s, Q2s) :-
+    qs_d_nmax(Q1s, D, Nmax),
+    qs_d_nmax(Q2s, D, Nmax),
+    meet(Q1s, Q2s, Meet),
+    nmax_meet(Nmax, Q1s, Q2s, Meet0),
+    Meet \== Meet0.
+
+%?- time(d_nmax_wrongmeet(2, 2, Q1s, Q2s)).
+%@    % CPU time: 120.234s, 418_362_944 inferences
+%@    false.
+%?- time(d_nmax_wrongmeet(3, 2, Q1s, Q2s)).
+%@    % CPU time: 1391.806s, 4_971_471_877 inferences
+%@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2]
+%@ ;  % CPU time: 54.189s, 200_821_696 inferences
+%@    Q1s = [0/0,1/1,0/0], Q2s = [0/2,0/0,2/2]
+%@ ;  % CPU time: 52.974s, 195_178_079 inferences
+%@    error('$interrupt_thrown',repl/0).
+% Hmm!  Could I _still_ have a mistake in there?
+
+%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], meet(Q1s, Q2s, Meet).
+%@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], Meet = [0/1,1/1,1/1].
+%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], nmax_meet(2, Q1s, Q2s, Meet0).
+%@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], Meet0 = [0/1,1/1,1/1]
+%@ ;  Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], Meet0 = [1/1,0/0,1/2].
+% Ooh!  Now this is really interesting.  We get 2 different meets-by-definition!
+%?- M0a = [0/1,1/1,1/1], M0b = [1/1,0/0,1/2], (M0a '≼' M0b; M0b '≼' M0a).
+%@    false. % M0a and M0b are incomparable.
+%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], M0a = [0/1,1/1,1/1], M0a'≼'Q1s, M0a'≼'Q2s.
+%@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], M0a = [0/1,1/1,1/1].
+%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], M0b = [1/1,0/0,1/2], M0b'≼'Q1s, M0b'≼'Q2s.
+%@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], M0b = [1/1,0/0,1/2].
+% So it appears 𝒬 = (Qᴰ,≼) is NOT a lower semilattice!
+
+%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], nmax_meet(3, Q1s, Q2s, Meet0).
+%@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], Meet0 = [0/1,1/1,1/1]
+%@ ;  Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], Meet0 = [1/1,0/0,1/2].
+%?- M0a = [0/1,1/1,1/1], M0b = [1/1,0/0,1/2], transform(M0a, Hsa, Osa), transform(M0b, Hsb, Osb).
+%@    M0a = [0/1,1/1,1/1], M0b = [1/1,0/0,1/2],
+%     Hsa = [ 0,-1,-2], Osa = [-1,-2,-3],
+%     Hsb = [-1,-1,-2], Osb = [-1,-2,-2].
+% What do I learn from the above?
+%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], transform(Q1s, Hs1, Os1), transform(Q2s, Hs2, Os2).
+%@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2],
+%     Hs1 = [0,-1,-1], Os1 = [-1,-1,-2],
+%     Hs2 = [0, 0,-2], Os2 = [-1,-2,-2].
+%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], meet_(Q1s, Q2s, M_), transform(M_, Hs_, Os_).
+%@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2],
+%     M_ = [0/1,1/0,1/2],
+%     Hs_ = [0,-1,-2], Os_ = [-1,-2,-2].
+% So, we see that ≼ as currently defined generates no preference
+% for one adjustment approach over another.
+% The most compelling *opportunity* revealed by this discovery
+% would be to seek plausible additional arrows that _do_ render
+% such a judgment!  The more arrows I have in this partial order,
+% the fuller my results can be!
+%
+% Therefore, our important question now is whether either of
+% M0a or M0b above can reasonably be deemed the 'safer' one.
+%    M0a = [0/1,1/1,1/1]
+%    t:u = [0:1,1:0,1:0] t = 0 1 1  u = 1 0 0
+%    M0b = [1/1,0/0,1/2]
+%    t:u = [1:0,0:0,1:1] t = 1 0 1  u = 0 0 1
+% Both have totals T=2, U=1 and (of course) N=3.
+% What differs is /how/ these are distributed.
+% The issue that appears to have arisen now is
+% how to compare exchanges between not just
+% adjacent doses, but doses arbitrarily far apart.
+% If we adopted the view that even arbitrarily
+% high titration of 1 individual cannot cancel
+% the safety-loss from moving 1 toxicity down
+% one dose, then we would have M0b ≼ M0a ---
+% agreeing with our current meet/3 implementation,
+% at least for this case.  But I would worry that
+% this could be hard to argue for universally.
+% (The only really appealing rationale for this
+% might be if it obviated the ρ argument.)
 
 %?- meet([3/3,4/4], [4/6,0/0], M).
 %@ η₁,...,ηD≡ρ : [-4,-7]
@@ -654,11 +730,11 @@ intlist_inverse(Xs, NegXs) :-
 % TODO: Compare the computation by meet/3 against a brute-force calculation
 %       that directly implements the _definition_ of meet.  This comparison
 %       ought to demonstrate that meets are indeed *unique*.
-meet_def(Q1s, Q2s, Qs) :-
+nmax_meet(Nmax, Q1s, Q2s, Qs) :-
     % 1. Generate a list of 'all possible' Qss to test.
     same_length(Q1s, Q2s),
     length(Q1s, D),
-    findall(Qs, qs_d_nmax(Qs, D, 6), Qss),
+    findall(Qs, qs_d_nmax(Qs, D, Nmax), Qss),
     % 2. Filter out elements that are below both Q1s and Q2s.
     tfilter('≽'(Q1s), Qss, Qss1),
     tfilter('≽'(Q2s), Qss1, Qss12),
@@ -666,9 +742,8 @@ meet_def(Q1s, Q2s, Qs) :-
     qs_maxs(Qss12, Meets),
     member(Qs, Meets).
 
-%?- meet_def([0/6,4/6], [1/6,2/3], Qs).
-%@ Generated Qss of length 784.
-%@    Qs = [1/6,3/4].
+%?- nmax_meet(6, [0/6,4/6], [1/6,2/3], Qs).
+%@    Qs = [1/6,3/5].
 
 :- table d_endtally_rec/3.
 
