@@ -19,6 +19,8 @@
 
 clpz:monotonic.
 
+reduce(P_2, [X|Xs], R) :- foldl(P_2, Xs, X, R).
+
 :- op(900, xfx, '≤'). % Mutually exclusive infix
 :- op(900, xfx, '≰'). % relations defined on ℕᴰ.
 
@@ -445,6 +447,17 @@ meet_(Q1s, Q2s, Hs, Os) :-
 
 meet_(Q1s, Q2s, Qs) :- % 'formal meet'
     meet_(Q1s, Q2s, Hs, Os),
+    transform(Qs, Hs, Os).
+
+join_(Q1s, Q2s, Hs, Os) :-
+    same_length(Q1s, Q2s),
+    transform(Q1s, H1s, O1s),
+    transform(Q2s, H2s, O2s),
+    maxs(H1s, H2s, Hs),
+    maxs(O1s, O2s, Os).
+
+join_(Q1s, Q2s, Qs) :- % TODO: Are these 'formal joins' always valid?
+    join_(Q1s, Q2s, Hs, Os),
     transform(Qs, Hs, Os).
 
 sum_(Z1, Z2, Sum) :- #Sum #= #Z1 + #Z2.
