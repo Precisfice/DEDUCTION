@@ -501,8 +501,8 @@ meet(Q1s, Q2s, Qs) :-
     % that we have not adjusted so much that the last σ'-η' is now < ρ'!
     % (Or might yet further downward adjustment ρ' ↦ ρ'' be reasonable?)
     %%format("ῤ : ~w~n", [ARho]),
-    all_but_last(AHs_, _, _AH), % _AH = ή_{D-1,D}
-    all_but_last(AOs, _, _AO),  % _AO = ς_{D-1,D}
+    reverse(AOs, [_AO|_]),      % _AH = ή_{D-1,D} (or γ in case D=1 )
+    reverse([0|AHs_], [_AH|_]), % _AO = ς_{D-1,D} (or 0 in case D=1 )
     #_AO - #_AH #>= ARho,
     %%format("Phew! ~d-(~d) ≥ ~d !~n", [_AO, _AH, ARho]),
     transform(Qs, AHs, AOs).
@@ -2455,6 +2455,72 @@ c2(Q, X) :-
 % On a long walk with Plato yesterday 11/16, I stumbled on
 % the idea of using finite-state machine diagrams for this.
 
+% Clearly, any given D-E protocol identifies subsets of Qᴰ
+% with enrollment or recommendation levels in {0,1,...,D}.
+% That is, each protocol identifies an accessible subset
+% U ⊆ Qᴰ, and partitions it into D+1 disjoint sets labeled
+% by {0,1,...,D}.
+%
+% Accordingly, our process of 'discovery' can proceed by
+% identifying these disjoint sets, and then seeking simple
+% descriptions of them in terms of our partial order ≼.
+
+d_tally_dose(D, Tally, X) :-
+    (   d_tally_next(D, Tally, X)
+    ;   d_endtally_rec(D, Tally, X)
+    ).
+
+d_rx_meet(D, X, Mx) :-
+    setof(Q, d_tally_dose(D, Q, X), Qxs),
+    reduce(meet, Qxs, Mx).
+
+%?- d_rx_meet(2, 2, M2).
+%@    M2 = [1/5,1/2].
+
+d_meets(D, Ms) :-
+    findall(X, (X in 0..D, indomain(X)), Xs),
+    maplist(d_rx_meet(D), Xs, Ms).
+
+%?- D in 2..6, indomain(D), time(d_meets(D, Ms)). % (retread timings shown)
+%@    % CPU time: 2.193s, 9_802_470 inferences
+%@    D = 2, Ms = [[4/6,3/5],[1/5,4/5],[1/5,1/2]]
+%@ ;  % CPU time: 11.608s, 52_784_623 inferences
+%@    D = 3, Ms = [[4/6,3/6,3/5],[1/5,4/6,3/5],[1/5,1/5,4/5],[1/5,1/5,1/2]]
+%@ ;  % CPU time: 44.559s, 206_996_580 inferences
+%@    D = 4, Ms = [[4/6,3/6,3/6,3/5],[1/5,4/6,3/6,3/5],[1/5,1/5,4/6,3/5],[1/5,1/5,1/5,4/5],[1/5,1/5,1/5,1/2]]
+%@ ;  % CPU time: 147.920s, 690_356_469 inferences
+%@    D = 5, Ms = [[4/6,3/6,3/6,3/6,3/5],[1/5,4/6,3/6,3/6,3/5],[1/5,1/5,4/6,3/6,3/5],[1/5,1/5,1/5,4/6,3/5],[1/5,1/5,1/5,1/5,4/5],[1/5,1/5,1/5,1/5,1/2]]
+%@ ;  % CPU time: 452.192s, 2_087_367_540 inferences
+%@    D = 6, Ms = [[4/6,3/6,3/6,3/6,3/6,3/5],[1/5,4/6,3/6,3/6,3/6,3/5],[1/5,1/5,4/6,3/6,3/6,3/5],[1/5,1/5,1/5,4/6,3/6,3/5],[1/5,1/5,1/5,1/5,4/6,3/5],[1/5,1/5,1/5,1/5,1/5,4/5],[1/5,1/5,1/5,1/5,1/5,1/2]].
+
+% Do all these partitions start the trial enrolling at 1?
+
+% The degenerate case D=1 does NOT make a 'clean start' from [0/0]:
+%?- d_rx_meet(1, 1, M1).
+%@    M1 = [1/3].
+%?- d_rx_meet(1, 1, M1), M1 '≼' [0/0].
+%@    false.
+% But happily, this turns out to be the exception!
+
+d_starts1(D) :-
+    D #> 1, % D=1 case is exceptional, in NOT starting cleanly from [0/0].
+    length(Init, D), maplist(=(0/0), Init),
+    d_rx_meet(D, 1, M1), M1 '≼' Init, % <- (indeed this fails in D=1 case)
+    d_rx_meet(D, 2, M2), M2 '⋠' Init.
+
+%?- D in 2..6, indomain(D), time(d_starts1(D)). % (retread timings shown)
+%@    % CPU time: 1.452s, 6_525_450 inferences
+%@    D = 2
+%@ ;  % CPU time: 5.793s, 26_681_589 inferences
+%@    D = 3
+%@ ;  % CPU time: 18.339s, 84_213_814 inferences
+%@    D = 4
+%@ ;  % CPU time: 57.714s, 234_167_553 inferences
+%@    D = 5
+%@ ;  % CPU time: 135.980s, 606_129_161 inferences
+%@    D = 6.
+
+
 d_path(D, Path) :-
     length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
     phrase(path([I]-Is), Path).
@@ -2475,7 +2541,7 @@ d_tally_next(D, Tally, Next) :-
     phrase(path([I]-Is), Path),
     phrase((..., [State0,E,Ls-_], ...), Path),
     member(E, [esc,des,sta]),
-    state_tallies(State0, Tally), % I think this calculation is wrong.
+    state_tallies(State0, Tally),
     length(Ls, Next).
 
 % How, in general, do I transform a trial _state_
@@ -2528,28 +2594,6 @@ d_tally_next(D, Tally, Next) :-
 %@ ;  D = 2, X = 1, Qfs = [[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]], Qfs1 = [[1/6,3/3],[1/6,4/6]]
 %@ ;  D = 2, X = 2, Qfs = [[0/3,0/6],[0/3,1/6],[1/6,0/6]], Qfs1 = [[0/3,1/6],[1/6,0/6]].
 */
-
-%?- meet([3/3,0/0],[3/6,3/3],M1).
-%@    M1 = [3/3,3/3].
-%?- meet([3/3,3/3], [3/6,4/6], M2).
-%@    M2 = [3/3,4/4].
-%?- meet([3/3,4/4], [4/6,0/0], M3).
-%@    M3 = [4/4,3/3].
-
-%?- foldl(meet, [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]], [0/6,0/6], Meet).
-%@    Meet = [4/4,3/3].
-
-% Let's calculate the meet of the pair { [1/6,3/3] , [1/6,4/6] }.
-%?- meet([1/6,3/3], [1/6,4/6], Meet).
-%@    Meet = [1/6,4/4].
-%?- [1/6,4/4] '≼' [1/6,3/3], [1/6,4/4] '≼' [1/6,4/6].
-%@    true.
-
-%?- [0/1,1/1] '≼' [0/1,0/0].
-%@    true.
-
-%?- [4/4] '≼' [3/3].
-%@    true.
 
 /*
 RQss = [[[0/6,2/6],[1/6,0/6],[0/3,0/6]],
