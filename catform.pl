@@ -2520,6 +2520,84 @@ d_starts1(D) :-
 %@ ;  % CPU time: 135.980s, 606_129_161 inferences
 %@    D = 6.
 
+% Let's now examine how close an approximation we can achieve
+% to the 3+3 protocol, using these cascading partitions.
+% Take the D=2 case, to begin.
+% By construction, of course, every tally Qx followed by
+% either enrollment or recommendation at dose X (or above)
+% must obey the condition Mx '≼' Qx.
+% Another way to say this, is that the upper set ↑Mx includes
+% all Qx that are followed by enrollment/rec at dose X.
+% But the converse need not hold: some tallies Q ∈ ↑Mx may be
+% followed [per-protocol] by enrec at a dose _below_ X.
+% Thus, if we use the Mx to select (cascading top-down) the
+% next dose [en/rec TBD] for each given tally, then we may
+% end up with a /less cautious/ protocol than we derived
+% the Mx from.
+% Thus, the 'approximation errors' we must look for are cases
+% where My ≼ Qx for x < y.
+d_x_mx(D, X, Mx) :-
+    D in 2..6, indomain(D),
+    d_meets(D, [_|Ms]), % Ms = [M1,...,MD]
+    format("Found partition M1..M~d = ~w~n", [D,Ms]),
+    nth0(X, Ms, Mx). % Thus, X in 0..(D-1)
+
+%?- d_x_mx(2, X, Mx).
+%@ Found partition M1..M2 = [[1/5,4/5],[1/5,1/2]]
+%@    X = 0, Mx = [1/5,4/5]
+%@ ;  X = 1, Mx = [1/5,1/2].
+
+d_x_escapees(D, X, Qs) :-
+    d_x_mx(D, X, Mx),
+    #Xplus1 #= #X + 1,
+    format("Checking against M~d = ~w..~n", [Xplus1,Mx]),
+    setof(Q, (d_tally_dose(D, Q, X), Mx '≼' Q), Qs).
+
+%?- d_x_escapees(2, X, Qs).
+%@ Found partition M1..M2 = [[1/5,4/5],[1/5,1/2]]
+%@ Checking against M1 = [1/5,4/5]..
+%@ Checking against M2 = [1/5,1/2]..
+%@    X = 1, Qs = [[0/3,2/6],[0/6,2/3],[0/6,2/6]].
+%?- [1/5,1/2]'≼'[0/3,2/6].
+%@    true.
+%?- [1/5,1/2]'≼'[0/6,2/6].
+%@    true.
+%?- [1/5,1/2]'≼'[0/6,2/6].
+%@    true.
+% I think we do learn something from this!
+% Let's consider each of these 3 cases, in reverse order:
+% * [0/6,2/6]
+%   This case has Rec=1 per protocol.  But it is also true that ..
+%?- [1/6,1/6]'≼'[0/6,2/6].
+%@    true.
+%   Thus, perhaps we can in attribute this approximation
+%   error to the unrectified Rec=2 for [1/6,1/6].
+% * [0/3,2/6]
+%   Here again, we seem to have a consequence of non-functorial
+%   dose assignment.  By all means, let's see if rectification
+%   solves this.
+% * [0/6,2/3]
+%   By contrast with the above, this would seem to be a case
+%   where we might depend on enrollment rules, to augment the
+%   filtering performed by Ms.
+
+%?- d_x_escapees(3, X, Qs).
+%@ Found partition M1..M3 = [[1/5,4/6,3/5],[1/5,1/5,4/5],[1/5,1/5,1/2]]
+%@ Checking against M1 = [1/5,4/6,3/5]..
+%@ Checking against M2 = [1/5,1/5,4/5]..
+%@    X = 1, Qs = [[0/3,2/6,0/0],[0/3,2/6,2/3],[0/3,2/6,2/6],[0/3,2/6,3/6],[0/3,2/6,4/6],[0/6,2/3,0/0],[0/6,2/6,0/0],[0/6,2/6,2/3],[0/6,2/6,2/6],[0/6,2/6,3/3],[0/6,2/6,3/6],[0/6,2/6,4/6]]
+%@ ;  Checking against M3 = [1/5,1/5,1/2]..
+%@ X = 2, Qs = [[0/3,0/3,2/6],[0/3,0/3,3/6],[0/3,0/6,2/3],[0/3,0/6,2/6],[0/3,0/6,3/3],[0/3,0/6,3/6],[0/3,1/6,2/3],[0/3,1/6,2/6],[1/6,0/3,2/6],[1/6,0/6,2/3],[1/6,0/6,2/6]].
+
+%?- d_x_escapees(4, X, Qs).
+%@ Found partition M1..M4 = [[1/5,4/6,3/6,3/5],[1/5,1/5,4/6,3/5],[1/5,1/5,1/5,4/5],[1/5,1/5,1/5,1/2]]
+%@ Checking against M1 = [1/5,4/6,3/6,3/5]..
+%@ Checking against M2 = [1/5,1/5,4/6,3/5]..
+%@    X = 1, Qs = [[0/3,2/6,0/0,0/0],[0/3,2/6,2/3,0/0],[0/3,2/6,2/6,0/0],[0/3,2/6,2/6,2/3],[0/3,2/6,2/6,2/6],[0/3,2/6,2/6,3/3],[0/3,2/6,2/6,3/6],[0/3,2/6,2/6,4/6],[0/3,2/6,3/6,0/0],[0/3,2/6,3/6,2/3],[0/3,2/6,3/6,2/6],[0/3,2/6,3/6,3/6],[0/3,2/6,3/6,4/6],[0/3,2/6,4/6,0/0],[0/6,2/3,0/0,0/0],[0/6,2/6,0/0,0/0],[0/6,2/6,2/3,... / ...],[0/6,2/6,... / ...|...],[0/6,... / ...|...],[... / ...|...]|...]
+%@ ;  Checking against M3 = [1/5,1/5,1/5,4/5]..
+%@ X = 2, Qs = [[0/3,0/3,2/6,0/0],[0/3,0/3,2/6,2/3],[0/3,0/3,2/6,2/6],[0/3,0/3,2/6,3/6],[0/3,0/3,2/6,4/6],[0/3,0/3,3/6,0/0],[0/3,0/3,3/6,2/6],[0/3,0/3,3/6,3/6],[0/3,0/6,2/3,0/0],[0/3,0/6,2/6,0/0],[0/3,0/6,2/6,2/3],[0/3,0/6,2/6,2/6],[0/3,0/6,2/6,3/3],[0/3,0/6,2/6,3/6],[0/3,0/6,2/6,4/6],[0/3,0/6,3/3,0/0],[0/3,0/6,3/6,... / ...],[0/3,0/6,... / ...|...],[0/3,... / ...|...],[... / ...|...]|...]
+%@ ;  Checking against M4 = [1/5,1/5,1/5,1/2]..
+%@ X = 3, Qs = [[0/3,0/3,0/3,2/6],[0/3,0/3,0/3,3/6],[0/3,0/3,0/6,2/3],[0/3,0/3,0/6,2/6],[0/3,0/3,0/6,3/3],[0/3,0/3,0/6,3/6],[0/3,0/3,0/6,4/6],[0/3,0/3,1/6,2/3],[0/3,0/3,1/6,2/6],[0/3,0/3,1/6,3/6],[0/3,1/6,0/3,2/3],[0/3,1/6,0/3,2/6],[0/3,1/6,0/3,3/6],[0/3,1/6,0/6,2/3],[0/3,1/6,0/6,2/6],[0/3,1/6,0/6,3/3],[0/3,1/6,0/6,... / ...],[0/3,1/6,... / ...|...],[0/3,... / ...|...],[... / ...|...]|...].
 
 d_path(D, Path) :-
     length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
