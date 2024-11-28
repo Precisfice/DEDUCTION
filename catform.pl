@@ -2467,7 +2467,7 @@ c2(Q, X) :-
 
 d_tally_dose(D, Tally, X) :-
     (   d_tally_next(D, Tally, X)
-    ;   d_endtally_rec(D, Tally, X)
+    ;   d_mendtally_rec(D, Tally, X)
     ).
 
 d_rx_meet(D, X, Mx) :-
@@ -2476,12 +2476,29 @@ d_rx_meet(D, X, Mx) :-
 
 %?- d_rx_meet(2, 2, M2).
 %@    M2 = [1/5,1/2].
+%@    M2 = [1/5,1/2].
 
 d_meets(D, Ms) :-
     findall(X, (X in 0..D, indomain(X)), Xs),
     maplist(d_rx_meet(D), Xs, Ms).
 
-%?- D in 2..6, indomain(D), time(d_meets(D, Ms)). % (retread timings shown)
+%?- D in 2..6, indomain(D), time(d_meets(D, Ms)).
+%@    % CPU time: 3.445s, 14_529_761 inferences
+%@    D = 2, Ms = [[4/6,3/5],[1/5,4/5],[1/5,1/2]]
+%@ ;  % CPU time: 25.122s, 95_637_410 inferences
+%@    D = 3, Ms = [[4/6,3/6,3/5],[1/5,4/6,3/5],[1/5,1/3,3/5],[1/5,1/5,1/2]]
+%@ ;  % CPU time: 203.674s, 624_595_369 inferences
+%@    D = 4, Ms = [[4/6,3/6,3/6,3/5],[1/5,4/6,3/6,3/5],[1/5,1/3,3/6,3/5],[1/5,1/5,1/3,3/5],[1/5,1/5,1/5,1/2]]
+%@ ;  % CPU time: 264.290s, 759_104_851 inferences
+%@    error('$interrupt_thrown',repl/0).
+% The post-rectification meets above are unchanged from those below.
+% That suggests the rectified tallies were not 'binding constraints'.
+% But now I must ask whether this fact looks 'obvious' in retrospect!
+% Rectification moves tallies _down_, from higher to lower partitions.
+% But it does this precisely because the moved tallies sit below some
+% other tally already located in that lower-down partition.  Therefore,
+% this move will not *necessarily* correct the mis-sorting of that
+% other tally.  (So I may not have overlooked anything obvious--phew!)
 %@    % CPU time: 2.193s, 9_802_470 inferences
 %@    D = 2, Ms = [[4/6,3/5],[1/5,4/5],[1/5,1/2]]
 %@ ;  % CPU time: 11.608s, 52_784_623 inferences
@@ -2598,6 +2615,54 @@ d_x_escapees(D, X, Qs) :-
 %@ X = 2, Qs = [[0/3,0/3,2/6,0/0],[0/3,0/3,2/6,2/3],[0/3,0/3,2/6,2/6],[0/3,0/3,2/6,3/6],[0/3,0/3,2/6,4/6],[0/3,0/3,3/6,0/0],[0/3,0/3,3/6,2/6],[0/3,0/3,3/6,3/6],[0/3,0/6,2/3,0/0],[0/3,0/6,2/6,0/0],[0/3,0/6,2/6,2/3],[0/3,0/6,2/6,2/6],[0/3,0/6,2/6,3/3],[0/3,0/6,2/6,3/6],[0/3,0/6,2/6,4/6],[0/3,0/6,3/3,0/0],[0/3,0/6,3/6,... / ...],[0/3,0/6,... / ...|...],[0/3,... / ...|...],[... / ...|...]|...]
 %@ ;  Checking against M4 = [1/5,1/5,1/5,1/2]..
 %@ X = 3, Qs = [[0/3,0/3,0/3,2/6],[0/3,0/3,0/3,3/6],[0/3,0/3,0/6,2/3],[0/3,0/3,0/6,2/6],[0/3,0/3,0/6,3/3],[0/3,0/3,0/6,3/6],[0/3,0/3,0/6,4/6],[0/3,0/3,1/6,2/3],[0/3,0/3,1/6,2/6],[0/3,0/3,1/6,3/6],[0/3,1/6,0/3,2/3],[0/3,1/6,0/3,2/6],[0/3,1/6,0/3,3/6],[0/3,1/6,0/6,2/3],[0/3,1/6,0/6,2/6],[0/3,1/6,0/6,3/3],[0/3,1/6,0/6,... / ...],[0/3,1/6,... / ...|...],[0/3,... / ...|...],[... / ...|...]|...].
+
+% From the above, I seem to have learned that meets alone
+% do not adequately represent the relevant partitions of
+% the accessible tally space.
+%
+% A more informative summary could be had in the form of
+% _minimal sets_ drawn from these regions of the space.
+% This of course amounts to generalizing from the special
+% case where a singleton set {meet} sufficiently defines
+% the region.
+
+d_rx_mins(D, X, Mxs) :-
+    setof(Q, d_tally_dose(D, Q, X), Qxs),
+    qs_mins(Qxs, Mxs).
+
+%?- d_rx_mins(2, 2, M2s).
+%@    M2s = [[1/6,1/3],[1/6,0/0],[0/3,0/0]].
+
+d_minsets(D, Mss) :-
+    findall(X, (X in 0..D, indomain(X)), Xs),
+    maplist(d_rx_mins(D), Xs, Rss),
+    reverse(Rss, Mss). % Top-to-bottom cascade
+
+%?- d_minsets(2, Mss).
+%@    Mss = [[[1/6,1/3],[1/6,0/0],[0/3,0/0]],  % dose 2
+%            [[1/6,4/6],[1/6,3/3],[0/3,3/3]],  % dose 1
+%            [[4/6,0/0],[3/6,4/6],[3/6,3/3]]]. % dose 0
+
+%?- d_minsets(3, Mss).
+%@ 3  Mss = [[[1/6,1/6,1/3],[1/6,1/6,0/0],[1/6,0/3,0/0],[0/3,0/3,0/0]],
+%  2         [[1/6,1/6,1/6],[1/6,1/3,0/0],[1/6,0/3,4/6],[1/6,0/3,3/3],[0/3,0/3,3/3]],
+%  1         [[1/6,4/6,0/0],[1/6,3/6,4/6],[1/6,3/6,3/3],[0/3,3/6,3/3]],
+%  0         [[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6],[3/6,3/6,3/3]]].
+
+%?- d_minsets(4, Mss).
+%@ 4  Mss = [[[1/6,1/6,1/6,1/3],[1/6,1/6,1/6,0/0],[1/6,1/6,0/3,0/0],[1/6,0/3,0/3,0/0],[0/3,0/3,0/3,0/0]],
+%  3         [[1/6,1/6,1/6,1/6],[1/6,1/6,1/3,0/0],[1/6,1/6,0/3,4/6],[1/6,1/6,0/3,3/3],[1/6,0/3,0/3,3/3],[0/3,0/3,0/3,3/3]],
+%  2         [[1/6,1/6,1/6,4/6],[1/6,1/6,1/6,3/3],[1/6,1/3,0/0,0/0],[1/6,0/3,4/6,0/0],[1/6,0/3,3/6,4/6],[1/6,0/3,3/6,3/3],[0/3,0/3,3/6,3/3]],
+%  1         [[1/6,4/6,0/0,0/0],[1/6,3/6,4/6,0/0],[1/6,3/6,3/6,4/6],[1/6,3/6,3/6,3/3],[0/3,3/6,3/6,3/3]],
+%  0         [[4/6,0/0,0/0,0/0],[3/6,4/6,0/0,0/0],[3/6,3/6,4/6,0/0],[3/6,3/6,3/6,4/6],[3/6,3/6,3/6,3/3]]].
+
+% Now we begin to get a picture of the complexity of these regions,
+% via-à-vis the partial order ≼!  We see that this partial order
+% lacks enough arrows to carve out these regions in a single stroke.
+%
+% But it does appear that generalizing the '1:1' arrow to '1:r' would
+% simplify many of these minimal sets to singletons.  Specifically,
+% 1:2 looks quite promising!
 
 d_path(D, Path) :-
     length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
