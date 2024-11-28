@@ -78,12 +78,22 @@
 ;; (It could be interesting to use local variables to shadow
 ;; default mappings defined globally.)
 
+(defun range (m n)
+  (if (= m n)
+      (list n)
+    (cons m (range (+ 1 m) n))))
+
+(range 1 10)
+
 (setq width 300)
 (setq height 400)
 
 ;; I do need one more step below, namely flipping the y coordinate!
 (defun vec* (v1 v2) (vconcat (seq-mapn #'* v1 v2)))
 (defun flip (xy) (vec+ (vector 0 height) (vec* [1 -1] xy)))
+
+`[0 ,height]      ; too cute
+(vector 0 height) ; less cute, but somehow clearer!
 
 (defun canvas (xy)
   "Return canvas coordinates for grid coordinates [x y]"
@@ -99,9 +109,9 @@
 ;; I need a basic function to draw the grid dots at vector coordinates
 (defun dot (xy)
   "Draw a dot at grid coordinates [x y]"
-  (pcase xy (`[,x ,y]
-             (let ((radius 3))
-               (svg-circle svg x y radius :stroke "lightgray" :fill "lightgray")))))
+  (pcase-let ((`[,x ,y] xy)
+              (radius 3))
+    (svg-circle svg x y radius :stroke "lightgray" :fill "lightgray")))
 
 ;; TODO: Replace this unsightly loop with recursion!
 (let ((N 6))
@@ -112,5 +122,8 @@
         (setq T (- T 1)))
       (setq N (- N 1)))))
 
+(defun dots (d)
+  "Plot grid for dose level d"
+  )
 
  
