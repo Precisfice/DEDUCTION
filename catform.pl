@@ -177,6 +177,10 @@ as_Ts_Tas(As, Ts, Tas) :-
         Truth = false
        ).
 
+% Impose global default for R here:
+coefs(Qs, Hs, Os) :- coefs(1, Qs, Hs, Os).
+os_enc(Os, OK) :- r_os_enc(1, Os, OK).
+
 % Find the unique coefficients of ≼ᵣ-generators for given q ∈ Qᴰ.
 % TODO: Here is a good spot to begin renaming the coefficients,
 %       once I've rationalized their names in the monograph.
@@ -212,8 +216,8 @@ d_nmax_discordant(D, Nmax, Q1s, Q2s) :-
     qs_d_nmax(Q1s, D, Nmax),
     qs_d_nmax(Q2s, D, Nmax),
     transform(Q1s, Q2s, Hs, Os),
-    coefs(1, Q1s, H1s, O1s),
-    coefs(1, Q2s, H2s, O2s),
+    coefs(Q1s, H1s, O1s),
+    coefs(Q2s, H2s, O2s),
     maplist(H2^H1^H_^(#H_ #= #H2 - #H1), H2s, H1s, Hs_),
     maplist(O2^O1^O_^(#O_ #= #O2 - #O1), O2s, O1s, Os_),
     (   Hs \== Hs_
@@ -238,8 +242,8 @@ d_nmax_discordant(D, Nmax, Q1s, Q2s) :-
 % Q1,Q2 ∈ Qᴰ into 2✕D parameters, *all* nonnegative iff Q1 ⊑ Q2.
 transform(Q1s, Q2s, ΔHs, ΔOs) :-
     same_length(Q1s, Q2s),
-    coefs(1, Q1s, H1s, O1s),
-    coefs(1, Q2s, H2s, O2s),
+    coefs(Q1s, H1s, O1s),
+    coefs(Q2s, H2s, O2s),
     maplist(diff_, H2s, H1s, ΔHs),
     maplist(diff_, O2s, O1s, ΔOs).
 
@@ -521,25 +525,25 @@ qs_Ts_maxŪs(Qs, Ts, Ūs) :-
 
 meet_(Q1s, Q2s, Hs, Os) :-
     same_length(Q1s, Q2s),
-    coefs(1, Q1s, H1s, O1s),
-    coefs(1, Q2s, H2s, O2s),
+    coefs(Q1s, H1s, O1s),
+    coefs(Q2s, H2s, O2s),
     mins(H1s, H2s, Hs),
     mins(O1s, O2s, Os).
 
 meet_(Q1s, Q2s, Qs) :- % 'formal meet'
     meet_(Q1s, Q2s, Hs, Os),
-    coefs(1, Qs, Hs, Os).
+    coefs(Qs, Hs, Os).
 
 join_(Q1s, Q2s, Hs, Os) :-
     same_length(Q1s, Q2s),
-    coefs(1, Q1s, H1s, O1s),
-    coefs(1, Q2s, H2s, O2s),
+    coefs(Q1s, H1s, O1s),
+    coefs(Q2s, H2s, O2s),
     maxs(H1s, H2s, Hs),
     maxs(O1s, O2s, Os).
 
 join_(Q1s, Q2s, Qs) :- % TODO: Are these 'formal joins' always valid?
     join_(Q1s, Q2s, Hs, Os),
-    coefs(1, Qs, Hs, Os).
+    coefs(Qs, Hs, Os).
 
 sum_(Z1, Z2, Sum) :- #Sum #= #Z1 + #Z2.
 diff_(Z1, Z2, Diff) :- #Diff #= #Z1 - #Z2.
@@ -589,7 +593,7 @@ meet(Q1s, Q2s, Qs) :-
     reverse([0|AHs_], [_AH|_]), % _AO = ς_{D-1,D} (or 0 in case D=1 )
     #_AO - #_AH #>= ARho,
     %%format("Phew! ~d-(~d) ≥ ~d !~n", [_AO, _AH, ARho]),
-    coefs(1, Qs, AHs, AOs).
+    coefs(Qs, AHs, AOs).
 
 % Let's check systematically
 d_nmax_wrongmeet(D, Nmax, Q1s, Q2s) :-
@@ -1104,7 +1108,7 @@ base_(B, A, N0, N) :- #N #= #B * #N0 + #A.
 qs_int(Qs, K) :-
     coefs(1, Qs, Hs, Os),
     hs_enc(Hs, HK),
-    r_os_enc(1, Os, OK),
+    os_enc(Os, OK),
     same_length(Hs, _s), placevalues([P|_s]),
     #K #= #OK * #P + #HK.
 
