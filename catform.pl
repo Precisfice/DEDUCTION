@@ -103,12 +103,13 @@ Xs '≰' Ys :-
 :- op(900, xfx, '⊁').
 
 q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
+q_t_u(Q, T, U) :- q_r(Q, T:U).
 
 % The monograph's capitalization notation being ill-suited to
 % Prolog (for obvious reasons!), we indicate our partial-sum
 % variables below with a prefix Σ.
 qs_Ts_Ūs(Qs, ΣTs, ΣŪs) :-
-    maplist(\Q^T^U^(q_r(Q, T:U)), Qs, Ts, Us),
+    maplist(q_t_u, Qs, Ts, Us),
     intlist_partsums(Ts, ΣTs),
     reverse(Us, Ūs),
     intlist_partsums(Ūs, RΣŪs),
@@ -175,6 +176,62 @@ as_Ts_Tas(As, Ts, Tas) :-
         Truth = true,
         Truth = false
        ).
+
+% Find the unique coefficients of ≼ᵣ-generators for given q ∈ Qᴰ.
+% TODO: Here is a good spot to begin renaming the coefficients,
+%       once I've rationalized their names in the monograph.
+coefs(R, Qs, Hs, Os) :-
+    #R #> 0,
+    maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
+    % We will set Hs = [ηs]+[ρ] (of length D), since ρ fits in so smoothly.
+    % Our first D equations are simply that Hs is minus partial sums of Ts.
+    intlist_negated(Ts, NegTs), intlist_partsums(NegTs, Hs),
+    reverse(Hs, [Rho|_]),
+    % Our next set of equations is formed by γ = ΣU + rρ =: σ₀₁,
+    % and then recursively σₖ,ₖ₊₁ = σₖ₋₁,ₖ - nₖ for k in 1..D-1.
+    % But an even simpler expression of this, which dispenses
+    % altogether with the Us, is to reverse-partial-sum the Ns,
+    % then add Rho*(R+1)!
+    reverse(Ns, Иs),
+    intlist_partsums(Иs, ΣИs),
+    reverse(ΣИs, ΞNs),
+    #RhoR1 #= #Rho * (#R + 1),
+    maplist(sum_(RhoR1), ΞNs, Os).
+
+%?- coefs(1, [0/0,0/0,0/0], Hs, Os).
+%@    Hs = [0,0,0], Os = [0,0,0].
+
+%?- transform([0/0,0/0,0/0], [1/2,3/4,4/5], Hs, Os).
+%@    Hs = [-1,-4,-8], Os = [-5,-7,-11].
+%?- coefs(1, [1/2,3/4,4/5], Hs, Os).
+%@    Hs = [-1,-4,-8], Os = [-5,-7,-11].
+
+% Let's check systematically
+d_nmax_discordant(D, Nmax, Q1s, Q2s) :-
+    qs_d_nmax(Q1s, D, Nmax),
+    qs_d_nmax(Q2s, D, Nmax),
+    transform(Q1s, Q2s, Hs, Os),
+    coefs(1, Q1s, H1s, O1s),
+    coefs(1, Q2s, H2s, O2s),
+    maplist(H2^H1^H_^(#H_ #= #H2 - #H1), H2s, H1s, Hs_),
+    maplist(O2^O1^O_^(#O_ #= #O2 - #O1), O2s, O1s, Os_),
+    (   Hs \== Hs_
+    ;   Os \== Os_
+    ).
+
+%?- time(d_nmax_discordant(2, 3, Q1s, Q2s)).
+%@    % CPU time: 9.259s, 29_721_540 inferences
+%@    false.
+%?- time(d_nmax_discordant(3, 2, Q1s, Q2s)).
+%@    % CPU time: 60.048s, 199_087_482 inferences
+%@    false.
+%?- time(d_nmax_discordant(3, 3, Q1s, Q2s)).
+%@    % CPU time: 1302.750s, 4_202_019_937 inferences
+%@    false.
+%?- time(d_nmax_discordant(2, 6, Q1s, Q2s)).
+%@    % CPU time: 567.130s, 1_779_337_077 inferences
+%@    false.
+
 
 % I've now worked out in detail a unique transformation of pair
 % Q1,Q2 ∈ Qᴰ into 2✕D parameters, *all* nonnegative iff Q1 ⊑ Q2.
@@ -363,6 +420,34 @@ d_q(D, Qs) :-
 '⊁'(Q2s, Q1s) :- '≺'(Q1s, Q2s, false).
 
 %% Utility predicates used above:
+
+intlist_sum([X|Xs], Sum) :- intlist_sum_([X|Xs], Sum).
+intlist_sum_([X|Xs], Sum) :-
+    intlist_sum_(Xs, _Sum),
+    #Sum #= #X + #_Sum.
+intlist_sum_([], 0).
+
+%?- intlist_sum([], Nope).
+%@    false. % As desired.
+
+%?- findall(N, (N in 1..100, indomain(N)), Ns), time(intlist_sum(Ns, Sum)).
+%@    % CPU time: 0.000s, 379 inferences
+%@    Ns = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20|...], Sum = 5050.
+
+intlist_negated([X|Xs], [N|Ns]) :-
+    same_length(Xs, Ns),
+    #X #= -(#N),
+    intlist_negated(Xs, Ns).
+intlist_negated([], []).
+
+%?- intlist_negated(Xs, [-1,-2,-3]).
+%@    Xs = [1,2,3].
+
+%?- intlist_negated(Xs, Ns).
+%@    Xs = [_A], Ns = [_B], clpz:(#_A+ #_B#=0)
+%@ ;  Xs = [_A,_C], Ns = [_B,_D], clpz:(#_A+ #_B#=0), clpz:(#_C+ #_D#=0)
+%@ ;  Xs = [_A,_C,_E], Ns = [_B,_D,_F], clpz:(#_A+ #_B#=0), clpz:(#_C+ #_D#=0), clpz:(#_E+ #_F#=0)
+%@ ;  ... .
 
 intlist_partsums([X|Xs], [X|Σs]) :-
     same_length(Xs, Σs), % eliminate unnecessary choice point
