@@ -236,17 +236,12 @@ d_nmax_discordant(D, Nmax, Q1s, Q2s) :-
 
 % I've now worked out in detail a unique transformation of pair
 % Q1,Q2 ∈ Qᴰ into 2✕D parameters, *all* nonnegative iff Q1 ⊑ Q2.
-transform(Q1s, Q2s, Hs, Os) :-
+transform(Q1s, Q2s, ΔHs, ΔOs) :-
     same_length(Q1s, Q2s),
-    % We will set Hs = [ηs]+[ρ] (of length D),
-    % since ρ fits so smoothly into the sequence.
-    q1s_q2s_Δts_Δns(Q1s, Q2s, Δts, Δns),
-    maplist(\X^NegX^(#NegX #= -1 * #X), Δts, Δ_ts),
-    intlist_partsums(Δ_ts, Hs), reverse(Hs, [Rho|_]),
-    reverse(Δns, RΔns),
-    intlist_partsums(RΔns, Ňs),
-    maplist(\N^O^(#O #= #N + 2 * #Rho), Ňs, ROs),
-    reverse(ROs, Os). % Os = [σs]+[γ] (length-D).
+    coefs(1, Q1s, H1s, O1s),
+    coefs(1, Q2s, H2s, O2s),
+    maplist(diff_, H2s, H1s, ΔHs),
+    maplist(diff_, O2s, O1s, ΔOs).
 
 %?- Ňs = [1,2,3], reverse(Ňs, Ns).
 %@    Ňs = [1,2,3], Ns = [3,2,1].
@@ -548,6 +543,9 @@ join_(Q1s, Q2s, Qs) :- % TODO: Are these 'formal joins' always valid?
 
 sum_(Z1, Z2, Sum) :- #Sum #= #Z1 + #Z2.
 diff_(Z1, Z2, Diff) :- #Diff #= #Z1 - #Z2.
+
+%?- maplist(diff_, [1,2,3], [0,1,2], Δs).
+%@    Δs = [1,1,1].
 
 intlist_downshift(Zs, ΔZs) :-
     intlist_rollmin(Zs, Zs_),
