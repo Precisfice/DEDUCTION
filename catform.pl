@@ -526,25 +526,25 @@ qs_Ts_maxŪs(Qs, Ts, Ūs) :-
 
 meet_(Q1s, Q2s, Hs, Os) :-
     same_length(Q1s, Q2s),
-    transform(Q1s, H1s, O1s),
-    transform(Q2s, H2s, O2s),
+    coefs(1, Q1s, H1s, O1s),
+    coefs(1, Q2s, H2s, O2s),
     mins(H1s, H2s, Hs),
     mins(O1s, O2s, Os).
 
 meet_(Q1s, Q2s, Qs) :- % 'formal meet'
     meet_(Q1s, Q2s, Hs, Os),
-    transform(Qs, Hs, Os).
+    coefs(1, Qs, Hs, Os).
 
 join_(Q1s, Q2s, Hs, Os) :-
     same_length(Q1s, Q2s),
-    transform(Q1s, H1s, O1s),
-    transform(Q2s, H2s, O2s),
+    coefs(1, Q1s, H1s, O1s),
+    coefs(1, Q2s, H2s, O2s),
     maxs(H1s, H2s, Hs),
     maxs(O1s, O2s, Os).
 
 join_(Q1s, Q2s, Qs) :- % TODO: Are these 'formal joins' always valid?
     join_(Q1s, Q2s, Hs, Os),
-    transform(Qs, Hs, Os).
+    coefs(1, Qs, Hs, Os).
 
 sum_(Z1, Z2, Sum) :- #Sum #= #Z1 + #Z2.
 diff_(Z1, Z2, Diff) :- #Diff #= #Z1 - #Z2.
@@ -591,7 +591,7 @@ meet(Q1s, Q2s, Qs) :-
     reverse([0|AHs_], [_AH|_]), % _AO = ς_{D-1,D} (or 0 in case D=1 )
     #_AO - #_AH #>= ARho,
     %%format("Phew! ~d-(~d) ≥ ~d !~n", [_AO, _AH, ARho]),
-    transform(Qs, AHs, AOs).
+    coefs(1, Qs, AHs, AOs).
 
 % Let's check systematically
 d_nmax_wrongmeet(D, Nmax, Q1s, Q2s) :-
@@ -630,16 +630,16 @@ d_nmax_wrongmeet(D, Nmax, Q1s, Q2s) :-
 %?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], nmax_meet(3, Q1s, Q2s, Meet0).
 %@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], Meet0 = [0/1,1/1,1/1]
 %@ ;  Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], Meet0 = [1/1,0/0,1/2].
-%?- M0a = [0/1,1/1,1/1], M0b = [1/1,0/0,1/2], transform(M0a, Hsa, Osa), transform(M0b, Hsb, Osb).
+%?- M0a = [0/1,1/1,1/1], M0b = [1/1,0/0,1/2], coefs(1, M0a, Hsa, Osa), coefs(1, M0b, Hsb, Osb).
 %@    M0a = [0/1,1/1,1/1], M0b = [1/1,0/0,1/2],
 %     Hsa = [ 0,-1,-2], Osa = [-1,-2,-3],
 %     Hsb = [-1,-1,-2], Osb = [-1,-2,-2].
 % What do I learn from the above?
-%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], transform(Q1s, Hs1, Os1), transform(Q2s, Hs2, Os2).
+%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], coefs(1, Q1s, Hs1, Os1), coefs(1, Q2s, Hs2, Os2).
 %@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2],
 %     Hs1 = [0,-1,-1], Os1 = [-1,-1,-2],
 %     Hs2 = [0, 0,-2], Os2 = [-1,-2,-2].
-%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], meet_(Q1s, Q2s, M_), transform(M_, Hs_, Os_).
+%?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], meet_(Q1s, Q2s, M_), coefs(1, M_, Hs_, Os_).
 %@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2],
 %     M_ = [0/1,1/0,1/2],
 %     Hs_ = [0,-1,-2], Os_ = [-1,-2,-2].
@@ -712,16 +712,16 @@ d_nmax_wrongmeet(D, Nmax, Q1s, Q2s) :-
 % which was of course invalid.  But why did my 'clever'
 % calculation not work?
 
-%?- M = [4/4,3/3], transform(M, Hs, Os), transform(_M, Hs, Os).
+%?- M = [4/4,3/3], coefs(1, M, Hs, Os), coefs(1, _M, Hs, Os).
 %@    M = [4/4,3/3], Hs = [-4,-7], Os = [-7,-11], _M = [4/4,3/3].
 
-%?- M1 = [4/3,3/4], transform(M1, Hs, Os), transform(_M1, Hs, Os).
+%?- M1 = [4/3,3/4], coefs(1, M1, Hs, Os), coefs(1, _M1, Hs, Os).
 %@    M1 = [4/3,3/4], Hs = [-4,-7], Os = [-7,-10], _M1 = [4/3,3/4].
 
-%?- A = [3/3,4/4], transform(A, Hs, Os), transform(_A, Hs, Os).
+%?- A = [3/3,4/4], coefs(1, A, Hs, Os), coefs(1, _A, Hs, Os).
 %@    A = [3/3,4/4], Hs = [-3,-7], Os = [-7,-10], _A = [3/3,4/4].
 
-%?- B = [4/6,0/0], transform(B, Hs, Os), transform(_B, Hs, Os).
+%?- B = [4/6,0/0], coefs(1, B, Hs, Os), coefs(1, _B, Hs, Os).
 %@    B = [4/6,0/0], Hs = [-4,-4], Os = [-2,-8], _B = [4/6,0/0].
 
 %?- M = [4/4,3/3], M1 = [4/3,3/4], M '≼' M1.
@@ -801,7 +801,7 @@ intlist_inverse(Xs, NegXs) :-
 %?- intlist_inverse(Xs, [5,3,56,4,9]).
 %@    Xs = [-5,-3,-56,-4,-9].
 
-%?- M1 = [4/3,3/4], transform(M1, Hs, Os), transform(_M1, Hs, Os).
+%?- M1 = [4/3,3/4], coefs(1, M1, Hs, Os), coefs(1, _M1, Hs, Os).
 %@    M1 = [4/3,3/4], Hs = [-4,-7], Os = [-7,-10], _M1 = [4/3,3/4].
 % What are the changes we can make that *increase* these
 % transformed coordinates, while 
@@ -818,11 +818,11 @@ intlist_inverse(Xs, NegXs) :-
 %?- AmB =[1/6,3/5], A=[0/6,4/6], B=[1/6,2/3], AmB '≼' A, AmB '≼' B.
 %@    AmB = [1/6,3/5], A = [0/6,4/6], B = [1/6,2/3].
 
-%?- A = [0/6,4/6], transform(A, Hs, Os), transform(_A, Hs, Os).
+%?- A = [0/6,4/6], coefs(1, A, Hs, Os), coefs(1, _A, Hs, Os).
 %@    A = [0/6,4/6], Hs = [0,-4], Os = [4,-2], _A = [0/6,4/6].
-%?- B = [1/6,2/3], transform(B, Hs, Os), transform(_B, Hs, Os).
+%?- B = [1/6,2/3], coefs(1, B, Hs, Os), coefs(1, _B, Hs, Os).
 %@    B = [1/6,2/3], Hs = [-1,-3], Os = [3,-3], _B = [1/6,2/3].
-%?- transform(AmB, [-1,-4], [3,-3]).
+%?- coefs(1, AmB, [-1,-4], [3,-3]).
 %@    AmB = [1/6,3/5].
 
 
@@ -1041,29 +1041,6 @@ d_ncovers(D, N) :-
 
 %?- findall(Q, d_mendtally_rec(2, Q, _), Qs), findall(Qm, minimal_in(Qm, Qs), Qms).
 %@    Qs = [[0/3,0/6],[0/3,1/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,0/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6],[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,... / ...],[... / ...|...]|...], Qms = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
-
-% In order to reconstitute the embedding (Qᴰ,≼) ↪ (ℕ²ᴰ,≤)
-% for our enlarged ≼, we need to investigate the ranges
-% of the 'digits' in the transformation.
-% TODO: Consider defining transform/4 in terms of transform/3.
-transform(Qs, Hs, Os) :-
-    same_length(Qs, Hs), % allows usage (-Qs, +Hs, +Os)
-    same_length(Qs, Zeros),
-    maplist(=(0/0), Zeros),
-    transform(Zeros, Qs, Hs, Os).
-
-% transform/3 works in reverse as well:
-%?- Hs = [0,0,0], Os = [18,12,6], transform(Qs, Hs, Os).
-%@    Hs = [0,0,0], Os = [18,12,6], Qs = [0/6,0/6,0/6].
-
-%?- transform([0/6,0/6,0/6], Hs, Os).
-%@    Hs = [0,0,0], Os = [18,12,6].
-%?- transform([6/6,6/6,6/6], Hs, Os).
-%@    Hs = [-6,-12,-18], Os = [-18,-24,-30].
-
-% How might coefs(1)/3 fare, as a replacement for transform/3
-%?- Hs = [0,0,0], Os = [18,12,6], coefs(1, Qs, Hs, Os).
-%@    Hs = [0,0,0], Os = [18,12,6], Qs = [0/6,0/6,0/6].
 
 % Thus, it seems k'th element of Hs ranges from -k*Nmax to 0.
 % This is at least rather simple!  But the Os look a bit more
