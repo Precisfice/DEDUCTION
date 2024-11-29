@@ -182,6 +182,7 @@ as_Ts_Tas(As, Ts, Tas) :-
 %       once I've rationalized their names in the monograph.
 coefs(R, Qs, Hs, Os) :-
     #R #> 0,
+    same_length(Qs, Hs), % allows usage (+R, -Qs, +Hs, +Os)
     maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
     % We will set Hs = [ηs]+[ρ] (of length D), since ρ fits in so smoothly.
     % Our first D equations are simply that Hs is minus partial sums of Ts.
@@ -1060,160 +1061,80 @@ transform(Qs, Hs, Os) :-
 %?- transform([6/6,6/6,6/6], Hs, Os).
 %@    Hs = [-6,-12,-18], Os = [-18,-24,-30].
 
-% Ah, this is a little surprising!  It shows I will need to
-% take care to use the correct 'base' for each 'digit' of
-% the arithmetized tally.
-
-% Furthermore, I'll need to search systematically over the
-% whole accessible 'sphere' of tallies to be sure I find
-% the entire range of each transformed coordinate.
-% Find min & max η₁₂ (the head element of Hs).
-d_nmax_minH12_maxH12(D, Nmax, MinH12, MaxH12) :-
-    findall(H12, (qs_d_nmax(Qs, D, Nmax),
-                  transform(Qs, [H12|_], _)
-                 ), H12s),
-    length(H12s, V),
-    format("found ~d η₁₂ values..", [V]),
-    foldl(clpz:min_, H12s, 1_000_000, MinH12),
-    foldl(clpz:max_, H12s, -1_000_000, MaxH12).
-
-%?- foldl(clpz:min_, [3,1,4,2,5,9,2], 100, Min).
-%@    Min = 1.
-%?- foldl(clpz:max_, [3,1,4,2,5,9,2], -100, Max).
-%@    Max = 9.
-
-%?- d_nmax_minH12_maxH12(2, 3, MinH12, MaxH12).
-%@ found 100 η₁₂ values..   MinH12 = -3, MaxH12 = 0.
-%?- d_nmax_minH12_maxH12(2, 4, MinH12, MaxH12).
-%@ found 225 η₁₂ values..   MinH12 = -4, MaxH12 = 0.
-%?- d_nmax_minH12_maxH12(2, 5, MinH12, MaxH12).
-%@ found 441 η₁₂ values..   MinH12 = -5, MaxH12 = 0.
-%?- d_nmax_minH12_maxH12(2, 6, MinH12, MaxH12).
-%@ found 784 η₁₂ values..   MinH12 = -6, MaxH12 = 0.
-%?- d_nmax_minH12_maxH12(3, 3, MinH12, MaxH12).
-%@ found 1000 η₁₂ values..   MinH12 = -3, MaxH12 = 0.
-%?- d_nmax_minH12_maxH12(3, 4, MinH12, MaxH12).
-%@ found 3375 η₁₂ values..   MinH12 = -4, MaxH12 = 0.
-%?- d_nmax_minH12_maxH12(3, 5, MinH12, MaxH12).
-%@ found 9261 η₁₂ values..   MinH12 = -5, MaxH12 = 0.
-%?- d_nmax_minH12_maxH12(3, 6, MinH12, MaxH12).
-%@ found 21952 η₁₂ values..   MinH12 = -6, MaxH12 = 0.
-
-% This suggests η₁₂ in -Nmax..0.
-
-d_nmax_minH23_maxH23(D, Nmax, MinH23, MaxH23) :-
-    D #>= 3,
-    findall(H23, (qs_d_nmax(Qs, D, Nmax),
-                  transform(Qs, [_,H23|_], _)
-                 ), H23s),
-    length(H23s, V),
-    format("found ~d η₂₃ values..", [V]),
-    foldl(clpz:min_, H23s, 1_000_000, MinH23),
-    foldl(clpz:max_, H23s, -1_000_000, MaxH23).
-
-%?- d_nmax_minH23_maxH23(3, 6, MinH23, MaxH23).
-%@ found 21952 η₂₃ values..   MinH23 = -12, MaxH23 = 0.
-%?- d_nmax_minH23_maxH23(3, 5, MinH23, MaxH23).
-%@ found 9261 η₂₃ values..   MinH23 = -10, MaxH23 = 0.
-
-% This suggests η₂₃ in -2*Nmax..0.
-
-d_nmax_minRho_maxRho(D, Nmax, MinRho, MaxRho) :-
-    findall(Rho, (qs_d_nmax(Qs, D, Nmax),
-                  transform(Qs, Hs, _),
-                  reverse(Hs, [Rho|_])
-                 ), Rhos),
-    length(Rhos, V),
-    format("found ~d ρ's..", [V]),
-    foldl(clpz:min_, Rhos, 1_000_000, MinRho),
-    foldl(clpz:max_, Rhos, -1_000_000, MaxRho).
-
-%?- d_nmax_minRho_maxRho(3, 6, MinRho, MaxRho).
-%@ found 21952 ρ's..   MinRho = -18, MaxRho = 0.
+% How might coefs(1)/3 fare, as a replacement for transform/3
+%?- Hs = [0,0,0], Os = [18,12,6], coefs(1, Qs, Hs, Os).
+%@    Hs = [0,0,0], Os = [18,12,6], Qs = [0/6,0/6,0/6].
 
 % Thus, it seems k'th element of Hs ranges from -k*Nmax to 0.
 % This is at least rather simple!  But the Os look a bit more
 % complicated in this respect.
+% ---
+% And, as expected, the Hs have not changed, since only the
+% top, right block --- (γ,σ's) vs (u's) --- of our inverse
+% matrix has changed.
 
-d_nmax_minO12_maxO12(D, Nmax, MinO12, MaxO12) :-
-    findall(O12, (qs_d_nmax(Qs, D, Nmax),
-                  transform(Qs, _, [O12|_])
-                 ), O12s),
-    length(O12s, V),
-    format("found ~d σ₁₂ values..", [V]),
-    foldl(clpz:min_, O12s, 1_000_000, MinO12),
-    foldl(clpz:max_, O12s, -1_000_000, MaxO12).
+%?- coefs(3, [6/6,6/6,6/6,6/6], Hs, Os).
+%@    Hs = [-6,-12,-18,-24], Os = [-72,-78,-84,-90].
+%?- coefs(2, [6/6,6/6,6/6,6/6], Hs, Os).
+%@    Hs = [-6,-12,-18,-24], Os = [-48,-54,-60,-66].
+%?- coefs(1, [6/6,6/6,6/6,6/6], Hs, Os).
+%@    Hs = [-6,-12,-18,-24], Os = [-24,-30,-36,-42].
+% Can we understand the above, in light of the formulae?
+% Our γ = -r∑t + ∑u should have minimum value -6rD, and
+% maximum value 6D.  Each subsequent element of (γ,σ's)
+% (i.e., the σ's in turn) can be no higher, and at most
+% 6D lower, than its predecessor.
 
-%?- d_nmax_minO12_maxO12(3, 6, MinO12, MaxO12).
-%@ found 21952 σ₁₂ values..   MinO12 = -18, MaxO12 = 18.
+% But we can say even more about the upper limits,
+% since these are attained in the case tₖ≡0!  The
+% upper limits are therefore independent of r, and
+% just the same descending sequence found for r=1.
+%?- coefs(3, [0/6,0/6,0/6,0/6], Hs, Os).
+%@    Hs = [0,0,0,0], Os = [24,18,12,6].
+%?- coefs(2, [0/6,0/6,0/6,0/6], Hs, Os).
+%@    Hs = [0,0,0,0], Os = [24,18,12,6].
+%?- coefs(1, [0/6,0/6,0/6,0/6], Hs, Os).
+%@    Hs = [0,0,0,0], Os = [24,18,12,6].
 
-d_nmax_minO23_maxO23(D, Nmax, MinO23, MaxO23) :-
-    D #>= 3,
-    findall(O23, (qs_d_nmax(Qs, D, Nmax),
-                  transform(Qs, _, [_,O23|_])
-                 ), O23s),
-    length(O23s, V),
-    format("found ~d σ₂₃ values..", [V]),
-    foldl(clpz:min_, O23s, 1_000_000, MinO23),
-    foldl(clpz:max_, O23s, -1_000_000, MaxO23).
-
-%?- d_nmax_minO23_maxO23(3, 6, MinO23, MaxO23).
-%@ found 21952 σ₂₃ values..   MinO23 = -24, MaxO23 = 12.
-
-d_nmax_minGamma_maxGamma(D, Nmax, MinGamma, MaxGamma) :-
-    findall(Gamma, (qs_d_nmax(Qs, D, Nmax),
-                    transform(Qs, _, Os),
-                    reverse(Os, [Gamma|_])
-                 ), Gammas),
-    length(Gammas, V),
-    format("found ~d γ's..", [V]),
-    foldl(clpz:min_, Gammas, 1_000_000, MinGamma),
-    foldl(clpz:max_, Gammas, -1_000_000, MaxGamma).
-
-%?- d_nmax_minGamma_maxGamma(3, 6, MinGamma, MaxGamma).
-%@ found 21952 γ's..   MinGamma = -30, MaxGamma = 6.
-
-% So interestingly the MAXima for Os are in descending
-% arithmetic sequence [18,12,6],
-% while the MINima are all 36 below these: [-18,-24,-30].
-% Accordingly, each of the Os will have to be encoded in
-% base-(D*Nmax + 1), after upward shifting by Nmax*(d+2)
-% for d in 1..D.
-
-% Given how all the transformed coordinates look quite 'negative',
-% I may do better to form my integer with their opposites -- and
-% of course keep track of this decision, since it should reverse
-% the order relation.
+% Therefore, the _range_ of Os (which is what matters
+% in determining the bases of our 'digits') are all
+% equal at 6D(r+1).
+% Accordingly, we need only update os_base/2 below.
 
 % To encode the Hs, we can reuse existing infrastructure, as-is
 hs_enc(Hs, K) :- ws_int(Hs, K).
 
-% To encode Os, we need only shift the values downward
-% so they are non-positive, then encode a base-(6*D+1)
-% integer from them.
-os_enc(Os, K) :-
-    os_base(Os, B),
+% To encode Os, we need only encode a base-(6*D*(R+1)+1) integer.
+% (Note that we need not even insist on non-negative 'digits',
+% since any bias in a given digit will bias the whole encoding
+% consistently, with no effect on the _order_.)
+r_os_enc(R, Os, K) :-
+    r_os_base(R, Os, B),
     foldl(base_(B), Os, 0, K).
 
-os_base(Os, B) :- length(Os, D), #B #= 6 * #D + 1.
+r_os_base(R, Os, B) :-
+    #R #> 0, length(Os, D),
+    #B #= 6 * #D * (#R+1) + 1.
 
 base_(B, A, N0, N) :- #N #= #B * #N0 + #A.
 
 %?- foldl(base_(10), [1,2,3,4], 0, N).
 %@    N = 1234.
 
-%?- Os = [18,12,6], os_enc(Os, K).
+%?- Os = [18,12,6], r_os_enc(1, Os, K).
+%@    Os = [18,12,6], K = 25092. % Now with the R+1 correction
+%@    Os = [18,12,6], K = 6732.  % w/o missing factor (R+1)=2
 %@    Os = [18,12,6], K = 6732.
 
 qs_int(Qs, K) :-
-    transform(Qs, Hs, Os),
+    coefs(1, Qs, Hs, Os),
     hs_enc(Hs, HK),
-    os_enc(Os, OK),
+    r_os_enc(1, Os, OK),
     same_length(Hs, _s), placevalues([P|_s]),
     #K #= #OK * #P + #HK.
 
 %?- qs_int([1/1,2/3], K).
-%@    K = -2661.
+%@    K = -4845.
 
 %?- Qs = [0/0,0/0], qs_int(Qs, K).
 %@    Qs = [0/0,0/0], K = 0.
@@ -1227,25 +1148,25 @@ d_nmax_wrongway(D, Nmax, Q1s, Q2s) :-
     Q1s '≼' Q2s.
 
 %?- time(d_nmax_wrongway(2, 3, Q1, Q2)).
-%@    % CPU time: 10.501s, 30_671_113 inferences
+%@    % CPU time: 9.395s, 39_874_233 inferences
 %@    false.
 %?- time(d_nmax_wrongway(2, 4, Q1, Q2)).
-%@    % CPU time: 53.085s, 156_313_540 inferences
+%@    % CPU time: 47.449s, 202_688_740 inferences
 %@    false.
 %?- time(d_nmax_wrongway(2, 5, Q1, Q2)).
-%@    % CPU time: 204.149s, 597_970_856 inferences
+%@    % CPU time: 181.271s, 775_851_104 inferences
 %@    false.
 %?- time(d_nmax_wrongway(2, 6, Q1, Q2)).
-%@    % CPU time: 640.739s, 1_896_641_140 inferences
+%@    % CPU time: 609.922s, 2_458_537_860 inferences
 %@    false.
 %?- time(d_nmax_wrongway(3, 1, Q1, Q2)).
-%@    % CPU time: 0.993s, 2_631_428 inferences
+%@    % CPU time: 0.891s, 3_661_100 inferences
 %@    false.
 %?- time(d_nmax_wrongway(3, 2, Q1, Q2)).
-%@    % CPU time: 61.371s, 164_168_062 inferences
+%@    % CPU time: 54.779s, 228_148_342 inferences
 %@    false.
 %?- time(d_nmax_wrongway(3, 3, Q1, Q2)).
-%@    % CPU time: 1305.276s, 3_442_932_293 inferences
+%@    % CPU time: 1147.127s, 4_811_099_116 inferences
 %@    false.
 
 % By embedding the partial order ≼ into a *complete* order,
