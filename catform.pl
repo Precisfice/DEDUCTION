@@ -178,8 +178,13 @@ as_Ts_Tas(As, Ts, Tas) :-
        ).
 
 % Impose global default for R here:
-coefs(Qs, Hs, Os) :- coefs(1, Qs, Hs, Os).
-os_enc(Os, OK) :- r_os_enc(1, Os, OK).
+coefs(Qs, Hs, Os) :- coefs(2, Qs, Hs, Os).
+os_enc(Os, OK) :- r_os_enc(2, Os, OK).
+
+%?- [1/6,1/3] '≼' [1/6,0/0].
+%@    false. % with R=1
+%?- [1/6,1/3] '≼' [1/6,0/0].
+%@    true. % with R=2
 
 % Find the unique coefficients of ≼ᵣ-generators for given q ∈ Qᴰ.
 % TODO: Here is a good spot to begin renaming the coefficients,
@@ -534,14 +539,16 @@ meet_(Q1s, Q2s, Qs) :- % 'formal meet'
     meet_(Q1s, Q2s, Hs, Os),
     coefs(Qs, Hs, Os).
 
-join_(Q1s, Q2s, Hs, Os) :-
+join(Q1s, Q2s, Hs, Os) :-
     same_length(Q1s, Q2s),
     coefs(Q1s, H1s, O1s),
     coefs(Q2s, H2s, O2s),
     maxs(H1s, H2s, Hs),
     maxs(O1s, O2s, Os).
 
-join_(Q1s, Q2s, Qs) :- % TODO: Are these 'formal joins' always valid?
+% NB: If, as I believe, 𝒬 = (Qᴰ,≼) is an upper semilattice,
+%     then these joins will always exist and are unique.
+join(Q1s, Q2s, Qs) :-
     join_(Q1s, Q2s, Hs, Os),
     coefs(Qs, Hs, Os).
 
@@ -555,65 +562,11 @@ intlist_downshift(Zs, ΔZs) :-
     intlist_rollmin(Zs, Zs_),
     maplist(diff_, Zs_, Zs, ΔZs).
 
+% Unlike meet_/3, which allows for 'imaginary' meets,
+% this predicate succeeds only if a valid meet obtains.
 meet(Q1s, Q2s, Qs) :-
-    meet_(Q1s, Q2s, Hs, Os),
-    % Now we must compute Adjusted Hs & Os ..
-    intlist_rollmin([0|Hs], [0|AHs]), % AHs = (η'ₖ,ρ'), 1≤k<D
-    %%format("η₁,...,ηD≡ρ : ~w~n", [Hs]),
-    %%format("ή₁,...,ήD≡ῤ : ~w~n", [AHs]),
-    % What is the cleanest way to express adjustment of Os?
-    % As worked out in notebook, we construct a length-D list
-    % (γ-0,σₖ-ηₖ'), k=1..D-1, denoting xₖ := xₖ,ₖ₊₁ for x=σ,η.
-    all_but_last(AHs, AHs_, ARho),
-    maplist(diff_, Os, [0|AHs_], Xs), % (γ-0,..σₖ-ηₖ'..), 1≤k<D
-    %%format("(γ,σ₁₂,...) : ~w~n", [Os]),
-    %%format("(γ-0,σ₁₂-ή₁₂,...) : ~w~n", [Xs]),
-    % Recall that *after* the (D-1) adjustments σₖ ↦ σₖ' we require that
-    %
-    %                   γ-0 ≥ σ₁'-η₁' ≥ ..σₖ-ηₖ'.. ≥ ρ'.  (*)
-    %
-    % We may effect only _downward_ adjustments to the Os=(γ,ηₖ), since we
-    % aim to construct a valid meet that is _below_ the formal meet.
-    % Furthermore, we aim to make _minimal_ such adjustments.  Thus γ must
-    % remain fixed, and only the σₖ (k=1..D-1), each in turn, gets adjusted
-    % only enough to guarantee each of the first D-1 inequalities (*) holds.
-    % These minimal adjustments are obtained precisely as the differences
-    % between D-vector Xs = (γ-0,σ₁-ή₁,...) and its rolling minimum.
-    % (Note how, expressed this way, we automatically keep γ unadjusted!)
-    intlist_downshift(Xs, ΔOs),
-    %%format("ΔOs : ~w~n", [ΔOs]),
-    maplist(sum_, Os, ΔOs, AOs),
-    %%format("γ,ς₁₂,... : ~w~n", [AOs]),
-    % At this point, we should find that the final inequality in (*) holds.
-    % That is, we need to find after making all these *minimal* adjustments
-    % that we have not adjusted so much that the last σ'-η' is now < ρ'!
-    % (Or might yet further downward adjustment ρ' ↦ ρ'' be reasonable?)
-    %%format("ῤ : ~w~n", [ARho]),
-    reverse(AOs, [_AO|_]),      % _AH = ή_{D-1,D} (or γ in case D=1 )
-    reverse([0|AHs_], [_AH|_]), % _AO = ς_{D-1,D} (or 0 in case D=1 )
-    #_AO - #_AH #>= ARho,
-    %%format("Phew! ~d-(~d) ≥ ~d !~n", [_AO, _AH, ARho]),
-    coefs(Qs, AHs, AOs).
-
-% Let's check systematically
-d_nmax_wrongmeet(D, Nmax, Q1s, Q2s) :-
-    qs_d_nmax(Q1s, D, Nmax),
-    qs_d_nmax(Q2s, D, Nmax),
-    meet(Q1s, Q2s, Meet),
-    nmax_meet(Nmax, Q1s, Q2s, Meet0),
-    Meet \== Meet0.
-
-%?- time(d_nmax_wrongmeet(2, 2, Q1s, Q2s)).
-%@    % CPU time: 120.234s, 418_362_944 inferences
-%@    false.
-%?- time(d_nmax_wrongmeet(3, 2, Q1s, Q2s)).
-%@    % CPU time: 1391.806s, 4_971_471_877 inferences
-%@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2]
-%@ ;  % CPU time: 54.189s, 200_821_696 inferences
-%@    Q1s = [0/0,1/1,0/0], Q2s = [0/2,0/0,2/2]
-%@ ;  % CPU time: 52.974s, 195_178_079 inferences
-%@    error('$interrupt_thrown',repl/0).
-% Hmm!  Could I _still_ have a mistake in there?
+    meet_(Q1s, Q2s, Qs),
+    maplist(\Q^(Q=T/N, #T #=< #N), Qs).
 
 %?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], meet(Q1s, Q2s, Meet).
 %@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], Meet = [0/1,1/1,1/1].
@@ -1106,7 +1059,7 @@ base_(B, A, N0, N) :- #N #= #B * #N0 + #A.
 %@    Os = [18,12,6], K = 6732.
 
 qs_int(Qs, K) :-
-    coefs(1, Qs, Hs, Os),
+    coefs(Qs, Hs, Os),
     hs_enc(Hs, HK),
     os_enc(Os, OK),
     same_length(Hs, _s), placevalues([P|_s]),
@@ -1127,22 +1080,22 @@ d_nmax_wrongway(D, Nmax, Q1s, Q2s) :-
     Q1s '≼' Q2s.
 
 %?- time(d_nmax_wrongway(2, 3, Q1, Q2)).
-%@    % CPU time: 9.395s, 39_874_233 inferences
+%@    % CPU time: 9.830s, 49_914_610 inferences
 %@    false.
 %?- time(d_nmax_wrongway(2, 4, Q1, Q2)).
-%@    % CPU time: 47.449s, 202_688_740 inferences
+%@    % CPU time: 50.442s, 253_653_892 inferences
 %@    false.
 %?- time(d_nmax_wrongway(2, 5, Q1, Q2)).
-%@    % CPU time: 181.271s, 775_851_104 inferences
+%@    % CPU time: 188.544s, 971_725_303 inferences
 %@    false.
 %?- time(d_nmax_wrongway(2, 6, Q1, Q2)).
-%@    % CPU time: 609.922s, 2_458_537_860 inferences
+%@    % CPU time: 614.967s, 3_077_569_171 inferences
 %@    false.
 %?- time(d_nmax_wrongway(3, 1, Q1, Q2)).
-%@    % CPU time: 0.891s, 3_661_100 inferences
+%@    % CPU time: 0.933s, 4_748_033 inferences
 %@    false.
 %?- time(d_nmax_wrongway(3, 2, Q1, Q2)).
-%@    % CPU time: 54.779s, 228_148_342 inferences
+%@    % CPU time: 60.008s, 299_088_422 inferences
 %@    false.
 %?- time(d_nmax_wrongway(3, 3, Q1, Q2)).
 %@    % CPU time: 1147.127s, 4_811_099_116 inferences
@@ -2623,18 +2576,46 @@ d_minsets(D, Mss) :-
     maplist(d_rx_mins(D), Xs, Rss),
     reverse(Rss, Mss). % Top-to-bottom cascade
 
-%?- d_minsets(2, Mss).
+%?- d_minsets(2, Mss). % now with R=2 (more arrows!)
+%@    Mss = [[[1/6,1/3]],
+%            [[1/6,4/6]],
+%            [[4/6,0/0],[3/6,4/6]]].
+%?- d_minsets(2, Mss). % as formerly, with R=1
 %@    Mss = [[[1/6,1/3],[1/6,0/0],[0/3,0/0]],  % dose 2
 %            [[1/6,4/6],[1/6,3/3],[0/3,3/3]],  % dose 1
 %            [[4/6,0/0],[3/6,4/6],[3/6,3/3]]]. % dose 0
 
-%?- d_minsets(3, Mss).
+%?- d_minsets(3, Mss). % now with R=2 (more arrows!)
+%@    Mss = [[[1/6,1/6,1/3]],
+%            [[1/6,1/6,1/6],[1/6,1/3,0/0],[1/6,0/3,4/6]],
+%            [[1/6,4/6,0/0],[1/6,3/6,4/6]],
+%            [[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]]].
+%?- d_minsets(3, Mss). % as formerly, with R=1
 %@ 3  Mss = [[[1/6,1/6,1/3],[1/6,1/6,0/0],[1/6,0/3,0/0],[0/3,0/3,0/0]],
 %  2         [[1/6,1/6,1/6],[1/6,1/3,0/0],[1/6,0/3,4/6],[1/6,0/3,3/3],[0/3,0/3,3/3]],
 %  1         [[1/6,4/6,0/0],[1/6,3/6,4/6],[1/6,3/6,3/3],[0/3,3/6,3/3]],
 %  0         [[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6],[3/6,3/6,3/3]]].
 
-%?- d_minsets(4, Mss).
+% As anticipated, adding more arrows has allowed
+% more parsimonious description of the partitions.
+%?- qs_mins([[1/6,1/6,1/3],[1/6,1/6,0/0],[1/6,0/3,0/0],[0/3,0/3,0/0]], Mins3).
+%@    Mins3 = [[1/6,1/6,1/3]]. % from 4 descriptors to 1
+%?- qs_mins([[1/6,1/6,1/6],[1/6,1/3,0/0],[1/6,0/3,4/6],[1/6,0/3,3/3],[0/3,0/3,3/3]], Mins2).
+%@    Mins2 = [[1/6,1/6,1/6],[1/6,1/3,0/0],[1/6,0/3,4/6]]. % 5 ~~> 3 descriptors
+%?- qs_mins([[1/6,4/6,0/0],[1/6,3/6,4/6],[1/6,3/6,3/3],[0/3,3/6,3/3]], Mins1).
+%@    Mins1 = [[1/6,4/6,0/0],[1/6,3/6,4/6]]. % 4 ~~> 2 descriptors
+%?- [3/6,3/6,4/6]'≼'[3/6,3/6,3/3].
+%@    true. % ..enabling the RHS to be dropped from R=1 4-descriptor list for dose 0.
+%?- reduce(meet, [[1/6,1/6,1/6],[1/6,1/3,0/0],[1/6,0/3,4/6]], Meet).
+%@    Meet = [1/6,1/3,3/6]. % Perhaps meets of these minimal sets will suffice?
+
+%?- d_minsets(4, Mss). % now with R=2 (more arrows!)
+%@    Mss = [[[1/6,1/6,1/6,1/3]],
+%            [[1/6,1/6,1/6,1/6],[1/6,1/6,1/3,0/0],[1/6,1/6,0/3,4/6]],
+%            [[1/6,1/6,1/6,2/6],[1/6,1/3,0/0,0/0],[1/6,0/3,4/6,0/0],[1/6,0/3,3/6,4/6]],
+%            [[1/6,4/6,0/0,0/0],[1/6,3/6,4/6,0/0],[1/6,3/6,3/6,4/6]],
+%            [[4/6,0/0,0/0,0/0],[3/6,4/6,0/0,0/0],[3/6,3/6,4/6,0/0],[3/6,3/6,3/6,4/6]]].
+%?- d_minsets(4, Mss). % as formerly, with R=1
 %@ 4  Mss = [[[1/6,1/6,1/6,1/3],[1/6,1/6,1/6,0/0],[1/6,1/6,0/3,0/0],[1/6,0/3,0/3,0/0],[0/3,0/3,0/3,0/0]],
 %  3         [[1/6,1/6,1/6,1/6],[1/6,1/6,1/3,0/0],[1/6,1/6,0/3,4/6],[1/6,1/6,0/3,3/3],[1/6,0/3,0/3,3/3],[0/3,0/3,0/3,3/3]],
 %  2         [[1/6,1/6,1/6,4/6],[1/6,1/6,1/6,3/3],[1/6,1/3,0/0,0/0],[1/6,0/3,4/6,0/0],[1/6,0/3,3/6,4/6],[1/6,0/3,3/6,3/3],[0/3,0/3,3/6,3/3]],
