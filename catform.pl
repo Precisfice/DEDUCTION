@@ -549,7 +549,7 @@ join(Q1s, Q2s, Hs, Os) :-
 % NB: If, as I believe, 𝒬 = (Qᴰ,≼) is an upper semilattice,
 %     then these joins will always exist and are unique.
 join(Q1s, Q2s, Qs) :-
-    join_(Q1s, Q2s, Hs, Os),
+    join(Q1s, Q2s, Hs, Os),
     coefs(Qs, Hs, Os).
 
 sum_(Z1, Z2, Sum) :- #Sum #= #Z1 + #Z2.
@@ -1563,6 +1563,11 @@ collect_minimal(Q, Mins0, Mins) :-
 %       or perhaps link this to *accessible* tallies as discussed in Fact 1.27.
 % TODO: Also deal with the 'qs' plurality; perhaps in this module, a given tally
 %       counts as 'q', and only _lists_ of tallies should be regarded a plural?
+%       Alternatively, perhaps there will be 'low-level' predicates that regard
+%       a tally as a list, properly called 'Qs', but 'higher-level' predicates
+%       that regard a 'Tally' or 'Tallies' at higher levels of abstraction.
+%       (Of course, in general these distinct manners of regarding tallies may
+%       well argue for distinct modules!)
 qs_d_nmax(Qs, D, Nmax) :-
     length(Qs, D),
     maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
@@ -2408,13 +2413,23 @@ d_tally_dose(D, Tally, X) :-
     ;   d_mendtally_rec(D, Tally, X)
     ).
 
+d_rx_join(D, X, Jx) :-
+    setof(Q, d_tally_dose(D, Q, X), Qxs),
+    reduce(join, Qxs, Jx).
+
 d_rx_meet(D, X, Mx) :-
     setof(Q, d_tally_dose(D, Q, X), Qxs),
     reduce(meet, Qxs, Mx).
 
+%?- d_rx_join(2, 2, J2).
+%@    J2 = [0/3,0/6].
+
 %?- d_rx_meet(2, 2, M2).
-%@    M2 = [1/5,1/2].
-%@    M2 = [1/5,1/2].
+%@    M2 = [1/6,1/3].
+
+d_joins(D, Js) :-
+    findall(X, (X in 0..D, indomain(X)), Xs),
+    maplist(d_rx_join(D), Xs, Js).
 
 d_meets(D, Ms) :-
     findall(X, (X in 0..D, indomain(X)), Xs),
@@ -2580,21 +2595,12 @@ d_minsets(D, Mss) :-
 %@    Mss = [[[1/6,1/3]],
 %            [[1/6,4/6]],
 %            [[4/6,0/0],[3/6,4/6]]].
-%?- d_minsets(2, Mss). % as formerly, with R=1
-%@    Mss = [[[1/6,1/3],[1/6,0/0],[0/3,0/0]],  % dose 2
-%            [[1/6,4/6],[1/6,3/3],[0/3,3/3]],  % dose 1
-%            [[4/6,0/0],[3/6,4/6],[3/6,3/3]]]. % dose 0
 
 %?- d_minsets(3, Mss). % now with R=2 (more arrows!)
 %@    Mss = [[[1/6,1/6,1/3]],
 %            [[1/6,1/6,1/6],[1/6,1/3,0/0],[1/6,0/3,4/6]],
 %            [[1/6,4/6,0/0],[1/6,3/6,4/6]],
 %            [[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]]].
-%?- d_minsets(3, Mss). % as formerly, with R=1
-%@ 3  Mss = [[[1/6,1/6,1/3],[1/6,1/6,0/0],[1/6,0/3,0/0],[0/3,0/3,0/0]],
-%  2         [[1/6,1/6,1/6],[1/6,1/3,0/0],[1/6,0/3,4/6],[1/6,0/3,3/3],[0/3,0/3,3/3]],
-%  1         [[1/6,4/6,0/0],[1/6,3/6,4/6],[1/6,3/6,3/3],[0/3,3/6,3/3]],
-%  0         [[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6],[3/6,3/6,3/3]]].
 
 % As anticipated, adding more arrows has allowed
 % more parsimonious description of the partitions.
@@ -2615,20 +2621,99 @@ d_minsets(D, Mss) :-
 %            [[1/6,1/6,1/6,2/6],[1/6,1/3,0/0,0/0],[1/6,0/3,4/6,0/0],[1/6,0/3,3/6,4/6]],
 %            [[1/6,4/6,0/0,0/0],[1/6,3/6,4/6,0/0],[1/6,3/6,3/6,4/6]],
 %            [[4/6,0/0,0/0,0/0],[3/6,4/6,0/0,0/0],[3/6,3/6,4/6,0/0],[3/6,3/6,3/6,4/6]]].
-%?- d_minsets(4, Mss). % as formerly, with R=1
-%@ 4  Mss = [[[1/6,1/6,1/6,1/3],[1/6,1/6,1/6,0/0],[1/6,1/6,0/3,0/0],[1/6,0/3,0/3,0/0],[0/3,0/3,0/3,0/0]],
-%  3         [[1/6,1/6,1/6,1/6],[1/6,1/6,1/3,0/0],[1/6,1/6,0/3,4/6],[1/6,1/6,0/3,3/3],[1/6,0/3,0/3,3/3],[0/3,0/3,0/3,3/3]],
-%  2         [[1/6,1/6,1/6,4/6],[1/6,1/6,1/6,3/3],[1/6,1/3,0/0,0/0],[1/6,0/3,4/6,0/0],[1/6,0/3,3/6,4/6],[1/6,0/3,3/6,3/3],[0/3,0/3,3/6,3/3]],
-%  1         [[1/6,4/6,0/0,0/0],[1/6,3/6,4/6,0/0],[1/6,3/6,3/6,4/6],[1/6,3/6,3/6,3/3],[0/3,3/6,3/6,3/3]],
-%  0         [[4/6,0/0,0/0,0/0],[3/6,4/6,0/0,0/0],[3/6,3/6,4/6,0/0],[3/6,3/6,3/6,4/6],[3/6,3/6,3/6,3/3]]].
 
-% Now we begin to get a picture of the complexity of these regions,
-% via-à-vis the partial order ≼!  We see that this partial order
-% lacks enough arrows to carve out these regions in a single stroke.
+% Apparently, I had already anticipated this possibility,
+% and had implemented d_meets/2!
+
+%?- time(d_meets(2, Ms)).
+%@    % CPU time: 2.738s, 12_779_110 inferences
+%@    Ms = [[4/6,3/6],[1/6,4/6],[1/6,1/3]].
+%@    % CPU time: 3.444s, 15_872_829 inferences
+%@    Ms = [[4/6,3/6],[1/6,4/6],[1/6,1/3]].
+%?- time(d_meets(3, Ms)).
+%@    % CPU time: 27.010s, 132_516_876 inferences
+%@    Ms = [[4/6,3/6,3/6],[1/6,4/6,3/6],[1/6,1/3,3/6],[1/6,1/6,1/3]].
+%?- time(d_meets(4, Ms)).
+%@    % CPU time: 240.604s, 1_166_191_534 inferences
+%@    Ms = [[4/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6],[1/6,1/3,3/6,3/6],[1/6,1/6,1/3,3/6],[1/6,1/6,1/6,1/3]].
+
+% Given a descending cascade of tallies [L|Ls] = [Lᴅ ≻ ... ≻ L₁],
+% we have a nested sequence of principal upper sets,
 %
-% But it does appear that generalizing the '1:1' arrow to '1:r' would
-% simplify many of these minimal sets to singletons.  Specifically,
-% 1:2 looks quite promising!
+%               ↑Lᴅ ⊂ ... ⊂ ↑L₁ ⊂ ↑𝟘 ≡ 𝒬,
+%
+% where 𝟘 denotes the initial object for the accessible part of 𝒬,
+% for example [6/6,6/6] in the 2-dose 3+3 trial.
+% Because this covers [the accessible region of] 𝒬, we obtain a
+% functor E:𝒬⟶{0≤...≤D} according to
+%
+%             E(q) = max[{k | Q ≽ Lₖ}∪{0}].
+%
+% Provided we understand L₀ = 𝟘, we can write equivalently,
+%
+%                 k ≤ E(q)  iff  Lₖ ≼ q,
+%
+% revealing an adjunction L ⊣ E, in which L₋:{0≤...≤D}→𝒬 is the
+% lower adjoint to an upper-Galois enrollment E:𝒬⟶𝒟={0≤...≤D}.
+cascade_tally_uindex([], _, 0).
+cascade_tally_uindex([L|Ls], Q, X) :-
+    if_(Q '≽' L, length([L|Ls], X),
+        cascade_tally_uindex(Ls, Q, X)).
+
+% Conversely, any length-D tally cascade [Gᴅ-1 ≻ ... ≻ G₀]
+% defines also a nested sequence of principal _lower_ sets,
+%
+%    Gᴅ≡𝟙 ≻ Gᴅ-1 ≻ ... ≻ L₀  ⟹  𝒬 ⊃ ↓Gᴅ-1 ⊃ ... ⊃ ↓G₀,
+%
+% where 𝟙 denotes the _final_ object for [the accessible part
+% of] 𝒬 -- for example, [0/6,0/6] in the 2-dose 3+3 trial.
+% From this we can obtain in like manner a lower-Galois E⊣G.
+cascade_tally_lindex([], _, 0).
+cascade_tally_lindex([G|Gs], Q, X) :-
+    if_(Q '⋠' G, length([G|Gs], X),
+        cascade_tally_lindex(Gs, Q, X)).
+
+
+d_lcascade(D, Ls) :-
+    d_meets(D, [_|Ms]), % drop trivial bottom meet qua 𝟘
+    reverse(Ms, Ls).
+
+%?- d_lcascade(3, Ls).
+%@    Ls = [[1/6,1/6,1/3],[1/6,1/3,3/6],[1/6,4/6,3/6]].
+
+ug(Q, X) :-
+    cascade_tally_uindex(
+        [[1/6,1/6,1/3],[1/6,1/3,3/6],[1/6,4/6,3/6]],
+        Q, X).
+
+%?- ug([0/0,0/0,0/0], StartD).
+%@    StartD = 2.
+
+d_gcascade(D, Gs) :-
+    d_joins(D, Js),
+    reverse(Js, [_|Gs]). % drop trivial top join qua 𝟙
+
+%?- d_gcascade(3, Gs).
+%@    Gs = [[0/3,0/6,0/0],[0/6,1/3,0/0],[2/6,0/0,0/0]].
+
+lg(Q, X) :-
+    cascade_tally_lindex(
+        [[0/3,0/6,0/0],[0/6,1/3,0/0],[2/6,0/0,0/0]],
+        Q, X).
+
+%?- lg([0/0,0/0,0/0], StartD).
+%@    StartD = 2.
+
+% Interestingly, in neither case do we obtain the 'clean start'
+% from an initial〈0/0〉dose.  On the one hand, perhaps I ask
+% for too much, that miraculously the rest of the 3+3 protocol
+% just so happens to be consistent with the very special case
+% of initial dosing.  OTOH, maybe this type of self-consistency
+% will turn out to be a desirable property of dose-escalation
+% protocols generally.  But either way, such investigations lie
+% farther down the road; the more pressing question is whether
+% I can achieve reasonably close approximations to 3+3 protocol
+% in the form of (upper/lower) Galois enrollments.
 
 d_path(D, Path) :-
     length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
