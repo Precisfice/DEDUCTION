@@ -2667,10 +2667,10 @@ d_minsets(D, Mss) :-
 %
 % revealing an adjunction L ⊣ E, in which L₋:{0≤...≤D}→𝒬 is the
 % lower adjoint to an upper-Galois enrollment E:𝒬⟶𝒟={0≤...≤D}.
-cascade_tally_uindex([], _, 0).
-cascade_tally_uindex([L|Ls], Q, X) :-
+cascade_tally_uadjoint([], _, 0).
+cascade_tally_uadjoint([L|Ls], Q, X) :-
     if_(Q '≽' L, length([L|Ls], X),
-        cascade_tally_uindex(Ls, Q, X)).
+        cascade_tally_uadjoint(Ls, Q, X)).
 
 % Conversely, any length-D tally cascade [Gᴅ-1 ≻ ... ≻ G₀]
 % defines also a nested sequence of principal _lower_ sets,
@@ -2690,43 +2690,40 @@ cascade_tally_uindex([L|Ls], Q, X) :-
 % in the cascade that exceeds Q.  Because we've used zero-based
 % indexing here, however, the remainder of the list will be of
 % length k -- precisely the index we seek.
-cascade_tally_lindex([], _, 0).
-cascade_tally_lindex([G|Gs], Q, X) :-
-    if_(Q '≼' G, cascade_tally_lindex(Gs, Q, X),
+cascade_tally_ladjoint([], _, 0).
+cascade_tally_ladjoint([G|Gs], Q, X) :-
+    if_(Q '≼' G, cascade_tally_ladjoint(Gs, Q, X),
        length([G|Gs], X)).
 
 
-d_lcascade(D, Ls) :-
+d_meetscascade(D, Ls) :-
     d_meets(D, [_|Ms]), % drop trivial bottom meet qua 𝟘
     reverse(Ms, Ls).
 
-%?- d_lcascade(3, Ls).
+%?- d_meetscascade(3, Ls).
 %@    Ls = [[1/6,1/6,1/3],[1/6,1/3,3/6],[1/6,4/6,3/6]].
 
-ug(Q, X) :-
-    cascade_tally_uindex(
+ug3(Q, X) :-
+    cascade_tally_uadjoint(
         [[1/6,1/6,1/3],[1/6,1/3,3/6],[1/6,4/6,3/6]],
         Q, X).
 
-%?- ug([0/0,0/0,0/0], StartD).
+%?- ug3([0/0,0/0,0/0], StartD).
 %@    StartD = 2.
 
-d_gcascade(D, Gs) :-
+d_joinscascade(D, Gs) :-
     d_joins(D, Js),
     reverse(Js, [_|Gs]). % drop trivial top join qua 𝟙
 
-%?- d_gcascade(3, Gs).
-%@    Gs = [[0/3,0/6,0/0],[0/6,1/3,0/0],[2/6,0/0,0/0]].
+%?- d_joinscascade(3, Gs).
+%@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]].
 
-% Does this Gs cascade respect the position of <0/0>?
-% Ah, it does!  That is, do we have that 
-
-lg(Q, X) :-
-    cascade_tally_lindex(
+lg3(Q, X) :-
+    cascade_tally_ladjoint(
         [[0/3,0/6,0/0],[0/6,1/3,0/0],[2/6,0/0,0/0]],
         Q, X).
 
-%?- lg([0/0,0/0,0/0], StartD).
+%?- lg3([0/0,0/0,0/0], StartD).
 %@    StartD = 2.
 
 % Interestingly, in neither case do we obtain the 'clean start'
@@ -2740,49 +2737,78 @@ lg(Q, X) :-
 % I can achieve reasonably close approximations to 3+3 protocol
 % in the form of (upper/lower) Galois enrollments.
 
-% From the following 2 queries, we see that Galois enrollments
-% ug/2 and lg/2 TEND TO err on the side 'expected': the former
-% yields enrolling doses that generally match or exceed those of
-% the 3+3 protocol; the latter yields doses generally matching or
-% below the 3+3's.  But there ARE EXCEPTIONS (***) in fact, which
-% I overlooked in the last commit.
+% Since if anything we ought to be interested in protocols
+% that are SAFER than 3+3, let us focus on the behavior of
+% the lower-Galois enrollment lg/2, which (except at <0/0>)
+% yields dose recommendations matching or below 3+3's.
+
+lg3_approx_perprotocol(E, QXs) :-
+    D = 3,
+    E in 0..D, indomain(E),
+    setof(Q-X,
+          (   d_tally_dose(D, Q, X),
+              lg3(Q, E),
+              X \== E
+          ), QXs).
+
+%?- lg3_approx_perprotocol(3, QXs).
+%@    false. % lg3 assigns dose 3 at least as cautiously as 3+3
+%?- lg3_approx_perprotocol(2, QXs).
+%@    QXs = [[0/0,0/0,0/0]-1,
+%            [0/3,0/3,0/0]-3,
+%            [0/3,0/3,1/3]-3, (a)
+%            [0/3,1/6,0/0]-3,
+%            [0/3,1/6,0/3]-3,
+%            [0/3,1/6,1/3]-3, (b)
+%            [1/6,0/3,0/3]-3,
+%            [1/6,1/6,0/3]-3].
+% What do we learn here?
+% Apart from the 'messy' start-up (to be dealt with separately),
+% we find at least one case (a) where lg3 backs away from quite
+% incautious behavior by 3+3.  The same might be said of (b) as
+% well, except that it implicates also 3+3's maximum dose-wise
+% enrollment constraint in addition to its dose-assignment rule
+% (inasmuch as one can even discuss these elements separately).
+%
+% Let's ask what would happen if we followed lg3's rules:
+%?- lg3([0/3,1/6,1/3], E).
+%@    E = 2.
+%?- lg3([0/3,1/7,1/3], E).
+%@    E = 2.
+%?- lg3([0/3,1/8,1/3], E).
+%@    E = 2.
+%?- lg3([0/3,1/9,1/3], E).
+%@    E = 2.
+%?- lg3([0/3,1/10,1/3], E).
+%@    E = 3. % INTERESTING!
+% Wow!!  I didn't expect this at all!
+% My intuition was that we would remain stuck forever at E=2.
+% But now I'll hazard the guess that our 1:2 generator arrow
+% (ie, r:=2) now yields enough linkage between adjacent doses
+% to enable ultimately an escalation out of E=2.
+% This is a really important discovery, since it opens up the
+% possibility of abstracting dose-escalation rules from trial
+% size limits, allowing analysis of ASYMPTOTIC PROPERTIES.
+% This, in turn, suggests that dose-escalation protocols of
+% this general form (ie, Galois, or at least _lower_-Galois)
+% hold enough promise to be worth exploring _systematically_,
+% searching with high degrees of freedom, far beyond simple
+% heuristics such as d_meetscascade/2 and d_joinscascade/2.
+% Accordingly, I'll need to resume work on the visualization,
+% and bring that to a usable state!
 
 /*
-?- setof(Q-X, (d_tally_dose(3, Q, X), ug(Q, E), X \== E), QXs),
+?- E = 2, setof(Q-X, (d_tally_dose(3, Q, X), lg(Q, E), X \== E), QXs),
    maplist(portray_clause, QXs).
 %@ [0/0,0/0,0/0]-1.
-%@ [0/3,2/3,0/0]-1.
-%@ [0/3,2/6,0/0]-1.
-%@ [0/3,2/6,2/3]-1.
-%@ [0/3,2/6,2/6]-1.
-%@ [0/3,2/6,3/6]-1.
-%@ [0/6,2/3,0/0]-1.
-%@ [0/6,2/6,2/3]-1.
-%@ [0/6,2/6,2/6]-1.
-%@ [0/6,2/6,3/6]-1.
-%@ [1/3,0/0,0/0]-1.
-%@ [1/6,1/6,2/3]-1.
-%@ [1/6,1/6,2/6]-1.
-%@ [1/6,1/6,3/6]-1.
-%@    E = 2, QXs = [[0/0,0/0,0/0]-1,[0/3,2/3,0/0]-1,[0/3,2/6,0/0]-1,[0/3,2/6,2/3]-1,[0/3,2/6,2/6]-1,[0/3,2/6,3/6]-1,[0/6,2/3,0/0]-1,[0/6,2/6,2/3]-1,[0/6,2/6,2/6]-1,[0/6,2/6,3/6]-1,[1/3,0/0,0/0]-1,[1/6,1/6,2/3]-1,[1/6,1/6,2/6]-1,[1/6,1/6,3/6]-1]
-%@ ;  [0/3,0/3,2/6]-2.
-%@ [0/3,0/6,2/3]-2.
-%@ [0/3,0/6,2/6]-2.
-%@ [0/3,0/6,3/6]-2.
-%@ [0/3,1/6,1/6]-2.
-%@ [0/3,1/6,2/6]-2.
-%@ [0/6,2/6,0/0]-1. (***)
-%@ [1/6,0/3,1/6]-2.
-%@ [1/6,0/3,2/6]-2.
-%@ [1/6,0/6,2/3]-2.
-%@ [1/6,0/6,2/6]-2.
-%@ [1/6,1/6,1/6]-2.
-%@ E = 3, QXs = [[0/3,0/3,2/6]-2,[0/3,0/6,2/3]-2,[0/3,0/6,2/6]-2,[0/3,0/6,3/6]-2,[0/3,1/6,1/6]-2,[0/3,1/6,2/6]-2,[0/6,2/6,0/0]-1,[1/6,0/3,1/6]-2,[1/6,0/3,2/6]-2,[1/6,0/6,2/3]-2,[1/6,0/6,2/6]-2,[1/6,1/6,1/6]-2].
-*/
-
-/*
-?- setof(Q-X, (d_tally_dose(3, Q, X), lg(Q, E), X \== E), QXs),
-   maplist(portray_clause, QXs).
+%@ [0/3,0/3,0/0]-3.
+%@ [0/3,0/3,1/3]-3.
+%@ [0/3,1/6,0/0]-3.
+%@ [0/3,1/6,0/3]-3.
+%@ [0/3,1/6,1/3]-3.
+%@ [1/6,0/3,0/3]-3.
+%@ [1/6,1/6,0/3]-3.
+%@    E = 2, QXs = [[0/0,0/0,0/0]-1,[0/3,0/3,0/0]-3,[0/3,0/3,1/3]-3,[0/3,1/6,0/0]-3,[0/3,1/6,0/3]-3,[0/3,1/6,1/3]-3,[1/6,0/3,0/3]-3,[1/6,1/6,0/3]-3].
 %@ [0/3,1/3,0/0]-2.
 %@ [0/3,1/6,2/3]-2.
 %@ [0/3,1/6,3/3]-2.
@@ -2804,7 +2830,7 @@ lg(Q, X) :-
 %@ [1/6,1/6,0/0]-3.
 %@ [1/6,1/6,1/3]-3.
 %@    E = 1, QXs = [[0/3,1/3,0/0]-2,[0/3,1/6,2/3]-2,[0/3,1/6,3/3]-2,[0/3,1/6,3/6]-2,[0/3,1/6,4/6]-2,[1/6,0/0,0/0]-2,[1/6,0/3,0/0]-3,[1/6,0/3,1/3]-3,[1/6,0/3,2/3]-2,[1/6,0/3,2/6]-2,[1/6,0/3,3/3]-2,[1/6,0/3,3/6]-2,[1/6,0/3,4/6]-2,[1/6,0/6,2/3]-2,[1/6,0/6,3/3]-2,[1/6,0/6,3/6]-2,[1/6,0/6,... / ...]-2,[1/6,... / ...|...]-2,[... / ...|...]-3,... - ...]
-%@ ;  [0/0,0/0,0/0]-1. (***)
+%@ ;  [0/0,0/0,0/0]-1.
 %@ [0/3,0/3,0/0]-3.
 %@ [0/3,0/3,1/3]-3.
 %@ [0/3,1/6,0/0]-3.
@@ -2814,17 +2840,6 @@ lg(Q, X) :-
 %@ [1/6,1/6,0/3]-3.
 %@ E = 2, QXs = [[0/0,0/0,0/0]-1,[0/3,0/3,0/0]-3,[0/3,0/3,1/3]-3,[0/3,1/6,0/0]-3,[0/3,1/6,0/3]-3,[0/3,1/6,1/3]-3,[1/6,0/3,0/3]-3,[1/6,1/6,0/3]-3].
 */
-
-% Since if anything we ought to be interested in protocols
-% that are SAFER than 3+3, let us examine the behavior of
-% the lower-Galois enrollment lg/2.
-% What if it turns out to be quite reasonable?!
-%?- lg([0/0,0/0,0/0], E).
-%@    E = 2.
-% Hmm.  Better re-do the cascade so that initial dose gets
-% assigned properly!  This longstanding hope of mine, to
-% 'miraculously' find that the trial starts naturally from
-% the initial state, seems badly misplaced.
 
 d_path(D, Path) :-
     length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
