@@ -2408,10 +2408,22 @@ c2(Q, X) :-
 % identifying these disjoint sets, and then seeking simple
 % descriptions of them in terms of our partial order ≼.
 
+d_init(D, Init) :-
+    #D #> 0, length(Init, D),
+    maplist(=(0/0), Init).
+
+%?- d_init(3, Init).
+%@    Init = [0/0,0/0,0/0].
+
 d_tally_dose(D, Tally, X) :-
     (   d_tally_next(D, Tally, X)
     ;   d_mendtally_rec(D, Tally, X)
+    ;   d_init(D, Tally), X = 1 % (**)
     ).
+
+%?- d_tally_dose(3, [0/0,0/0,0/0], X).
+%@    X = 1. % with (**) clause
+%@    false. % before adding (**) above
 
 d_rx_join(D, X, Jx) :-
     setof(Q, d_tally_dose(D, Q, X), Qxs),
@@ -2667,11 +2679,21 @@ cascade_tally_uindex([L|Ls], Q, X) :-
 %
 % where 𝟙 denotes the _final_ object for [the accessible part
 % of] 𝒬 -- for example, [0/6,0/6] in the 2-dose 3+3 trial.
-% From this we can obtain in like manner a lower-Galois E⊣G.
+% From this we obtain in like manner a lower-Galois E⊣G, with
+%
+%                E(q) ≤ k  iff  q ≼ Gₖ.
+%
+% Operationally, the implementation keeps discarding the earlier
+% (and so higher-up) elements of the cascade Gs so long as they
+% are above Q (i.e., Q ≼ Gᵢ), until Q is above the remainder.
+% Consequently, the last Gₖ peeled off will be the highest level
+% in the cascade that exceeds Q.  Because we've used zero-based
+% indexing here, however, the remainder of the list will be of
+% length k -- precisely the index we seek.
 cascade_tally_lindex([], _, 0).
 cascade_tally_lindex([G|Gs], Q, X) :-
-    if_(Q '⋠' G, length([G|Gs], X),
-        cascade_tally_lindex(Gs, Q, X)).
+    if_(Q '≼' G, cascade_tally_lindex(Gs, Q, X),
+       length([G|Gs], X)).
 
 
 d_lcascade(D, Ls) :-
@@ -2696,6 +2718,9 @@ d_gcascade(D, Gs) :-
 %?- d_gcascade(3, Gs).
 %@    Gs = [[0/3,0/6,0/0],[0/6,1/3,0/0],[2/6,0/0,0/0]].
 
+% Does this Gs cascade respect the position of <0/0>?
+% Ah, it does!  That is, do we have that 
+
 lg(Q, X) :-
     cascade_tally_lindex(
         [[0/3,0/6,0/0],[0/6,1/3,0/0],[2/6,0/0,0/0]],
@@ -2716,14 +2741,16 @@ lg(Q, X) :-
 % in the form of (upper/lower) Galois enrollments.
 
 % From the following 2 queries, we see that Galois enrollments
-% ug/2 and lg/2 indeer err on the side expected: the former
-% yields enrolling doses that either match or exceed those of
-% the 3+3 protocol; the latter yields doses either matching or
-% below the 3+3's.
+% ug/2 and lg/2 TEND TO err on the side 'expected': the former
+% yields enrolling doses that generally match or exceed those of
+% the 3+3 protocol; the latter yields doses generally matching or
+% below the 3+3's.  But there ARE EXCEPTIONS (***) in fact, which
+% I overlooked in the last commit.
 
 /*
 ?- setof(Q-X, (d_tally_dose(3, Q, X), ug(Q, E), X \== E), QXs),
    maplist(portray_clause, QXs).
+%@ [0/0,0/0,0/0]-1.
 %@ [0/3,2/3,0/0]-1.
 %@ [0/3,2/6,0/0]-1.
 %@ [0/3,2/6,2/3]-1.
@@ -2737,14 +2764,14 @@ lg(Q, X) :-
 %@ [1/6,1/6,2/3]-1.
 %@ [1/6,1/6,2/6]-1.
 %@ [1/6,1/6,3/6]-1.
-%@    E = 2, QXs = [[0/3,2/3,0/0]-1,[0/3,2/6,0/0]-1,[0/3,2/6,2/3]-1,[0/3,2/6,2/6]-1,[0/3,2/6,3/6]-1,[0/6,2/3,0/0]-1,[0/6,2/6,2/3]-1,[0/6,2/6,2/6]-1,[0/6,2/6,3/6]-1,[1/3,0/0,0/0]-1,[1/6,1/6,2/3]-1,[1/6,1/6,2/6]-1,[1/6,1/6,3/6]-1]
+%@    E = 2, QXs = [[0/0,0/0,0/0]-1,[0/3,2/3,0/0]-1,[0/3,2/6,0/0]-1,[0/3,2/6,2/3]-1,[0/3,2/6,2/6]-1,[0/3,2/6,3/6]-1,[0/6,2/3,0/0]-1,[0/6,2/6,2/3]-1,[0/6,2/6,2/6]-1,[0/6,2/6,3/6]-1,[1/3,0/0,0/0]-1,[1/6,1/6,2/3]-1,[1/6,1/6,2/6]-1,[1/6,1/6,3/6]-1]
 %@ ;  [0/3,0/3,2/6]-2.
 %@ [0/3,0/6,2/3]-2.
 %@ [0/3,0/6,2/6]-2.
 %@ [0/3,0/6,3/6]-2.
 %@ [0/3,1/6,1/6]-2.
 %@ [0/3,1/6,2/6]-2.
-%@ [0/6,2/6,0/0]-1.
+%@ [0/6,2/6,0/0]-1. (***)
 %@ [1/6,0/3,1/6]-2.
 %@ [1/6,0/3,2/6]-2.
 %@ [1/6,0/6,2/3]-2.
@@ -2777,14 +2804,15 @@ lg(Q, X) :-
 %@ [1/6,1/6,0/0]-3.
 %@ [1/6,1/6,1/3]-3.
 %@    E = 1, QXs = [[0/3,1/3,0/0]-2,[0/3,1/6,2/3]-2,[0/3,1/6,3/3]-2,[0/3,1/6,3/6]-2,[0/3,1/6,4/6]-2,[1/6,0/0,0/0]-2,[1/6,0/3,0/0]-3,[1/6,0/3,1/3]-3,[1/6,0/3,2/3]-2,[1/6,0/3,2/6]-2,[1/6,0/3,3/3]-2,[1/6,0/3,3/6]-2,[1/6,0/3,4/6]-2,[1/6,0/6,2/3]-2,[1/6,0/6,3/3]-2,[1/6,0/6,3/6]-2,[1/6,0/6,... / ...]-2,[1/6,... / ...|...]-2,[... / ...|...]-3,... - ...]
-%@ ;  [0/3,0/3,0/0]-3.
+%@ ;  [0/0,0/0,0/0]-1. (***)
+%@ [0/3,0/3,0/0]-3.
 %@ [0/3,0/3,1/3]-3.
 %@ [0/3,1/6,0/0]-3.
 %@ [0/3,1/6,0/3]-3.
 %@ [0/3,1/6,1/3]-3.
 %@ [1/6,0/3,0/3]-3.
 %@ [1/6,1/6,0/3]-3.
-%@ E = 2, QXs = [[0/3,0/3,0/0]-3,[0/3,0/3,1/3]-3,[0/3,1/6,0/0]-3,[0/3,1/6,0/3]-3,[0/3,1/6,1/3]-3,[1/6,0/3,0/3]-3,[1/6,1/6,0/3]-3].
+%@ E = 2, QXs = [[0/0,0/0,0/0]-1,[0/3,0/3,0/0]-3,[0/3,0/3,1/3]-3,[0/3,1/6,0/0]-3,[0/3,1/6,0/3]-3,[0/3,1/6,1/3]-3,[1/6,0/3,0/3]-3,[1/6,1/6,0/3]-3].
 */
 
 % Since if anything we ought to be interested in protocols
