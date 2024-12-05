@@ -85,8 +85,8 @@
 
 (range 1 10)
 
-(setq width 300)
-(setq height 400)
+(setq width 750)
+(setq height 510)
 
 ;; I do need one more step below, namely flipping the y coordinate!
 (defun vec* (v1 v2) (vconcat (seq-mapn #'* v1 v2)))
@@ -97,9 +97,9 @@
 
 (defun canvas (xy)
   "Return canvas coordinates for grid coordinates [x y]"
-  (let ((margin [10 10])
+  (let ((translate [500 10])
         (scale 20))
-    (flip (vec+ margin (scalar* scale xy)))))
+    (flip (vec+ translate (scalar* scale xy)))))
 
 (canvas [1 1])
 
@@ -119,10 +119,10 @@
              (seq-map (lambda (T)
                         (dot (canvas (spiral-coords (vector T N) d))))
                       (range 0 N)))
-           (range 0 6)))
+           (range 0 12)))
 
 (dots 1)
 (dots 2)
+(dots 3)
 
-
-
+ 
