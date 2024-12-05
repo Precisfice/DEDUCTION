@@ -113,17 +113,16 @@
               (radius 3))
     (svg-circle svg x y radius :stroke "lightgray" :fill "lightgray")))
 
-;; TODO: Replace this unsightly loop with recursion!
-(let ((N 6))
-  (while (>= N 0)
-    (let ((T N))
-      (while (>= T 0)
-        (dot (canvas (spiral-coords (vector T N) 1)))
-        (setq T (- T 1)))
-      (setq N (- N 1)))))
-
 (defun dots (d)
   "Plot grid for dose level d"
-  )
+  (seq-map (lambda (N)
+             (seq-map (lambda (T)
+                        (dot (canvas (spiral-coords (vector T N) d))))
+                      (range 0 N)))
+           (range 0 6)))
 
- 
+(dots 1)
+(dots 2)
+
+
+
