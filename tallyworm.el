@@ -125,4 +125,15 @@
 (dots 2)
 (dots 3)
 
+;; TODO: Plot the 29 Q2f tally-worms
+(defun draw-worm (tally)
+  (let* ((w (tally-worm tally)))
+    (seq-mapn (lambda (xy1 xy2)
+                (pcase-let ((`[,x1 ,y1] (canvas xy1))
+                            (`[,x2 ,y2] (canvas xy2)))
+                  (svg-line svg x1 y1 x2 y2 :width 3 :stroke "blue")))
+              w (cdr w))))
+
+(draw-worm (list [0 3] [1 6] [2 3]))
+
  
