@@ -125,19 +125,42 @@
                       (range 0 N)))
            (range 0 12)))
 
-(dots 1)
-(dots 2)
-(dots 3)
+(seq-map 'dots '(1 2 3))
+
+;; We now need a 4-level color palette for Rec ranging 0..3.
+;; Here's a multi-hue palette from ColorBrewer2, minus its
+;; least saturated color: #b3cde3 #8c96c6 #8856a7 #810f7c.
+;; https://colorbrewer2.org/#type=sequential&scheme=BuPu&n=5
+(defun dose-color (d)
+  (if (not d) "black"
+    (nth d '("#b3cde3" "#8c96c6" "#8856a7" "#810f7c"))))
+
+(dose-color nil) ; => "black"
+(dose-color 1) ; => "#8c96c6"
 
 ;; TODO: Plot the 29 Q2f tally-worms
-(defun draw-worm (tally)
-  (let* ((w (tally-worm tally)))
+;; - Generalize to accept an optional dose-assignment argument,
+;;   and use this to determine the worm's _color_.
+;; - Map this over the list Q2f.
+(defun draw-worm (tally &optional dose)
+  (let ((worm (tally-worm tally))
+        (color (dose-color dose))
+        (width (if dose 4 1)))
     (seq-mapn (lambda (xy1 xy2)
                 (pcase-let ((`[,x1 ,y1] xy1)
                             (`[,x2 ,y2] xy2))
-                  (svg-line svg x1 y1 x2 y2 :width 3 :stroke "blue")))
-              w (cdr w))))
+                  (svg-line svg x1 y1 x2 y2
+                            :stroke-width width
+                            :stroke-color color)))
+              worm (cdr worm))))
 
-(draw-worm (list [0 3] [1 6] [2 3]))
+;; Taking the structure of Q2f _as given_, we will need
+;; to peel off the final element from each list, as the
+;; dose recommendation.
+(defun draw-qrec (qrec)
+  (let ((d (car (last qrec)))
+        (q (butlast qrec)))
+    (draw-worm q d)))
 
+(seq-map 'draw-qrec Q2f)
  
