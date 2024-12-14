@@ -45,11 +45,15 @@
 
 (spiral-coords [1 2] 2) ; => [1 3]
 
+(defun canvas-coords (q d)
+  "Return the canvas coordinates of tally q at dose d0+1"
+  (canvas (spiral-coords q d)))
+
 ;; Next, we need a way to convert a whole tally
 ;; to a list (or vector?) of spiral coordinates.
 (defun tally-worm (tally)
   "Return a list of coordinates for 'worm' representation"
-  (cdr (seq-map-indexed 'spiral-coords (cons nil tally))))
+  (cdr (seq-map-indexed 'canvas-coords (cons nil tally))))
 
 (spiral-coords [1 6] 1)
 (spiral-coords [0 3] 2)
@@ -129,8 +133,8 @@
 (defun draw-worm (tally)
   (let* ((w (tally-worm tally)))
     (seq-mapn (lambda (xy1 xy2)
-                (pcase-let ((`[,x1 ,y1] (canvas xy1))
-                            (`[,x2 ,y2] (canvas xy2)))
+                (pcase-let ((`[,x1 ,y1] xy1)
+                            (`[,x2 ,y2] xy2))
                   (svg-line svg x1 y1 x2 y2 :width 3 :stroke "blue")))
               w (cdr w))))
 
