@@ -305,20 +305,33 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
   $$
   On this understanding, we can express the pharmacologic premise of \textbf{monotone dose-toxicity} via,
   $$
-  \langle\frac{1}{1}\rangle_j \implies \langle\frac{1}{1}\rangle_k \;\forall\, k > j \\
+  \langle\frac{1}{1}\rangle_j \implies \langle\frac{1}{1}\rangle_k \;\forall\, j < k \\
   $$
   and
   $$
-  \langle\frac{0}{1}\rangle_j \implies \langle\frac{0}{1}\rangle_\ell \;\forall\, \ell < j.
+  \langle\frac{0}{1}\rangle_j \impliedby \langle\frac{0}{1}\rangle_k \;\forall\, j < k.
   $$
 \end{nota}
 
 \begin{defn}\label{domon}
-  A preorder relation $\le$ on $Q^D$ is \textbf{dose-monotone} iff,
+  A monoidal preorder relation $\le$ on $Q^D$ is \textbf{dose-monotone} iff it contains the following arrows $\forall j \in \{1,...,D-1\}$:
   $$
-  \langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} \le \langle\frac{0}{1},\frac{1}{1}\rangle_{j,k} \quad \forall \; j < k.
+  \begin{aligned}
+    \langle\frac{0}{0}\rangle   &\preceq_{tol_1} \langle\frac{0}{1}\rangle_1 \\
+    \langle\frac{0}{1}\rangle_j &\preceq_{titr_j} \langle\frac{0}{1}\rangle_{j+1} \\
+    \langle\frac{1}{2}\rangle_D &\preceq_{1:1} \langle\frac{0}{0}\rangle \\
+    \langle\frac{1}{1},\frac{0}{1}\rangle_{j,j+1} &\preceq_{exch_j} \langle\frac{0}{1},\frac{1}{1}\rangle_{j,j+1}
+  \end{aligned}
   $$
 \end{defn}
+
+The subscripts on $\preceq_*$ in Definition~\ref{domon} indicate the underlying intuition of these `atomic' arrows, considered as incremental transformations which tallies may undergo as a trial progresses.  Thus, observing a new participant's toleration of dose 1 yields a new tally that is evidently safer:
+$$
+q \preceq_{tol_1} q + \langle\frac{0}{1}\rangle_1.
+$$
+Likewise, the transformation corresponding to $\preceq_{titr}$ would be one in which a trial participant who has tolerated dose $j$ subsquently titrates upward to $j+1$ and tolerates this dose as well.  That dose-\underline{escalation} designs exclude such titration maneuvers by definition\footnote{I am appealing here an escalation--titration distinction introduced in \cite{norris_dose_2017} with some support from the treatment of these issues in e.g. \cite{senn_statistical_2007-1}.} does not exempt them from the underlying pharmacological principle expressed in $\preceq_{titr}$.  Thus, we are entitled to examine dose-escalation trials in light of this principle, even if their designs do not explicitly acknowledge it.  (If one wished to interpret $\preceq_{titr}$ strictly in the narrowed ontology of dose-escalation designs, this could be done by adopting a potential-outcomes framing.)
+
+The $\preceq_{1:1}$ arrows serve to break a symmetry that would otherwise exist between observed toxicity and tolerability.  Intuitively, we can understand these arrows as establishing a prior expectation of toxicity rate under 0.5 {\em even at the highest dose}, so that observing a paired toxicity and non-toxicity at dose $D$ yields on balance an evidently less safe tally.
 
 \begin{nota}
   Let $\preceq_{ce}$ denote the binary relation on $Q^D$ obtained by componentwise extension of Definition~\ref{lesaf},
@@ -345,13 +358,13 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
 \end{fact}
 
 \begin{nota}
-  Given a dose-indexed tuple $x = (x_d) \in \N^D$, let capitalization denote partial summation, such that $X_d = \sum_{j=1}^d x_j$, and $X = (X_d) \in \N^D$.
+  Given a dose-indexed tuple $x = (x_d) \in \N^D$, let capitalization denote partial summation, $X_d = \sum_{j=1}^d x_j$, and $X = (X_d) \in \N^D$.  Furthermore, let an overbar denote partial summation from the right, such that $\bar{X}_d = \sum_{j=d}^D x_j$, $\bar{X} = (\bar{X}_d) \in \N^D$.
 \end{nota}
 
 \begin{fact}
   The preorder $\preceq$ is readily calculated from an equivalent condition,
   \begin{equation}
-  t\!:\!u \preceq t'\!:\!u' \quad\iff\quad T \ge T' \;\wedge\; U \le U'.\label{cond}
+  t\!:\!u \preceq t'\!:\!u' \quad\iff\quad T \ge T' \;\wedge\; \bar{U} \le \bar{U}'.\label{cond}
   \end{equation}
 \end{fact}
 \begin{proof}
@@ -361,7 +374,7 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
   \begin{equation}
   q = q^0 \preceq_* q^1 \preceq_* ... \preceq_* q^n = q' \quad n \ge 1, \label{string}
   \end{equation}
-  where each $\preceq_*$ is either $\preceq_{ce}$ or $\preceq_{dm}$.  But observe that across either of these $\preceq_*$'s, both $T_d^{n-1} \ge T_d^n$ and $U_d^{n-1} \le U_d^n$ must hold $\forall d, n$.  Since the latter are themselves transitive conditions, they must hold also across the whole chain from $q$ to $q'$.  
+  where each $\preceq_*$ is either $\preceq_{ce}$ or $\preceq_{dm}$.  But observe that across either of these $\preceq_*$'s, both $T_d^{n-1} \ge T_d^n$ and $\bar{U}_d^{n-1} \le \bar{U}_d^n$ must hold $\forall d, n$.  Since the latter are themselves transitive conditions, they must hold also across the whole chain from $q$ to $q'$.  
 \end{proof}
 
 \begin{corr}\label{partord}
@@ -380,10 +393,10 @@ Note that the `null state' $\emptyset$ is a pure abstraction, unlike the {\em ac
   \begin{equation}\label{meetjoin}
     \begin{aligned}
     q \wedge q' & \cong (t\!:\!u) \wedge (t'\!:\!u') \cong
-    (T\!:\!U) \wedge (T'\!:\!U') = (T\!\vee\!T'):(U\!\wedge\!U')
+    (T\!:\!\bar{U}) \wedge (T'\!:\!\bar{U}') = (T\!\vee\!T'):(\bar{U}\!\wedge\!\bar{U}')
     \\
     q \vee q' & \cong (t\!:\!u) \vee (t'\!:\!u') \cong
-    (T\!:\!U) \vee (T'\!:\!U') = (T\!\wedge\!T'):(U\!\vee\!U').
+    (T\!:\!\bar{U}) \vee (T'\!:\!\bar{U}') = (T\!\wedge\!T'):(\bar{U}\!\vee\!\bar{U}').
     \end{aligned}
   \end{equation}
 \end{corr}
@@ -775,7 +788,7 @@ By exchanging the roles of $\Q$ and $\D$, however, we create the opportunity for
 \end{equation}
 in which the so-called `pasting diagram' on the right states a universal mapping property of $G = \text{Kan}_F\iota$, that any other $\D \xrightarrow{G'} \Q$ with natural transformation $\iota \xRightarrow{\gamma} G'F$ must have $\gamma$ factoring uniquely through $\eta$.
 
-In this context specifically, the abovementioned natural transformations are simply finite collections of arrows `$\preceq$' of the preorder $\Q$, indexed either by $Q_f$ or (in the case of $\alpha$) by $\D$.  The diagrams above therefore reduce to `vectorized' statements about the images of $\Q_f$ under $\iota$ and $G F$.
+In this context specifically, the abovementioned natural transformations are simply finite collections of arrows `$\preceq$' of the preorder $\Q$, indexed either by $\Q_f$ or (in the case of $\alpha$) by $\D$.  The diagrams above therefore reduce to `vectorized' statements about the images of $\Q_f$ under $\iota$ and $G F$.
 \begin{equation}\label{Kan-vectorized}
   \Q_f \preceq G F \Q_f \preceq G' F \Q_f.
 \end{equation}
