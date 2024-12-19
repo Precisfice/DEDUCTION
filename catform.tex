@@ -373,7 +373,7 @@ $$
 
 \subsection{An explicit characterization of $\preceq_r$}
 
-\begin{nota}
+\begin{nota}\label{titr0}
   Interpreting $\preceq_{tol_1}$ as `titration upward from dose 0', we will write $\preceq_{titr_0}$ in its place.  Thus, we obtain a sequence $(\preceq_{titr_j})_{0\le j<D}$ of $D$ atomic titration arrows with zero-based indexing.
 \end{nota}
 
@@ -424,7 +424,51 @@ $$
        &    &    &  1 &  1   &  1
   \end{pmatrix},
   $$
-  we obtain a 1-1 correspondence between formal differences $q' = q = (\Delta t,\Delta u)$ and elements $(\gamma,\eta) \in \mathbb{Z}^6$, which precisely those cases where $(\gamma,\eta) \in \N^6$ correspond to arrows $q \preceq_r q'$.
+  we obtain a 1-1 correspondence between formal differences $q' = q = (\Delta t,\Delta u)$ and `arrow coefficients' $(\gamma,\eta) \in \mathbb{Z}^6$ such that the arrows $q \preceq_r q'$ correspond to exactly those cases where these coefficients are all non-negative.
+\end{proof}
+
+\begin{fact}\label{tol_d}
+  $\langle\frac{0}{0}\rangle \preceq_r \langle\frac{0}{1}\rangle_d \;\forall d\in 1..D$.
+\end{fact}
+\begin{proof}
+  Using Notation~\ref{titr0}, we can write
+  $$
+  \langle\frac{0}{0}\rangle \preceq_{titr_0} \langle\frac{0}{1}\rangle_1 \preceq_{titr_1} ...  \preceq_{titr_{d-1}} \langle\frac{0}{1}\rangle_d.
+  $$
+\end{proof}
+
+\begin{fact}\label{d11}
+  $\langle\frac{1}{2}\rangle_d \preceq_r \langle\frac{0}{0}\rangle \;\forall d\in 1..D$.
+\end{fact}
+\begin{proof}
+  From $\langle\frac{1}{2}\rangle_D \preceq_{1:1} \langle\frac{0}{0}\rangle$, we proceed by induction on $d<D$:
+  $$
+  \langle\frac{1}{2}\rangle_d \preceq_{titr_d} \langle\frac{1}{1},\frac{0}{1}\rangle_{d,d+1} \preceq_{exch_d} \langle\frac{0}{1},\frac{1}{1}\rangle_{d,d+1} \preceq_{titr_d} \langle\frac{1}{2}\rangle_{d+1}.
+  $$
+\end{proof}
+
+\begin{fact}\label{tox_d}
+  $\langle\frac{1}{1}\rangle_d \preceq_r \langle\frac{0}{0}\rangle \;\forall d\in 1..D$.
+\end{fact}
+\begin{proof}
+  $$
+  \langle\frac{1}{1}\rangle_d \preceq_\text{Fact~\ref{tol_d}} \langle\frac{1}{2}\rangle_d \preceq_\text{Fact~\ref{d11}} \langle\frac{0}{0}\rangle.
+  $$
+\end{proof}
+
+Facts~\ref{tol_d} and \ref{tox_d} reassure us that Definition~\ref{domon} suffices to obtain intuitively necessary evident-safety relations, such that each new observation of tolerability at any dose yields a safer tally, and each new observation of a toxicity yields a less-safe tally.  Note also how Facts~\ref{tol_d} and \ref{d11} have the similar effect of showing that the `edge-case' arrows $\preceq_{tol_1}$ and $\preceq_{1:1}$ of Definition~\ref{domon} apply not just at $d=1$ and $d=D$, respectively, but at all doses.
+
+\begin{nota}
+  For any $q = (\frac{t_d}{n_d})_{d\in 1..D} \in \Q$, define $|q| = \max_{d\in 1..D} n_d$.
+\end{nota}
+
+\begin{lemma}
+  For any $q \in \Q_r$, there exist $q_0 \neq q_1 \in \Q$ such that $q_0 \preceq_r q \preceq_r q_1$.
+\end{lemma}
+\begin{proof}
+  In case $q = \langle\frac{0}{0}\rangle$, then $q_0 = \langle\frac{1}{1}\rangle_1  \preceq_\text{Fact~\ref{tox_d}} q \preceq_\text{Fact~\ref{tol_d}} \langle\frac{0}{1}\rangle_1 = q_1$.
+
+  Otherwise, $|q| >0$ and we may set $q_0 = (\frac{|q|}{|q|},...,\frac{|q|}{|q|})$ and $q_1 = (\frac{0}{|q|},...,\frac{0}{|q|})$, and then whittle these down to $q$ by repeated, componentwise application of Facts~\ref{tox_d} and \ref{tol_d}.
 \end{proof}
 
 \begin{nota}
