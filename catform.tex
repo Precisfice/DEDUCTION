@@ -474,12 +474,10 @@ Facts~\ref{tol_d} and \ref{tox_d} reassure us that Definition~\ref{domon} suffic
 \end{nota}
 
 \begin{lemma}
-  For any $q \in \Q_r$, there exist $q_0 \neq q_1 \in \Q$ such that $q_0 \preceq_r q \preceq_r q_1$.
+  For any $q \in \Q_r$, there exist $q_0, q_1 \in \Q$ such that $q_0 \prec_r q \prec_r q_1$.
 \end{lemma}
 \begin{proof}
-  In case $q = \langle\frac{0}{0}\rangle$, then $q_0 = \langle\frac{1}{1}\rangle_1  \preceq_\text{Fact~\ref{tox_d}} q \preceq_\text{Fact~\ref{tol_d}} \langle\frac{0}{1}\rangle_1 = q_1$.
-
-  Otherwise, $|q| >0$ and we may set $q_0 = (\frac{|q|}{|q|},...,\frac{|q|}{|q|})$ and $q_1 = (\frac{0}{|q|},...,\frac{0}{|q|})$, and then whittle these down to $q$ by repeated, componentwise application of Facts~\ref{tox_d} and \ref{tol_d}.
+  Set $n = |q|+1, q_0 = (\frac{n}{n},...,\frac{n}{n})$ and $q_1 = (\frac{0}{n},...,\frac{0}{n})$, then whittle these down to $q$ by repeated, componentwise application of Facts~\ref{tox_d} and \ref{tol_d}.
 \end{proof}
 
 \begin{nota}
