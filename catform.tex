@@ -427,6 +427,17 @@ $$
   we obtain a 1-1 correspondence between formal differences $q' = q = (\Delta t,\Delta u)$ and `arrow coefficients' $(\gamma,\eta) \in \mathbb{Z}^6$ such that the arrows $q \preceq_r q'$ correspond to exactly those cases where these coefficients are all non-negative.
 \end{proof}
 
+\begin{corr}\label{partord}
+  $\preceq_r$ is in fact a \underline{partial order} on $Q^D$, since $q \cong q'$ requires both $(\gamma,\eta)$ and $(-\gamma,-\eta)$ to be non-negative, which can hold only if $\gamma = \eta = 0$, whence $\Delta t = \Delta u = 0$ and thus $q = q'$.
+\end{corr}
+
+\begin{nota}
+  Corrolary~\ref{partord} licenses the notation $\prec$ defined by,
+  $$
+  q_1 \prec q_2 \iff q_1 \preceq q_2 \;\wedge\; q_1 \neq q_2.
+  $$
+\end{nota}
+
 \begin{fact}\label{tol_d}
   $\langle\frac{0}{0}\rangle \preceq_r \langle\frac{0}{1}\rangle_d \;\forall d\in 1..D$.
 \end{fact}
@@ -490,17 +501,6 @@ Facts~\ref{tol_d} and \ref{tox_d} reassure us that Definition~\ref{domon} suffic
   \end{equation}
   where each $\preceq_*$ is either $\preceq_{ce}$ or $\preceq_{dm}$.  But observe that across either of these $\preceq_*$'s, both $T_d^{n-1} \ge T_d^n$ and $\bar{U}_d^{n-1} \le \bar{U}_d^n$ must hold $\forall d, n$.  Since the latter are themselves transitive conditions, they must hold also across the whole chain from $q$ to $q'$.  
 \end{proof}
-
-\begin{corr}\label{partord}
-  $\preceq$ is in fact a \underline{partial order} on $Q^D$, since $t\!:\!u \cong t'\!:\!u'$ requires both equalities on the RHS of \eqref{cond} to hold, forcing $t_i = t_i'$ and $u_i = u_i'$ for all $\,i$.
-\end{corr}
-
-\begin{nota}
-  Corrolary~\ref{partord} licenses the notation $\prec$ defined by,
-  $$
-  q_1 \prec q_2 \iff q_1 \preceq q_2 \;\wedge\; q_1 \neq q_2.
-  $$
-\end{nota}
 
 \begin{corr}\label{lattice}
   Moreover, $\Q$ is indeed a \underline{lattice}, since it has all meets and joins, which are readily calculated from \eqref{cond}:
