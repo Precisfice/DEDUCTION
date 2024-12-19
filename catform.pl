@@ -187,34 +187,33 @@ os_enc(Os, OK) :- r_os_enc(2, Os, OK).
 %@    true. % with R=2
 
 % Find the unique coefficients of ≼ᵣ-generators for given q ∈ Qᴰ.
-% TODO: Here is a good spot to begin renaming the coefficients,
-%       once I've rationalized their names in the monograph.
-coefs(R, Qs, Hs, Os) :-
+coefs(R, Qs, Ys, Hs) :-
     #R #> 0,
-    same_length(Qs, Hs), % allows usage (+R, -Qs, +Hs, +Os)
+    same_length(Qs, Ys), % allows usage (+R, -Qs, +Ys, +Hs)
     maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
-    % We will set Hs = [ηs]+[ρ] (of length D), since ρ fits in so smoothly.
-    % Our first D equations are simply that Hs is minus partial sums of Ts.
-    intlist_negated(Ts, NegTs), intlist_partsums(NegTs, Hs),
-    reverse(Hs, [Rho|_]),
-    % Our next set of equations is formed by γ = ΣU + rρ =: σ₀₁,
-    % and then recursively σₖ,ₖ₊₁ = σₖ₋₁,ₖ - nₖ for k in 1..D-1.
+    % We will set Ys = [γs] (of length D), with γᴅ being coef of ≼₁﹕ᵣ.
+    % Our first D equations are simply that Ys is minus partial sums of Ts.
+    intlist_negated(Ts, NegTs), intlist_partsums(NegTs, Ys),
+    reverse(Ys, [YD|_]),
+    % Our next set of equations is η₀ = ΣU - rΣTρ = ΣU + r·γᴅ,
+    % and then recursively ηₖ = ηₖ₋₁ - nₖ for k in 1..D-1.
     % But an even simpler expression of this, which dispenses
     % altogether with the Us, is to reverse-partial-sum the Ns,
-    % then add Rho*(R+1)!
+    % then add Yᴅ*(R+1)!
     reverse(Ns, Иs),
     intlist_partsums(Иs, ΣИs),
     reverse(ΣИs, ΞNs),
-    #RhoR1 #= #Rho * (#R + 1),
-    maplist(sum_(RhoR1), ΞNs, Os).
+    #RhoR1 #= #YD * (#R + 1),
+    maplist(sum_(RhoR1), ΞNs, Hs).
 
-%?- coefs(1, [0/0,0/0,0/0], Hs, Os).
-%@    Hs = [0,0,0], Os = [0,0,0].
+%?- coefs(1, [0/0,0/0,0/0], Ys, Hs).
+%@    Ys = [0,0,0], Hs = [0,0,0].
 
-%?- transform([0/0,0/0,0/0], [1/2,3/4,4/5], Hs, Os).
-%@    Hs = [-1,-4,-8], Os = [-5,-7,-11].
-%?- coefs(1, [1/2,3/4,4/5], Hs, Os).
-%@    Hs = [-1,-4,-8], Os = [-5,-7,-11].
+%?- transform([0/0,0/0,0/0], [1/2,3/4,4/5], Ys, Hs).
+%@    Ys = [-1,-4,-8], Hs = [-13,-15,-19]. % R=2
+%@    Ys = [-1,-4,-8], Hs = [-5,-7,-11].   % R=1
+%?- coefs(1, [1/2,3/4,4/5], Ys, Hs).
+%@    Ys = [-1,-4,-8], Hs = [-5,-7,-11].
 
 % Let's check systematically
 d_nmax_discordant(D, Nmax, Q1s, Q2s) :-
