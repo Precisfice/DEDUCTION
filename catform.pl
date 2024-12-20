@@ -571,18 +571,18 @@ meet_invalid(Q1, Q2, M) :-
 %?- transform([1/1,1/1], M, [0,1], [2,3]).
 %@    M = [1/0,0/1].
 
-join(Q1s, Q2s, Hs, Os) :-
+join(Q1s, Q2s, Ys, Hs) :-
     same_length(Q1s, Q2s),
-    coefs(Q1s, H1s, O1s),
-    coefs(Q2s, H2s, O2s),
-    maxs(H1s, H2s, Hs),
-    maxs(O1s, O2s, Os).
+    coefs(Q1s, Y1s, H1s),
+    coefs(Q2s, Y2s, H2s),
+    maxs(Y1s, Y2s, Ys),
+    maxs(H1s, H2s, Hs).
 
 % NB: If, as I believe, 𝒬 = (Qᴰ,≼) is an upper semilattice,
 %     then these joins will always exist and are unique.
 join(Q1s, Q2s, Qs) :-
-    join(Q1s, Q2s, Hs, Os),
-    coefs(Qs, Hs, Os).
+    join(Q1s, Q2s, Ys, Hs),
+    coefs(Qs, Ys, Hs).
 
 sum_(Z1, Z2, Sum) :- #Sum #= #Z1 + #Z2.
 diff_(Z1, Z2, Diff) :- #Diff #= #Z1 - #Z2.
