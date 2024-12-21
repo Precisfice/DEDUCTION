@@ -105,8 +105,8 @@ Xs '≰' Ys :-
 q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
 
 % Impose global default for R here:
-coefs(Qs, Hs, Os) :- coefs(2, Qs, Hs, Os).
-os_enc(Os, OK) :- r_os_enc(2, Os, OK).
+coefs(Qs, Ys, Hs) :- coefs(2, Qs, Ys, Hs).
+etas_enc(Hs, HK) :- r_etas_enc(2, Hs, HK).
 
 %?- [1/6,1/3] '≼' [1/6,0/0].
 %@    false. % with R=1
@@ -959,19 +959,19 @@ d_ncovers(D, N) :-
 % equal at 6D(r+1).
 % Accordingly, we need only update os_base/2 below.
 
-% To encode the Hs, we can reuse existing infrastructure, as-is
-hs_enc(Hs, K) :- ws_int(Hs, K).
+% To encode the γs, we can reuse existing infrastructure, as-is
+gammas_enc(Ys, K) :- ws_int(Ys, K).
 
-% To encode Os, we need only encode a base-(6*D*(R+1)+1) integer.
+% To encode ηs, we need only encode a base-(6*D*(R+1)+1) integer.
 % (Note that we need not even insist on non-negative 'digits',
 % since any bias in a given digit will bias the whole encoding
 % consistently, with no effect on the _order_.)
-r_os_enc(R, Os, K) :-
-    r_os_base(R, Os, B),
-    foldl(base_(B), Os, 0, K).
+r_etas_enc(R, Hs, K) :-
+    r_etas_base(R, Hs, B),
+    foldl(base_(B), Hs, 0, K).
 
-r_os_base(R, Os, B) :-
-    #R #> 0, length(Os, D),
+r_etas_base(R, Hs, B) :-
+    #R #> 0, length(Hs, D),
     #B #= 6 * #D * (#R+1) + 1.
 
 base_(B, A, N0, N) :- #N #= #B * #N0 + #A.
@@ -979,20 +979,18 @@ base_(B, A, N0, N) :- #N #= #B * #N0 + #A.
 %?- foldl(base_(10), [1,2,3,4], 0, N).
 %@    N = 1234.
 
-%?- Os = [18,12,6], r_os_enc(1, Os, K).
-%@    Os = [18,12,6], K = 25092. % Now with the R+1 correction
-%@    Os = [18,12,6], K = 6732.  % w/o missing factor (R+1)=2
-%@    Os = [18,12,6], K = 6732.
+%?- Hs = [18,12,6], r_etas_enc(1, Hs, K).
+%@    Hs = [18,12,6], K = 25092.
 
 qs_int(Qs, K) :-
-    coefs(Qs, Hs, Os),
-    hs_enc(Hs, HK),
-    os_enc(Os, OK),
-    same_length(Hs, _s), placevalues([P|_s]),
-    #K #= #OK * #P + #HK.
+    coefs(Qs, Ys, Hs),
+    gammas_enc(Ys, YK),
+    etas_enc(Hs, HK),
+    same_length(Ys, _s), placevalues([P|_s]),
+    #K #= #HK * #P + #YK.
 
 %?- qs_int([1/1,2/3], K).
-%@    K = -4845.
+%@    K = -17403.
 
 %?- Qs = [0/0,0/0], qs_int(Qs, K).
 %@    Qs = [0/0,0/0], K = 0.
@@ -2642,7 +2640,7 @@ d_joinscascade(D, Gs) :-
     reverse(Js, [_|Gs]). % drop trivial top join qua 𝟙
 
 %?- d_joinscascade(3, Gs).
-%@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]]. % still the same!
+%@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]]. % yet again unchanged
 %@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]].
 
 lg3(Q, X) :-
