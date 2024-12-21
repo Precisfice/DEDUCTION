@@ -103,79 +103,6 @@ Xs '≰' Ys :-
 :- op(900, xfx, '⊁').
 
 q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
-q_t_u(Q, T, U) :- q_r(Q, T:U).
-
-% The monograph's capitalization notation being ill-suited to
-% Prolog (for obvious reasons!), we indicate our partial-sum
-% variables below with a prefix Σ.
-qs_Ts_Ūs(Qs, ΣTs, ΣŪs) :-
-    maplist(q_t_u, Qs, Ts, Us),
-    intlist_partsums(Ts, ΣTs),
-    reverse(Us, Ūs),
-    intlist_partsums(Ūs, RΣŪs),
-    reverse(RΣŪs, ΣŪs).
-
-%?- Qs = [1/6,2/6], maplist(q_r, Qs, Rs), qs_Ts_Ūs(Qs, Ts, Ūs).
-%@    Qs = [1/6,2/6], Rs = [1:5,2:4], Ts = [1,3], Ūs = [9,4].
-
-% I've discovered that the sufficient condition for ≼
-% is actually quite subtle, and necessitates considering
-% the exchange relations.
-
-% Let us make this predicate strictly about the equation
-% relating tallies Qs to Qas thru the exchange coefs As.
-% (I will not even impose a restriction of positivity on
-% the As, nor even the resulting Qas.)
-qs_as_qas(Qs, As, Qas) :- % 'A' für Austausch
-    qs_Ts_Ūs(Qs, Ts, Ūs),
-    same_length(Qs, [_|As]), % the As act at the (D-1) *commas* of Qs
-    as_Ūs_Ūas(As, Ūs, Ūas),
-    as_Ts_Tas(As, Ts, Tas),
-    qs_Ts_Ūs(Qas, Tas, Ūas).
-
-%?- qs_as_qas([1/6,1/6], As, [0/6,2/6]).
-%@    As = [1].
-
-% The As are the D-1 coefficients of the _comma-wise_ exchanges.
-% Because each exchange moves both 'o' and 'x' alike in the _same_
-% direction as Ūs and Ts respectively are summed, both of these
-% vectors get _decremented_ by an exchange.  The Ūs are decremented
-% to the right of each comma (where the 'o' gets taken from), while
-% the Ts get decremented to the left (where the 'x' is taken from).
-as_Ūs_Ūas(As, [ΣU|Ūs], [ΣU|Ūas]) :- % Ūs head is total count of o's,
-    same_length(Ūs, Ūas),           % an _invariant_ under x-o exchange.
-    maplist(\U^A^Ua^(#U - #A #= #Ua), Ūs, As, Ūas).
-
-as_Ts_Tas(As, Ts, Tas) :-
-    Ts = [_|Ts1], same_length(Ts1, As),
-    append(As, [0], As0), % Last of Ts is the total count of x's,
-    same_length(Ts, Tas), % which is invariant under x-o exchange.
-    maplist(\T^A^Ta^(#T - #A #= #Ta), Ts, As0, Tas).
-
-'≼old'(Q1s, Q2s, Truth) :-
-    qs_Ts_Ūs(Q1s, T1s, Ū1s),
-    qs_Ts_Ūs(Q2s, T2s, Ū2s),
-    %%format("T1s = ~w , T2s = ~w~n", [T1s, T2s]),
-    %%format("Ū1s = ~w , Ū2s = ~w~n", [Ū1s, Ū2s]),
-    Ū1s = [Ū1|Ū1rs],
-    Ū2s = [Ū2|Ū2rs],
-    % We next calculate the _smallest_ exchange-adjustment As : Ū1s ⟼ Ū1as
-    % that would ensure Ū1as ≤ Ū2s.  (In case this inequality already holds
-    % as for unadjusted Ū1s, then this will be the _null_ adjustment.)
-    same_length(Ū1rs, As),
-    maplist(\A^U1^U2^(#A #= max(0, #U1 - #U2)), As, Ū1rs, Ū2rs),
-    % Now we will calculate post-exchange [T1a|T1as] vector.
-    as_Ts_Tas(As, T1s, T1as),
-    %%format("As = ~w; T1as = ~w~n", [As, T1as]),
-    %%format("Ū1 ≤ Ū2 ? ~w ≤ ~w~n", [Ū1, Ū2]),
-    %%format("T2s ≤ T1as ? ~w ≤ ~w~n", [T2s, T1as]),
-    if_((clpz_t(#Ū1 #=< #Ū2), % Q1 must not have _net_ advantage of more total o's
-         T2s '≤' T1as % Even *after* exchange-adjustment, T1 must still exceed T2.
-         % (Happily, the above also ensures T1as never 'goes negative'.)
-        ),
-        Truth = true,
-        Truth = false
-       ).
 
 % Impose global default for R here:
 coefs(Qs, Hs, Os) :- coefs(2, Qs, Hs, Os).
@@ -486,12 +413,6 @@ intlist_partsums_acc([X|Xs], [Σ|Σs], A) :-
 %?- [1/6,1/6] '≺' [0/6,2/6].
 %@    true.
 
-%?- as_Ts_Tas(As, [1,2,3], [0,3,3]).
-%@    As = [1,-1].
-
-%?- as_Ts_Tas([1,0], [1,2,3], Ts1), as_Ts_Tas([0,-1], Ts1, Ts2).
-%@    Ts1 = [0,2,3], Ts2 = [0,3,3].
-
 maxs(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= max(#N1, #N2)), N1s, N2s, Ns).
 mins(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= min(#N1, #N2)), N1s, N2s, Ns).
 
@@ -499,33 +420,6 @@ mins(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= min(#N1, #N2)), N1s, N2s, Ns).
 %@    Maxs = [3,4,6].
 %?- mins([1,2,6], [3,4,5], Mins).
 %@    Mins = [1,2,5].
-
-% https://en.wikipedia.org/wiki/Monus#Natural_numbers
-monus_(X, Y, X_Y) :- #X #>= 0, #Y #>= 0, #X_Y #= max(0, #X - #Y).
-monus([X|Xs], [Y|Ys], [X_Y|Xs_Ys]) :-
-    monus_(X, Y, X_Y),
-    monus(Xs, Ys, Xs_Ys).
-monus([], [], []).
-    
-%?- X=[5,7], Y=[8,9], monus(X, Y, X_Y), monus(Y, X, Y_X).
-%@    X = [5,7], Y = [8,9], X_Y = [0,0], Y_X = [3,2].
-
-%?- X=5, Y=8, monus_(X, Y, X_Y), monus_(Y, X, Y_X).
-%@    X = 5, Y = 8, X_Y = 0, Y_X = 3.
-
-all_but_last(Xs, Xs1, X) :-
-    reverse(Xs, [X|Vs]),
-    reverse(Vs, Xs1).
-
-%?- all_but_last([1,2,3], B, L).
-%@    B = [1,2], L = 3.
-
-% Find the maximal Ūs profile such that (Ts:Ūs) ≼ Qs.
-qs_Ts_maxŪs(Qs, Ts, Ūs) :-
-    qs_Ts_Ūs(Qs, Ts_, Ūs_), Ts_ '≤' Ts,
-    monus(Ts, Ts_, As_), all_but_last(As_, As, _),
-    same_length(Qs, Ūs),
-    maplist(\U^U_^A^(#U #= #U_ + #A), Ūs, Ūs_, [0|As]).
 
 meet_(Q1s, Q2s, Ys, Hs) :-
     same_length(Q1s, Q2s),
@@ -2748,6 +2642,7 @@ d_joinscascade(D, Gs) :-
     reverse(Js, [_|Gs]). % drop trivial top join qua 𝟙
 
 %?- d_joinscascade(3, Gs).
+%@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]]. % still the same!
 %@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]].
 
 lg3(Q, X) :-
