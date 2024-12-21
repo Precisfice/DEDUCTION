@@ -791,7 +791,11 @@ The subcategory inclusion $Q_f \xhookrightarrow{\iota} \Q_f$ is of course functo
 %@ ;  false.
 \end{lstlisting}
 
-Thus, interestingly, we discover that the dose recommendations of the \mbox{3+3} trial are not actually consistent with the basic pharmacologic intuition embodied in our dose-monotonicity condition of Definition~\ref{domon}: substituting $q = (\frac{0}{5},\frac{1}{5})$ into Equation~\eqref{xchg}, we see that $(\frac{1}{6},\frac{1}{6}) \preceq (\frac{0}{6},\frac{2}{6})$, yet the \mbox{3+3} design accords the {\em higher} dose to the {\em less safe} of the two tallies.  Adapting existing dose-escalation designs to the framework presented here will generally require an initial `rectification' step, in which nonmonotonicities implicit in existing designs are corrected.
+Thus, interestingly, we discover that the dose recommendations of the \mbox{3+3} trial are not actually consistent with the basic pharmacologic intuition embodied in our dose-monotonicity condition of Definition~\ref{domon}: we see indeed that
+$$
+(\frac{1}{6},\frac{1}{6}) = (\frac{0}{5},\frac{1}{5}) + (\frac{1}{1},\frac{0}{1}) \preceq_{exch_{12}} (\frac{0}{1},\frac{1}{1}) + (\frac{0}{5},\frac{1}{5}) = (\frac{0}{6},\frac{2}{6}),
+$$
+yet the \mbox{3+3} design accords the {\em higher} dose to the {\em less safe} of the two tallies.  Adapting existing dose-escalation designs to the framework presented here will generally require an initial `rectification' step, in which nonmonotonicities implicit in existing designs are corrected.
 
 \begin{lstlisting}
 table mendtally_rec/2.
