@@ -519,52 +519,6 @@ Facts~\ref{tol_d} and \ref{tox_d} reassure us that Definition~\ref{domon} suffic
   at least one of $\{\eta_d, \eta_d'\}$ is zero for each $d\in 1..D$, then we then have $\eta \vee \eta' = 0$, and a similar guarantee of non-negativity for the tolerance counts in $q \vee q'$.
 \end{sketch}
 
-\begin{nota}
-  Given a dose-indexed tuple $x = (x_d) \in \N^D$, let capitalization denote partial summation, $X_d = \sum_{j=1}^d x_j$, and $X = (X_d) \in \N^D$.  Furthermore, let an overbar denote partial summation from the right, such that $\bar{X}_d = \sum_{j=d}^D x_j$, $\bar{X} = (\bar{X}_d) \in \N^D$.
-\end{nota}
-
-\begin{fact}
-  The preorder $\preceq$ is readily calculated from an equivalent condition,
-  \begin{equation}
-  t\!:\!u \preceq t'\!:\!u' \quad\iff\quad T \ge T' \;\wedge\; \bar{U} \le \bar{U}'.\label{cond}
-  \end{equation}
-\end{fact}
-\begin{proof}
-  It is the universal property of the preorder $(Q^D, \preceq)$ that $\preceq$ is the reflexive, transitive closure of the relation $\preceq_{ce} \cup \preceq_{dm}$.  The $(\!\impliedby\!)$ direction of \eqref{cond} is immediate: the RHS obviously defines a reflexive and transitive relation on $R^D \cong Q^D$, which directly implies both $\preceq_{ce}$ and $\preceq_{dm}$ as special cases.  So the RHS of \eqref{cond} clearly defines a preorder that contains $\preceq$.
-
-  To show the $(\!\implies\!)$ direction, consider that any statement $q \preceq q'$ with $q \neq q'$ must arise from some finite string of the form,
-  \begin{equation}
-  q = q^0 \preceq_* q^1 \preceq_* ... \preceq_* q^n = q' \quad n \ge 1, \label{string}
-  \end{equation}
-  where each $\preceq_*$ is either $\preceq_{ce}$ or $\preceq_{dm}$.  But observe that across either of these $\preceq_*$'s, both $T_d^{n-1} \ge T_d^n$ and $\bar{U}_d^{n-1} \le \bar{U}_d^n$ must hold $\forall d, n$.  Since the latter are themselves transitive conditions, they must hold also across the whole chain from $q$ to $q'$.  
-\end{proof}
-
-\subsection{Further characterization of the monoidal preorder $\preceq$}
-
-\begin{quote}
-  Make no mistake about it: Computers process numbers --- not symbols.
-  We measure our understanding (and control) by the extent to which
-  we can arithmetize an activity.
-  
-  \hfill --- Alan J. Perlis (Epigram \#65)
-\end{quote}
-
-Observe that the proof of Fact~\ref{symon} did not use the {\em symmetric monoidal} character of the $+$ operation on $\Q$.  By exploiting specifically the {\em commutativity} of $+$, however, we can obtain a more readily generalizable reformulation of \eqref{cond}.
-
-\begin{fact}
-  Every arrow of the preorder $\preceq$ may be obtained in the form,
-  \begin{equation}
-  \sum_{i=1}^D \lambda_i\langle\frac{1}{1}\rangle_i + \sum_{j<k} \eta_{jk}\langle\frac{1}{1},\frac{0}{1}\rangle_{j,k} +q \preceq q + \sum_{j<k} \eta_{jk}\langle\frac{0}{1},\frac{1}{1}\rangle_{j,k} + \sum_{i=1}^D \gamma_i\langle\frac{0}{1}\rangle_i, \label{clpz}
-  \end{equation}
-  for some $q \in Q^D$ and $\lambda_i, \eta_{jk}, \gamma_i \in \N$.  This is a CLP($\mathbb{Z}$) constraint.
-\end{fact}
-\begin{proof}
-  It is clear that every statement of the form \eqref{clpz} is a valid arrow which we may build up by starting with the reflexive arrow $q \preceq q$, repeatedly applying $\preceq_{dm}$ (obtaining the paired $\eta_{jk}$ terms), then repeatedly applying $\preceq_{ce}$; the left-hand side of \eqref{lesafcond} generates the $\lambda_i$ terms, its right-hand side the $\gamma_i$ terms.
-  The converse, that all valid arrows must be of the form \eqref{clpz}, follows from considering strings of the form \eqref{string}, and exploiting the commutativity of $+$ to collect like terms.
-\end{proof}
-
-This proof indicates how one might proceed to {\em enlarge} the basic preorder $\preceq$ while retaining its monoidality.  While any sensible evident-safety order on dose-escalation tallies probably needs to be monoidal and dose-monotone, and therefore must {\em contain} $\preceq$, these concepts do not exhaust all pharmacologic intutions one might wish to model.
-
 \section{Dose-Escalation Protocols}
 
 A dose-escalation protocol (DEP) is generally situated in a queueing context, where it must service the {\em arrival process} of participants presenting available for enrollment.  At any time, there may be 0, 1, or many participants waiting to enroll.  It is the task of a dose-escalation protocol to decide at what doses (if any) to enroll the waiting participants, conditional on the trial's current state.
