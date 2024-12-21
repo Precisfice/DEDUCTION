@@ -142,33 +142,6 @@ coefs(R, Qs, Ys, Hs) :-
 %?- coefs(1, [1/2,3/4,4/5], Ys, Hs).
 %@    Ys = [-1,-4,-8], Hs = [-5,-7,-11].
 
-% Let's check systematically
-d_nmax_discordant(D, Nmax, Q1s, Q2s) :-
-    qs_d_nmax(Q1s, D, Nmax),
-    qs_d_nmax(Q2s, D, Nmax),
-    transform(Q1s, Q2s, Hs, Os),
-    coefs(Q1s, H1s, O1s),
-    coefs(Q2s, H2s, O2s),
-    maplist(H2^H1^H_^(#H_ #= #H2 - #H1), H2s, H1s, Hs_),
-    maplist(O2^O1^O_^(#O_ #= #O2 - #O1), O2s, O1s, Os_),
-    (   Hs \== Hs_
-    ;   Os \== Os_
-    ).
-
-%?- time(d_nmax_discordant(2, 3, Q1s, Q2s)).
-%@    % CPU time: 9.259s, 29_721_540 inferences
-%@    false.
-%?- time(d_nmax_discordant(3, 2, Q1s, Q2s)).
-%@    % CPU time: 60.048s, 199_087_482 inferences
-%@    false.
-%?- time(d_nmax_discordant(3, 3, Q1s, Q2s)).
-%@    % CPU time: 1302.750s, 4_202_019_937 inferences
-%@    false.
-%?- time(d_nmax_discordant(2, 6, Q1s, Q2s)).
-%@    % CPU time: 567.130s, 1_779_337_077 inferences
-%@    false.
-
-
 % I've now worked out in detail a unique transformation of pair
 % Q1,Q2 ∈ Qᴰ into 2✕D parameters, *all* nonnegative iff Q1 ⊑ Q2.
 transform(Q1s, Q2s, ΔHs, ΔOs) :-
@@ -177,9 +150,6 @@ transform(Q1s, Q2s, ΔHs, ΔOs) :-
     coefs(Q2s, H2s, O2s),
     maplist(diff_, H2s, H1s, ΔHs),
     maplist(diff_, O2s, O1s, ΔOs).
-
-%?- Ňs = [1,2,3], reverse(Ňs, Ns).
-%@    Ňs = [1,2,3], Ns = [3,2,1].
 
 %?- transform([1/1,0/1], [0/1,1/1], Hs, Os).
 %@    Hs = [1,0], Os = [0,0].
@@ -192,15 +162,6 @@ transform(Q1s, Q2s, ΔHs, ΔOs) :-
 %@    Q2 = [0/3,0/0].
 %?- transform([0/2,1/2], Q2, [0,1], [1,1]).
 %@    Q2 = [0/2,0/1].
-
-q1s_q2s_Δts_Δns(Q1s, Q2s, Δts, Δns) :-
-    maplist(\Q^T^N^(Q = T/N), Q1s, T1s, N1s),
-    maplist(\Q^T^N^(Q = T/N), Q2s, T2s, N2s),
-    maplist(\X1^X2^ΔX^(#ΔX #= #X2 - #X1), T1s, T2s, Δts),
-    maplist(\X1^X2^ΔX^(#ΔX #= #X2 - #X1), N1s, N2s, Δns).
-
-%?- q1s_q2s_Δts_Δns([1/1,0/1], [0/1,1/1], Δts, Δns).
-%@    Δts = [-1,1], Δns = [0,0].
 
 '≼'(Q1s, Q2s, Truth) :- % QAs ≼toxD QBs ≼tol1 QCs ≼exch QZs
     transform(Q1s, Q2s, Hs, Os),
@@ -227,109 +188,6 @@ d_q(D, Qs) :-
 
 %?- d_q(2, Qs).
 %@    Qs = [_B/_A,_D/_C], clpz:(_A in 0..6), clpz:(#_A#>= #_B), clpz:(_B in 0..6), clpz:(_C in 0..6), clpz:(#_C#>= #_D), clpz:(_D in 0..6).
-
-% (Below I redo this earlier investigation, after overwriting
-% the 'old' ≼ with the 'new' one initially introduced as '⊑'.)
-% Investigating whether certain arrows 'discovered' during Meetup
-% and on return flight are present in '≼' as already defined:
-%
-%         [exch]     [titro]      [1:1]
-% [1/1,0/1] ≼ [0/1,1/1] ≼ [0/0,1/2] ≼ [0/0,0/0]
-%      \             \_________≼_________/ /
-%       \_______________≼_________________/
-%
-% If I am guessing right, only the [exch] arrow is already present
-% in '≼' as currently defined.  But I do wonder if either of the
-% composite arrows shown might somehow be present already.
-
-%?- [1/1,0/1] '≼' [0/1,1/1].
-%@    true. % (still true after renaming '⊑' ↦ '≼')
-%@    true. % as expected [exch]
-
-%?- [0/0,1/2] '≼' [0/0,0/0].
-%@    true. % after renaming '⊑' ↦ '≼'
-%@    false. % [1:1] absent (as anticipated)
-
-%?- [0/1,1/1] '≼' [0/0,1/2].
-%@    true. % (still true after renaming '⊑' ↦ '≼')
-%@    true. % ah, but of course: [titro] is basically monotonicity
-
-%?- [0/1,1/1] '≼' [0/0,0/0].
-%@    true. % after renaming '⊑' ↦ '≼'
-%@    false. % [titro];[1:1] absent (as anticipated)
-
-%?- [1/1,0/1] '≼' [0/0,0/0].
-%@    true. % after renaming '⊑' ↦ '≼'
-%@    false. % [exch];[titro];[1:1] also absent (as anticipated)
-
-% What about tol1 arrows?
-%?- [0/0,0/0] '≼' [0/1,0/0].
-%@    true.
-
-% How about toxD?
-%?- [0/0,1/1] '≼' [0/0,0/0].
-%@    true.
-
-%?- [0/0,1/2] '≼' [0/0,0/1]. % a toxD arrow
-%@    true.
-
-%?- [1/1,1/2] '≼' [1/1,0/1]. % also a toxD arrow
-%@    true.
-
-%?- [1/1,1/2] '≼' [1/1,0/0]. % a 1:1 arrow
-%@    true. % after renaming '⊑' ↦ '≼'
-%@    false.
-
-%?- [1/1,1/3] '≼' [1/1,0/1]. % a 1:1 arrow
-%@    true. % after renaming '⊑' ↦ '≼'
-%@    false.
-
-% I believe that [1:1] = toxD - tol1 - titro, yet that
-% all 3 of {toxD, tol1, titro} are present in ≼.
-% So why don't I get 1:1 in ≼ as well?
-%?- [1/1,1/1] '≼' [1/1,0/0]. % toxD
-%@    true.
-%?- [1/1,0/0] '≼' [1/2,0/0]. % tol1
-%@    true.
-%?- [1/2,0/0] '≼' [1/1,0/1]. % titro
-%@    true.
-% Now if transitivity holds, then we should have...
-%?- [1/1,1/1] '≼' [1/1,0/1].
-%@    true.
-
-% So the addition of these [1:1] arrows does augment the existing
-% order relation, perhaps quite substantially!  Such augmentation
-% is sorely needed at this point, given the existing definition's
-% refusal to yield up workable Galois trials.
-% Furthermore, given how the [1:1] arrows support an intuitive
-% argument (based on safety-derogatory information content) for
-% the [exch] arrows, including [1:1] would add also _conceptual_
-% depth to our partial order.
-
-%?- '≼'([0/1,0/0], [0/0,0/1], Truth).
-%@ T1s = [0,0] , T2s = [0,0]
-%@ Ū1s = [1,0] , Ū2s = [1,1]
-%@ As = [0]; T1as = [0,0]
-%@ Ū1 ≤ Ū2 ? 1 ≤ 1
-%@ T2s ≤ T1as ? [0,0] ≤ [0,0]
-%@    Truth = true.
-
-%?- [1/6,1/6]'≼'[0/6,2/6].
-%@    true.
-
-%?- '≼'([1/6,1/6], [0/6,2/6], Truth).
-%@ T1s = [1,2] , T2s = [0,2]
-%@ Ū1s = [10,5] , Ū2s = [10,4]
-%@ As = [1]; T1as = [0,2]
-%@ Ū1 ≤ Ū2 ? 10 ≤ 10
-%@ T2s ≤ T1as ? [0,2] ≤ [0,2]
-%@    Truth = true.
-
-%?- qs_Ts_Ūs([1/6,1/6], Ts, Ūs), reverse(Ūs, Us).
-%@    Ts = [1,2], Ūs = [10,5], Us = [5,10].
-
-%?- qs_Ts_Ūs([0/6,2/6], Ts, Ūs), reverse(Ūs, Us).
-%@    Ts = [0,2], Ūs = [10,4], Us = [4,10].
 
 '≺'(Q1s, Q2s, Truth) :-
     if_((Q1s '≼' Q2s, dif(Q1s, Q2s)),
@@ -2640,7 +2498,7 @@ d_joinscascade(D, Gs) :-
     reverse(Js, [_|Gs]). % drop trivial top join qua 𝟙
 
 %?- d_joinscascade(3, Gs).
-%@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]]. % yet again unchanged
+%@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]]. % same
 %@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]].
 
 lg3(Q, X) :-
@@ -2894,12 +2752,6 @@ RQss = [[[0/6,2/6],[1/6,0/6],[0/3,0/6]],
 %?- [0/6,0/0] '≼' [0/0,0/6].
 %@    true. % Repaired!
 %@    false. % This ALSO CAN'T be right!
-
-%?- qs_Ts_Ñs([0/6,0/0], Ts, Ñs).
-%@    Ts = [0,0], Ñs = [0,6].
-
-%?- qs_Ts_Ñs([0/0,0/6], Ts, Ñs).
-%@    Ts = [0,0], Ñs = [6,6].
 
 % This means I need to refer to the developments in the monograph.
 % Perhaps even those were wrong?
