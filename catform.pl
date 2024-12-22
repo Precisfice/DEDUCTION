@@ -2544,8 +2544,8 @@ RQss = [[[0/6,2/6],[1/6,0/6],[0/3,0/6]],
 % Here the Mss should be an _ascending_ sequence of
 % _minimal_ sets, and order relations reversed so
 % that '⋡' becomes '⋠'; accordingly, the Qs must now
-% be sorted in _??scending_ order.
-% Thus lgalois/3 searches the ascending list [Q|Qs]
+% be sorted in _descending_ order.
+% Thus lgalois/3 searches the descending list [Q|Qs]
 % for the first Lx satisfying Lx ≼ Q ∀ Q ∈ Ms, or
 % equivalently ↑Lx ⊇ Ms.
 lgalois([Ms|Mss], [Q|Qs], [L|Ls]) :-
@@ -2561,27 +2561,24 @@ lgalois([], _, []). % Succeed when all strata are accounted-for.
 d_ls(D, Ls) :-
     format("Listing Qs...... ", []),
     time(findall(Q, qs_d_nmax(Q, D, 6), Qs)),
-    po_qs_sorted('≽', Qs, SQs), % instrumentation included
-    %%reverse(SQs, RQs),
+    po_qs_sorted('≽', Qs, SQs),
     format("Stratifying Qf.. ", []),
-    time(d_Qfstratamin(D, Mss)), % NB: We require MINIMAL strata here.
-    format("Finding g's ..~n", []),
-    %%time(lgalois(Mss, RQs, Ls)).
+    time(d_Qfstratamin(D, Mss)), % MINIMAL strata, sorted DESCENDING
+    format("Finding l's ..~n", []),
     time(lgalois(Mss, SQs, Ls)).
 
 %?- d_Qfstratamin(2, Mss).
 %@    Mss = [[[4/6,0/0],[3/6,4/6]],[[1/6,4/6]],[[1/6,1/6]]].
 
-% TODO: Is d_ls/2 correctly implemented?  It looks useless, no?
-%?- d_ls(2, Ls). % With new, post-Meetup ≼ _and_ now R=2 also
-%@ Listing Qs......    % CPU time: 0.062s, 253_947 inferences
-%@ Stratifying Qf..    % CPU time: 0.730s, 3_406_769 inferences
-%@ Finding g's ..
+%?- d_ls(2, Ls). % Now sorting Mss _descending_ ...
+%@ Listing Qs......    % CPU time: 0.065s, 253_947 inferences
+%@ Stratifying Qf..    % CPU time: 0.726s, 3_406_774 inferences
+%@ Finding l's ..
+%@ ↑[1/6,1/6] ⊇ [[1/6,1/6]].
+%@ ↑[1/6,4/6] ⊇ [[1/6,4/6]].
 %@ ↑[4/6,3/6] ⊇ [[4/6,0/0],[3/6,4/6]].
-%@ ↑[5/6,2/6] ⊇ [[1/6,4/6]].
-%@ ↑[6/6,1/6] ⊇ [[1/6,1/6]].
-%@    % CPU time: 0.549s, 2_827_026 inferences
-%@    Ls = [[4/6,3/6],[5/6,2/6],[6/6,1/6]].
+%@    % CPU time: 0.601s, 3_101_535 inferences
+%@    Ls = [[1/6,1/6],[1/6,4/6],[4/6,3/6]]. % Much better!
 
 %?- [0/0,0/0] '≽' [4/6,3/6].
 %@    true.
@@ -2670,64 +2667,27 @@ During the calculation of Gs, we learn that
 
 d_Qfstratamin(D, Mss) :-
     d_Qfstrata(D, Qss),
-    maplist(qs_mins, Qss, Mss). % qs_maxs/2 ~~> qs_mins/2 is all that changed!
-    %%%maplist(qs_emins, Qss, Mss). % qs_maxs/2 ~~> qs_mins/2 is all that changed!
-
-%?- D = 3, time(d_Qfstratamin(D, Mss)). % back to qs_mins/2 for comparison..
-%@    % CPU time: 3.803s, 15_635_161 inferences
-%@    D = 3, Mss = [[[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]],[[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0]],[[0/3,1/6,3/3],[1/6,1/6,3/3],[1/6,1/6,4/6]],[[0/3,0/3,1/6],[1/6,0/3,1/6],[1/6,1/6,1/6]]].
-
-%?- D = 3, time(d_Qfstratamin(D, Mss)). % using qs_emins/2
-%@ Sorting length-35 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.027s, 65_927 inferences
-%@    % CPU time: 0.029s, 68_259 inferences
-%@ Sorting length-30 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.022s, 52_321 inferences
-%@    % CPU time: 0.024s, 54_633 inferences
-%@ Sorting length-20 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.015s, 32_542 inferences
-%@    % CPU time: 0.016s, 34_814 inferences
-%@ Sorting length-8 list Qs:
-%@   .. encoding Qs:   % CPU time: 0.005s, 10_447 inferences
-%@    % CPU time: 0.006s, 12_671 inferences
-%@    % CPU time: 3.115s, 13_526_584 inferences
-%@    D = 3, Mss = [[[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6],[3/6,3/6,3/3]],[[1/6,4/6,0/0],[1/6,3/6,4/6],[1/6,3/6,3/3]],[[1/6,1/6,4/6],[1/6,1/6,3/3],[0/3,1/6,3/3]],[[1/6,1/6,1/6],[1/6,0/3,1/6],[0/3,0/3,1/6]]].
+    reverse(Qss, DescQss),
+    maplist(qs_mins, DescQss, Mss).
 
 %?- D = 3, time(d_Qfstratamin(D, Mss)).
-%@    % CPU time: 3.763s, 15_635_161 inferences
-%@    D = 3, Mss = [[[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]],[[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0]],[[0/3,1/6,3/3],[1/6,1/6,3/3],[1/6,1/6,4/6]],[[0/3,0/3,1/6],[1/6,0/3,1/6],[1/6,1/6,1/6]]].
+%@    % CPU time: 2.962s, 13_964_893 inferences
+%@    D = 3, Mss = [[[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]],[[1/6,4/6,0/0],[1/6,3/6,4/6]],[[1/6,1/6,4/6]],[[1/6,1/6,1/6]]].
 
+%?- D = 3, time(d_Qfstratamin(D, Mss)).
+%@    % CPU time: 0.295s, 1_456_794 inferences
+%@    D = 3, Mss = [[[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]],[[1/6,4/6,0/0],[1/6,3/6,4/6]],[[1/6,1/6,4/6]],[[1/6,1/6,1/6]]].
 
 %?- d_ls(3, Ls).
-%@ Listing Qs......    % CPU time: 1.585s, 6_660_437 inferences
-%@ Sorting length-21952 list Qs:
-%@   .. encoding Qs:   % CPU time: 20.381s, 109_986_469 inferences
-%@    % CPU time: 20.448s, 110_054_608 inferences
-%@ Stratifying Qf..    % CPU time: 4.332s, 19_509_965 inferences
-%@ Finding g's ..
-%@ ↑[4/4,3/3,3/3] ⊇ [[3/3,0/0,0/0],[3/6,3/3,0/0],[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]].
-%@ ↑[5/6,2/4,3/5] ⊇ [[1/6,3/3,0/0],[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0]].
-%@ ↑[5/5,2/4,3/5] ⊇ [[0/3,1/6,3/3],[1/6,1/6,3/3],[1/6,1/6,4/6]].
-%@ ↑[5/6,2/3,3/5] ⊇ [[0/3,0/3,1/6],[1/6,0/3,1/6],[1/6,1/6,1/6]].
-%@    % CPU time: 27.944s, 124_266_679 inferences
-%@    Ls = [[4/4,3/3,3/3],[5/6,2/4,3/5],[5/5,2/4,3/5],[5/6,2/3,3/5]].
-%@ Listing Qs......    % CPU time: 1.583s, 6_660_437 inferences
-%@ Sorting length-21952 list Qs:
-%@   .. encoding Qs:   % CPU time: 20.625s, 109_772_974 inferences
-%@    % CPU time: 20.626s, 109_775_250 inferences
-%@    error('$interrupt_thrown',repl/0).
-%@ Listing Qs......    % CPU time: 1.592s, 6_660_460 inferences
-%@ Sorting length-21952 list Qs:
-%@   .. encoding Qs:   % CPU time: 20.488s, 109_986_469 inferences
-%@    % CPU time: 20.556s, 110_054_608 inferences
-%@ Stratifying Qf..    % CPU time: 4.339s, 19_509_999 inferences
-%@ Finding g's ..
-%@ ↑[4/4,3/3,3/3] ⊇ [[3/3,0/0,0/0],[3/6,3/3,0/0],[3/6,3/6,3/3],[3/6,3/6,4/6],[3/6,4/6,0/0],[4/6,0/0,0/0]].
-%@ ↑[5/6,2/4,3/5] ⊇ [[1/6,3/3,0/0],[1/6,3/6,3/3],[1/6,3/6,4/6],[1/6,4/6,0/0]].
-%@ ↑[5/5,2/4,3/5] ⊇ [[0/3,1/6,3/3],[1/6,1/6,3/3],[1/6,1/6,4/6]].
-%@ ↑[5/6,2/3,3/5] ⊇ [[0/3,0/3,1/6],[1/6,0/3,1/6],[1/6,1/6,1/6]].
-%@    % CPU time: 28.044s, 124_266_679 inferences
-%@    Ls = [[4/4,3/3,3/3],[5/6,2/4,3/5],[5/5,2/4,3/5],[5/6,2/3,3/5]].
+%@ Listing Qs......    % CPU time: 1.564s, 6_773_188 inferences
+%@ Stratifying Qf..    % CPU time: 2.981s, 13_964_951 inferences
+%@ Finding l's ..
+%@ ↑[1/6,1/6,1/6] ⊇ [[1/6,1/6,1/6]].
+%@ ↑[1/6,1/6,4/6] ⊇ [[1/6,1/6,4/6]].
+%@ ↑[1/6,4/6,3/6] ⊇ [[1/6,4/6,0/0],[1/6,3/6,4/6]].
+%@ ↑[4/6,3/6,3/6] ⊇ [[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]].
+%@    % CPU time: 25.780s, 132_984_158 inferences
+%@    Ls = [[1/6,1/6,1/6],[1/6,1/6,4/6],[1/6,4/6,3/6],[4/6,3/6,3/6]].
 
 % Let's try 'hand-crafting' a 2-dose trial with reasonable properties.
 % This needs to begin with liveness at [0/0,0/0]!  So we might do well
