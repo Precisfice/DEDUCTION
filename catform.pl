@@ -1862,90 +1862,6 @@ d_mendtally_rec_(D, Q, X, Xls) :-
 % TODO: Bring the following explorations up-of-date
 %       with our now-expanded ≼.
 
-% ~~~~ Rolling enrollment for the D=2 trial ~~~~
-
-% TODO: Of course, getting such a predicate to work in
-%       all directions would boost these explorations!
-
-% Now, in constructing an IE from the upper adjoint
-% Gx, x ∈ 0..D, I must acknowledge that our default
-% partial order ≼ is not sufficient to identify
-% _positively_ all q for which d ≤ E(q).
-% That is, although by construction we have
-%
-%       q ≼ G(d) ⟹ E(q) ≤ d ∀ q ∈ 𝒬f,
-%
-% we cannot obtain from this any lower bound on E(q),
-% and therefore lack a principle to drive escalation
-% and so guarantee liveness.
-%
-% So what may be needed ultimately is a reformulation
-% of the idea of Galois enrollment, either restoring
-% the idea of enlarging ('strengthening') ≼ to  ≼* or else
-% *weakening* the iff at the heart of adjointness.
-e2(Q, X) :-
-    [G0,G1,G2] = [[2/6,0/2],[0/6,2/6],[0/4,0/6]],
-    if_(Q '≼' G0, X = 0,
-        if_(Q '≼' G1, X = 1,
-            if_(Q '≼' G2, X = 2, false))).
-
-%?- e2([0/0,0/0], X).
-%@    X = 2.
-%@    X = 2. % Is the bottom-up cascade of a lower-Galois IE therefore unsafe?
-
-% Suppose we want a 'cut-off' version c2/2 of the above.
-% The main deficiency of e2/2 to be remedied is that it
-% lets Q 'slip thru' to the highest dose, simply because
-% po ≼ remains too weak to catch it.  What we would need
-% then is to impose _additional_ requirements on upward
-% percolation of Q.
-c2(Q, X) :-
-    [G0,G1,G2] = [[2/6,0/2],[0/6,2/6],[0/4,0/6]],
-    if_(Q '≼' G0,
-        X = 0,
-        if_(( Q '⋡' G0
-            ; Q '≼' G1
-            ), X = 1,
-            if_(( Q '⋡' G1
-                ; Q '≼' G2
-                ), X = 2,
-                false))).
-
-%?- c2([0/0,0/0], X).
-%@    X = 1.
-
-%?- c2([1/1,0/0], X).
-%@    X = 1.
-
-%?- c2([2/2,0/0], X).
-%@    X = 0.
-
-%?- c2([0/1,0/0], X).
-%@    X = 1.
-
-%?- c2([0/2,0/0], X).
-%@    X = 1.
-
-%?- c2([0/3,0/0], X).
-%@    X = 1.
-
-%?- c2([0/4,0/0], X).
-%@    X = 2.
-
-%?- c2([0/4,1/1], X).
-%@    X = 1.
-
-%?- c2([0/4,0/1], X).
-%@    X = 2.
-
-%?- c2([0/4,1/2], X).
-%@    X = 2.
-
-% From this we see that c2/2 at least does have potential
-% as a reasonable 'rolling' version of the 3+3 protocol.
-% To enable efficient exploration of such protocols, I'll
-% need some infrastructure -- esp. for *visualization*.
-
 % Might there be some small handful of *decision-points*
 % in D-E protocols, such that I could obtain a concise
 % summary, in textual or graphic form?
@@ -2420,118 +2336,6 @@ d_tally_next(D, Tally, Next) :-
     state_tallies(State0, Tally),
     length(Ls, Next).
 
-% How, in general, do I transform a trial _state_
-% (in the form of a pair of lists) into the tally
-% applicable at that time?
-% The LHS list is a descending 
-
-%?- setof(Q-X, d_tally_next(2, Q, X), QXs).
-%@    QXs = [[0/3,0/0]-2,
-%            [0/3,0/3]-2,
-%            [0/3,1/3]-2,
-%            [0/3,2/3]-1,
-%            [0/3,2/6]-1,
-%            [0/3,3/3]-1,
-%            [0/3,3/6]-1,
-%            [0/3,4/6]-1,
-%            [1/3,0/0]-1,
-%            [1/6,0/0]-2,
-%            [1/6,0/3]-2,
-%            [1/6,1/3]-2].
-% The above look all correct.  Now let's check against c2 ...
-
-%?- setof(Q^X^Y, (d_tally_next(2, Q, X), c2(Q, Y)), QXYs).
-%@    QXYs = [[0/3,0/0]^2^1,
-%             [0/3,0/3]^2^1,
-%             [0/3,1/3]^2^1,
-%             [0/3,2/3]^1^1,
-%             [0/3,2/6]^1^1,
-%             [0/3,3/3]^1^1,
-%             [0/3,3/6]^1^1,
-%             [0/3,4/6]^1^1,
-%             [1/3,0/0]^1^1,
-%             [1/6,0/0]^2^1, % **
-%             [1/6,0/3]^2^2, % **
-%             [1/6,1/3]^2^1].
-
-% The starred (**) rows are quite interesting.
-% Apparently, c2/2 is trapped in a 'Catch-22',
-% such that it cannot escalate even from [1/6,0/0]
-% without already having some data at dose level 2!
-
-% Thus, it would appear that I need to define my 'ladder' to propel
-% dose escalation.  Let's investigate the _meets_ of the several
-% Qf strata.
-/*
-?- D = 2, X in 0..D, indomain(X),
-   findall(Qf, d_mendtally_rec(D, Qf, X), Qfs),
-   qs_mins(Qfs, Qfs1).
-%@    D = 2, X = 0, Qfs = [[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,3/3],[2/6,3/6],[2/6,4/6],[3/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,2/6],[3/6,3/3],[3/6,3/6],[3/6,4/6],[4/6,0/0]], Qfs1 = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]]
-%@ ;  D = 2, X = 1, Qfs = [[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]], Qfs1 = [[1/6,3/3],[1/6,4/6]]
-%@ ;  D = 2, X = 2, Qfs = [[0/3,0/6],[0/3,1/6],[1/6,0/6]], Qfs1 = [[0/3,1/6],[1/6,0/6]].
-*/
-
-/*
-RQss = [[[0/6,2/6],[1/6,0/6],[0/3,0/6]],
-        [[0/6,3/6],[1/6,1/6],[0/3,1/6]],[[0/6,4/6],[1/6,2/6],[0/6,2/3]],[[1/6,3/6],[0/6,3/3],[2/6,0/0]],[[1/6,4/6],[2/6,2/6],[1/6,2/3],[2/3,0/0]],[[2/6,3/6],[1/6,3/3],[3/6,0/0]],[[2/6,4/6],[3/6,2/6],[2/6,2/3],[3/3,0/0]],[[3/6,3/6],[2/6,3/3],[4/6,0/0]],[[3/6,4/6],[3/6,2/3]],[[3/6,3/3]]].
-*/
-
-%?- c2([0/0,0/0], X).
-%@    X = 1. % unch
-%@    X = 1.
-
-%?- c2([1/1,0/0], X).
-%@    X = 1. % unch
-%@    X = 1.
-
-%?- c2([2/2,0/0], X).
-%@    X = 0. % unch
-%@    X = 0.
-
-%?- c2([0/3,0/0], X).
-%@    X = 1. % unch
-%@    X = 1.
-
-%?- c2([0/4,0/0], X).
-%@    X = 1. % unch
-%@    X = 1.
-
-%?- c2([0/6,0/0], X).
-%@    X = 1. % still unch!
-%@    X = 1. % Huh!
-
-%?- [0/6,0/0] '≼' [2/6,0/4].
-%@    false.
-
-%?- [0/6,0/0] '≼' [0/6,2/6].
-%@    false.
-
-%?-  [2/6,0/4] '≼' [0/6,0/0].
-%@    false.
-
-%?- [0/6,0/0] '≼' [0/6,2/6].
-%@    false.
-
-%?- [0/6,0/0] '≽' [0/6,2/6].
-%@    false.
-
-%?- [0/6,0/0] '≼' [0/5,0/6].
-%@    true. % Repaired!
-%@    false. % This CAN'T be right, can it?
-
-%?- [0/6,0/0] '≼' [0/6,0/6].
-%@    true.
-
-%?- [0/6,0/0] '≼' [0/0,0/6].
-%@    true. % Repaired!
-%@    false. % This ALSO CAN'T be right!
-
-% This means I need to refer to the developments in the monograph.
-% Perhaps even those were wrong?
-
-%?- [0/6,0/0] '≽' [2/6,0/4].
-%@    false.
-
 % Let's make sure to gain access to upper-Galois enrollments, too.
 % These correspond to the lower (left) adjoint L of Def 4.2.
 
@@ -2598,12 +2402,8 @@ d_Qfstratamin(D, Mss) :-
     maplist(qs_mins, DescQss, Mss).
 
 %?- D = 3, time(d_Qfstratamin(D, Mss)).
-%@    % CPU time: 2.962s, 13_964_893 inferences
-%@    D = 3, Mss = [[[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]],[[1/6,4/6,0/0],[1/6,3/6,4/6]],[[1/6,1/6,4/6]],[[1/6,1/6,1/6]]].
-
-%?- D = 3, time(d_Qfstratamin(D, Mss)).
-%@    % CPU time: 0.295s, 1_456_794 inferences
-%@    D = 3, Mss = [[[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]],[[1/6,4/6,0/0],[1/6,3/6,4/6]],[[1/6,1/6,4/6]],[[1/6,1/6,1/6]]].
+%@    % CPU time: 0.292s, 1_456_793 inferences
+%@    D = 3, Mss = [[[1/6,1/6,1/6]],[[1/6,1/6,4/6]],[[1/6,4/6,0/0],[1/6,3/6,4/6]],[[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]]].
 
 %?- d_ls(3, Ls).
 %@ Listing Qs......    % CPU time: 1.564s, 6_773_188 inferences
