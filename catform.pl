@@ -90,16 +90,11 @@ Xs '≰' Ys :-
 
 %% 1. Via Fact 2.13, define evident-$afety relation ≼ ⊂ 𝒬✕𝒬:
 :- op(900, xfx, '≼').
-:- op(900, xfx, '⋠').
+:- op(900, xfx, '⋠'). % d_starts1/1 uses '⋠'/2
 :- op(900, xfx, '≽').
 
-% TODO: Consider implementing also the *strict* orders '≺' and '≻',
-%       but watch out in case this introduces subtle misconceptions
-%       due to any 'excessive' suggestiveness of these symbols!
-:- op(900, xfx, '≺').
-:- op(900, xfx, '⊀').
-:- op(900, xfx, '≻').
-:- op(900, xfx, '⊁').
+:- op(900, xfx, '≺'). % in_cover_t/4 uses '≺'/2 and between_t/4 uses '≺'/3
+:- op(900, xfx, '⊁'). % minimal_in/2 uses '⊁'/2
 
 q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
 
@@ -194,16 +189,16 @@ d_q(D, Qs) :-
         Truth = false
         ).
 
+'⋠'(Q1s, Q2s, Truth) :- '≼'(Q1s, Q2s, Falsity),
+                        reif:non(Falsity, Truth).
+
 '≽'(Q2s, Q1s, Truth) :-'≼'(Q1s, Q2s, Truth).
-'≻'(Q2s, Q1s, Truth) :-'≺'(Q1s, Q2s, Truth).
 
 '≼'(Q1s, Q2s) :- '≼'(Q1s, Q2s, true).
 '⋠'(Q1s, Q2s) :- '≼'(Q1s, Q2s, false).
 '≽'(Q2s, Q1s) :- '≼'(Q1s, Q2s, true).
 
 '≺'(Q1s, Q2s) :- '≺'(Q1s, Q2s, true).
-'⊀'(Q1s, Q2s) :- '≺'(Q1s, Q2s, false).
-'≻'(Q2s, Q1s) :- '≺'(Q1s, Q2s, true).
 '⊁'(Q2s, Q1s) :- '≺'(Q1s, Q2s, false).
 
 %% Utility predicates used above:
@@ -1589,6 +1584,13 @@ d_tally_dose(D, Tally, X) :-
 %@    X = 1. % with (**) clause
 %@    false. % before adding (**) above
 
+% TODO: Given that I conclude with a reduce/3 computation,
+%       do I really need these all-solutions predicates?
+%       Might I do this recursively?
+%       Does it help that I have a DCG generating the sets
+%       of interest?  Could that somehow suffice to give me
+%       whatever it is that I gain from creating sets?
+
 d_rx_join(D, X, Jx) :-
     setof(Q, d_tally_dose(D, Q, X), Qxs),
     reduce(join, Qxs, Jx).
@@ -2032,10 +2034,6 @@ d_tally_next(D, Tally, Next) :-
 % Let's make sure to gain access to upper-Galois enrollments, too.
 % These correspond to the lower (left) adjoint L of Def 4.2.
 
-% Interestingly, I do seem to have found a use for '⋠'/3 below!
-'⋠'(Q1s, Q2s, Truth) :- '≼'(Q1s, Q2s, Untruth),
-                        reif:non(Untruth, Truth).
-
 d_ls(D, Ls) :-
     d_Qfstratamin(D, Mss),
     maplist(\Ms^M^(reduce(meet, Ms, M)), Mss, Ls).
@@ -2049,16 +2047,25 @@ d_ls(D, Ls) :-
 %?- d_ls(4, Ls).
 %@    Ls = [[1/6,1/6,1/6,1/6],[1/6,1/6,1/6,4/6],[1/6,1/6,4/6,3/6],[1/6,4/6,3/6,3/6],[4/6,3/6,3/6,3/6]].
 
-% TODO: Having no clarified the status of d_gs/2 and d_ls/2 as
+% TODO: Having now clarified the status of d_gs/2 and d_ls/2 as
 %       (respectively) joins|meets of maximal|minimal strata,
 %       let's next define how they compare with d_joinscascade/2
 %       and d_meetscascade/2.  This clarification should also
 %       investigate whether _rectification_ changes either of
 %       these computations.  (I believe that *at least* meets
 %       should not be affected, since rectification relocates
-%       only tallies 'interior' to the minimal sets, leaving
+%       only tallies located 'interior' to the strata, leaving
 %       their minimal sets unaffected.  This also seems quite
 %       likely to hold, at least in practice, for joins also.)
+% The simplest approach might be just to define these cascades
+% as arising from taking meets or joins of certain well-defined
+% partitions of tallies.  Maybe the only thing we really need
+% to define is whether we're dealing with final tallies only,
+% or also the interim ones.
+%
+% Or perhaps what I really need is a more general interface to
+% the DCGs, parametrizing away any 'distinction' between d_gs/2
+% and d_joinscascade/2, say?
 
 %?- [0/0,0/0] '≽' [1/6,1/6]. % L2
 %@    false.
