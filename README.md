@@ -7,7 +7,8 @@ Dose Escalation Designs in Universal Context of Titration for Oncology Drug Deve
 > abstraction, isolating propositions that hold for formal reasons
 > from those whose proofs require techniques particular to a given
 > mathematical discipline.
-> --- Emily Riehl, Preface to 'Category Theory in Context' (2016)
+>
+> — Riehl, Preface to 'Category Theory in Context' (2016)
 
 This project aims to formulate dose-escalation trial protocols using
 ideas from Applied Category Theory (ACT), carrying out the attendant
@@ -25,7 +26,7 @@ please see Section 2 of [1].)
 
 ## Background
 
-DEDUCTION represents the latest--and possibly conclusive--development
+DEDUCTION represents the latest—and possibly conclusive—development
 within the Dose Titration Algorithm Tuning (DTAT) research programme,
 which has been ongoing now for the better part of a decade.  The full
 bibliography found [here](https://precisionmethods.guru/bibliography)
@@ -47,7 +48,7 @@ Markus Triska's [ediprolog](https://www.metalevel.at/ediprolog/).
 ## Progress
 
 DEDUCTION is presently (as of Christmas Day, 2024) on the cusp of
-solving---within weeks, not months--two crucial problems in
+solving — within weeks, not months — two crucial problems in
 dose-escalation protocol design:
 
 * Starting with a *given* dose-escalation design, possibly defined in
