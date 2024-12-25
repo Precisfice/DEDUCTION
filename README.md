@@ -8,7 +8,7 @@ Dose Escalation Designs in Universal Context of Titration for Oncology Drug Deve
 > from those whose proofs require techniques particular to a given
 > mathematical discipline.
 >
-> — Riehl, Preface to 'Category Theory in Context' (2016)
+> — Emily Riehl, Preface to 'Category Theory in Context' (2016)
 
 This project aims to formulate dose-escalation trial protocols using
 ideas from Applied Category Theory (ACT), carrying out the attendant
@@ -59,8 +59,7 @@ dose-escalation protocol design:
 
 * Given any dose-*escalation* design, in which *by definition*
   "intra-patient dose escalation is not allowed" [4], extend this
-  faithfully to a dose-*titration* design that dispenses with this
-  constraint.
+  faithfully to a dose-*titration* design eliminating this constraint.
 
 ## References
 
