@@ -18,6 +18,7 @@
 :- use_module(rcpearl).
 :- use_module(intlist).
 :- use_module(enst).
+:- use_module(freebase).
 
 clpz:monotonic.
 
@@ -34,10 +35,6 @@ reduce(P_3, X, Goal, R) :-
 
 :- op(900, xfx, '≺').
 :- op(900, xfx, '⊁'). % minimal_in/2 uses '⊁'/2
-
-% Impose global default for R here:
-%%%%coefs(Qs, Ys, Hs) :- coefs(2, Qs, Ys, Hs). % moved to library(enst)
-etas_enc(Hs, HK) :- r_etas_enc(2, Hs, HK).
 
 '≼'(X,Y,T) :- enst:'≼'(X,Y,T).
 '≽'(X,Y,T) :- enst:'≽'(X,Y,T).
@@ -529,42 +526,6 @@ d_ncovers(D, N) :-
 % equal at 6D(r+1).
 % Accordingly, we need only update os_base/2 below.
 
-% To encode the γs, we can reuse existing infrastructure, as-is
-gammas_enc(Ys, K) :- ws_int(Ys, K).
-
-% To encode ηs, we need only encode a base-(6*D*(R+1)+1) integer.
-% (Note that we need not even insist on non-negative 'digits',
-% since any bias in a given digit will bias the whole encoding
-% consistently, with no effect on the _order_.)
-r_etas_enc(R, Hs, K) :-
-    r_etas_base(R, Hs, B),
-    foldl(base_(B), Hs, 0, K).
-
-r_etas_base(R, Hs, B) :-
-    #R #> 0, length(Hs, D),
-    #B #= 6 * #D * (#R+1) + 1.
-
-base_(B, A, N0, N) :- #N #= #B * #N0 + #A.
-
-%?- foldl(base_(10), [1,2,3,4], 0, N).
-%@    N = 1234.
-
-%?- Hs = [18,12,6], r_etas_enc(1, Hs, K).
-%@    Hs = [18,12,6], K = 25092.
-
-qs_int(Qs, K) :-
-    coefs(Qs, Ys, Hs),
-    gammas_enc(Ys, YK),
-    etas_enc(Hs, HK),
-    same_length(Ys, _s), placevalues([P|_s]),
-    #K #= #HK * #P + #YK.
-
-%?- qs_int([1/1,2/3], K).
-%@    K = -17403.
-
-%?- Qs = [0/0,0/0], qs_int(Qs, K).
-%@    Qs = [0/0,0/0], K = 0.
-
 % Let's now check this encoding, to be sure it embeds every
 % arrow of ≼.
 d_nmax_wrongway(D, Nmax, Q1s, Q2s) :-
@@ -608,61 +569,6 @@ d_nmax_wrongway(D, Nmax, Q1s, Q2s) :-
 % One way to obtain a complete order would be to arithmetize
 % the tallies.
 
-% Let's try a more compact embedding of 𝒬 ↪ (ℕ,≤) ...
-
-% To begin, let's just encode a vector (X_1,..,X_D), where Xn ∈ 0..(6*n).
-% This corresponds to a 'variable-base' number where the nth 'place' has
-% a 'digit' with value in 0..Mn, with Mn = 6n.
-% The _value_ of the nth place in such a number is the product
-%   Pn = B1*...*B_{n-1}, n ∈ 0..(D-1).
-% For example, the D=3 case would have
-%   K = X1 + B1*(X2 + B2*(X3)) = X1 + B1*X2 + B1*B2*X3.
-% The general case can be developed more easily by defining the products
-%   Pn = B1*...*Bn, for n in 1..D-1.
-% Then we have
-%   P1 = 1, P2 = B1, ..., P_D = B1*...*B_{D-1}
-%   K = P1*X1 + P2*X2 + P3*X3.
-% The values (X1,...,XD) may then be recovered from K by repeated
-% division-with-remainder operations.
-
-% Could I start with a good, recursive definition of the Ps?
-% I think I want to build the list in descending order, so that
-% P1 goes deepest, P2 above it, and so on.
-% This correlates best with our normal way of writing numbers,
-% putting MSD's leftmost and LSD's rightmost.
-
-pvs([P|Ps]) :-
-    pvs(Ps),
-    pvs_nextup(Ps, P).
-pvs([]).
-
-pvs_nextup([], 1).
-pvs_nextup([P|Ps], P1) :-
-    length([P|Ps], N),
-    #P1 #= #P * (6*N + 1).
-
-% Let's just PRECOMPUTE!
-%?- length(Ps, 8), pvs(Ps), reverse(Ps, Rs).
-%@    Ps = [2131900225,49579075,1339975,43225,1729,91,7,1], Rs = [1,7,91,1729,43225,1339975,49579075,2131900225].
-
-placevalues(Ps) :-
-    same_length(Ps, Rs),
-    % NB: Taking a _tail_ with append/3 would leave a choice point.
-    append(Rs, _, [1,7,91,1729,43225,1339975,49579075,2131900225]),
-    reverse(Rs, Ps).
-
-%?- length(Ps, 5), placevalues(Ps).
-%@    Ps = [43225,1729,91,7,1].
-
-% At this point, the encoding is extremely straightforward.
-%?- scalar_product([1,2,3], [4,5,6], #=, #Ooh).
-%@    Ooh = 32.
-
-ws_int(Ws, K) :-
-    same_length(Ws, Ps),
-    placevalues(Ps),
-    reverse(Ws, RWs), % our Us and Ts are typically indexed 1..D
-    scalar_product(RWs, Ps, #=, #K).
 
 % Contrary to my presumptions in that last commit, our
 % previous encoding should be retained, and continues
@@ -854,7 +760,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,3/3]].
 %@ [[3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 6.636s, 34_163_953 inferences
+%@  writing covering relation ..   % CPU time: 6.677s, 34_163_953 inferences
 %@ .. done.
 %@    true.
 

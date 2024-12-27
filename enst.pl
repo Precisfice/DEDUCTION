@@ -11,16 +11,18 @@
               %% op(900, xfx, '≽'),
               %% op(900, xfx, '≺'),
               %% op(900, xfx, '⊁'),
-              coefs/3, % TODO: Consider absorbing qs_int/2, which uses this.
               join/3,
-              meet/3
+              meet/3,
+              %coefs/3, % TODO: Consider absorbing qs_int/2, which uses this.
+              qs_int/2
 	  ]).
 
 :- use_module(library(lists)).
 :- use_module(library(clpz)).
 :- use_module(library(reif)).
 :- use_module(library(lambda)).
-:- use_module(library(intlist)).
+:- use_module(intlist).
+:- use_module(freebase).
 
 clpz:monotonic. % The error occurs with or without this declaration.
 
@@ -34,9 +36,7 @@ clpz:monotonic. % The error occurs with or without this declaration.
 
 % Impose global default for R here:
 coefs(Qs, Ys, Hs) :- coefs(2, Qs, Ys, Hs).
-% TODO: Properly modulize 'encoding' predicates,
-%       so that this can be done here too:
-%%%%etas_enc(Hs, HK) :- r_etas_enc(2, Hs, HK).
+etas_enc(Hs, HK) :- r_etas_enc(2, Hs, HK).
 
 %?- [1/6,1/3] '≼' [1/6,0/0].
 %@    false. % with R=1
@@ -185,3 +185,18 @@ meet(Q1s, Q2s, Qs) :-
     meet_(Q1s, Q2s, Qs),
     maplist(\Q^(Q=T/N, #T #=< #N), Qs).
 
+% ---------- Embedding stuff ----------
+
+
+qs_int(Qs, K) :-
+    coefs(Qs, Ys, Hs),
+    gammas_enc(Ys, YK),
+    etas_enc(Hs, HK),
+    same_length(Ys, _s), placevalues([P|_s]),
+    #K #= #HK * #P + #YK.
+
+%?- qs_int([1/1,2/3], K).
+%@    K = -17403.
+
+%?- Qs = [0/0,0/0], qs_int(Qs, K).
+%@    Qs = [0/0,0/0], K = 0.
