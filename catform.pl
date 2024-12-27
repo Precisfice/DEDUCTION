@@ -16,6 +16,8 @@
 :- use_module(library(iso_ext)).
 
 :- use_module(rcpearl).
+:- use_module(intlist).
+:- use_module(enst).
 
 clpz:monotonic.
 
@@ -24,154 +26,29 @@ reduce(P_3, X, Goal, R) :-
     setof(X, Goal, Xs),
     reduce(P_3, Xs, R).
 
-:- op(900, xfx, '≤'). % Mutually exclusive infix
-:- op(900, xfx, '≰'). % relations defined on ℕᴰ.
-
-'≤'([], [], true). % trivial case makes general clause easier to implement
-'≤'([X|Xs], [Y|Ys], Truth) :- % ≤ extended to ℕᴰ, D≥1
-    if_(clpz_t(#X #=< #Y),
-        '≤'(Xs,Ys,Truth),
-        Truth = false
-       ).
-    
-%?- '≤'([], [], Truth).
-%@    Truth = true. % A quirk easily excluded from ('≤')/2
-
-%?- '≤'([2], [3], Truth).
-%@    Truth = true.
-
-%?- '≤'([2,3], [3,2], Truth).
-%@    Truth = false.
-
-%?- '≤'([2], [3], true).
-%@    true.
-
-%?- '≤'([2], [3], false).
-%@    false.
-
-Xs '≤' Ys :-
-    same_length(Xs, Ys),
-    length(Xs, D), D #> 0,
-    '≤'(Xs, Ys, true).
-
-%?- [] '≤' [].
-%@    false. % As desired
-
-%?- [2] '≤' [3].
-%@    true.
-
-%?- [3] '≤' [2].
-%@    false.
-
-%?- [2,3] '≤' [3,2].
-%@    false.
-
-%?- [2,3] '≤' [3,X].
-%@    clpz:(X in 3..sup).
-
-%?- [0,0,0] '≤' Xs, Xs '≤' [1,1,1], label(Xs).
-%@    Xs = [0,0,0]
-%@ ;  Xs = [0,0,1]
-%@ ;  Xs = [0,1,0]
-%@ ;  Xs = [0,1,1]
-%@ ;  Xs = [1,0,0]
-%@ ;  Xs = [1,0,1]
-%@ ;  Xs = [1,1,0]
-%@ ;  Xs = [1,1,1].
-
-
-Xs '≰' Ys :-
-    same_length(Xs, Ys),
-    length(Xs, D), D #> 0,
-    '≤'(Xs, Ys, false).
-
-%?- [1,1,1] '≰' Xs.
-%@    Xs = [_A,_B,_C], clpz:(_A in inf..0)
-%@ ;  Xs = [_A,_B,_C], clpz:(_A in 1..sup), clpz:(_B in inf..0)
-%@ ;  Xs = [_A,_B,_C], clpz:(_A in 1..sup), clpz:(_B in 1..sup), clpz:(_C in inf..0)
-%@ ;  false.
-
-%% 1. Via Fact 2.13, define evident-$afety relation ≼ ⊂ 𝒬✕𝒬:
+% Pending https://github.com/mthom/scryer-prolog/issues/2547,
+% some pretty operators resist export, and require 'extraction':
 :- op(900, xfx, '≼').
-:- op(900, xfx, '⋠'). % d_starts1/1 uses '⋠'/2
+:- op(900, xfx, '⋠').
 :- op(900, xfx, '≽').
 
-:- op(900, xfx, '≺'). % in_cover_t/4 uses '≺'/2 and between_t/4 uses '≺'/3
+:- op(900, xfx, '≺').
 :- op(900, xfx, '⊁'). % minimal_in/2 uses '⊁'/2
 
-q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
-
 % Impose global default for R here:
-coefs(Qs, Ys, Hs) :- coefs(2, Qs, Ys, Hs).
+%%%%coefs(Qs, Ys, Hs) :- coefs(2, Qs, Ys, Hs). % moved to library(enst)
 etas_enc(Hs, HK) :- r_etas_enc(2, Hs, HK).
 
-%?- [1/6,1/3] '≼' [1/6,0/0].
-%@    false. % with R=1
-%?- [1/6,1/3] '≼' [1/6,0/0].
-%@    true. % with R=2
+'≼'(X,Y,T) :- enst:'≼'(X,Y,T).
+'≽'(X,Y,T) :- enst:'≽'(X,Y,T).
+'≼'(X,Y) :- enst:'≼'(X,Y).
+'≽'(X,Y) :- enst:'≽'(X,Y).
+'⋠'(X,Y) :- enst:'⋠'(X,Y). % used by d_starts1/1
 
-% Find the unique coefficients of ≼ᵣ-generators for given q ∈ Qᴰ.
-coefs(R, Qs, Ys, Hs) :-
-    #R #> 0,
-    same_length(Qs, Ys), % allows usage (+R, -Qs, +Ys, +Hs)
-    maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
-    % We will set Ys = [γs] (of length D), with γᴅ being coef of ≼₁﹕ᵣ.
-    % Our first D equations are simply that Ys is minus partial sums of Ts.
-    intlist_negated(Ts, NegTs), intlist_partsums(NegTs, Ys),
-    reverse(Ys, [YD|_]),
-    % Our next set of equations is η₀ = ΣU - rΣTρ = ΣU + r·γᴅ,
-    % and then recursively ηₖ = ηₖ₋₁ - nₖ for k in 1..D-1.
-    % But an even simpler expression of this, which dispenses
-    % altogether with the Us, is to reverse-partial-sum the Ns,
-    % then add Yᴅ*(R+1)!
-    reverse(Ns, Иs),
-    intlist_partsums(Иs, ΣИs),
-    reverse(ΣИs, ΞNs),
-    #RhoR1 #= #YD * (#R + 1),
-    maplist(sum_(RhoR1), ΞNs, Hs).
+'≺'(X,Y,T) :- enst:'≺'(X,Y,T). % used by between_t/4
+'≺'(X,Y) :- enst:'≺'(X,Y).     % used by in_cover_t/4
 
-%?- coefs(1, [0/0,0/0,0/0], Ys, Hs).
-%@    Ys = [0,0,0], Hs = [0,0,0].
-
-%?- transform([0/0,0/0,0/0], [1/2,3/4,4/5], Ys, Hs).
-%@    Ys = [-1,-4,-8], Hs = [-13,-15,-19]. % R=2
-%@    Ys = [-1,-4,-8], Hs = [-5,-7,-11].   % R=1
-%?- coefs(1, [1/2,3/4,4/5], Ys, Hs).
-%@    Ys = [-1,-4,-8], Hs = [-5,-7,-11].
-
-% I've now worked out in detail a unique transformation of pair
-% Q1,Q2 ∈ Qᴰ into 2✕D parameters, *all* nonnegative iff Q1 ⊑ Q2.
-transform(Q1s, Q2s, ΔHs, ΔOs) :-
-    same_length(Q1s, Q2s),
-    coefs(Q1s, H1s, O1s),
-    coefs(Q2s, H2s, O2s),
-    maplist(diff_, H2s, H1s, ΔHs),
-    maplist(diff_, O2s, O1s, ΔOs).
-
-%?- transform([1/1,0/1], [0/1,1/1], Hs, Os).
-%@    Hs = [1,0], Os = [0,0].
-%?- transform([0/1,1/1], [0/0,1/2], Hs, Os).
-%@    Hs = [0,0], Os = [0,1].
-%?- transform([0/1,1/2], [0/1,0/0], Hs, Os).
-%@    Hs = [0,1], Os = [0,0].
-
-%?- transform([0/2,1/2], Q2, [0,1], [1,0]).
-%@    Q2 = [0/3,0/0].
-%?- transform([0/2,1/2], Q2, [0,1], [1,1]).
-%@    Q2 = [0/2,0/1].
-
-'≼'(Q1s, Q2s, Truth) :- % QAs ≼toxD QBs ≼tol1 QCs ≼exch QZs
-    transform(Q1s, Q2s, Hs, Os),
-    % It's as simple now as asserting all Hs & Os are nonnegative!
-    % But the more effective way to express this may be to look
-    % for any single negative value, then invert truth value.
-    if_((   tmember_t(#>(0), Hs)
-        ;   tmember_t(#>(0), Os)
-        ), Truth = false,
-        Truth = true
-       ).
-
-#>(X, Y, Truth) :- clpz_t(X #> Y, Truth). % counterpart to clpz:(#<)/3
+%%%%q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
 
 d_q_nmax(D, Qs, Nmax) :-
     length(Qs, D),
@@ -185,109 +62,6 @@ d_q(D, Qs) :-
 
 %?- d_q(2, Qs).
 %@    Qs = [_B/_A,_D/_C], clpz:(_A in 0..6), clpz:(#_A#>= #_B), clpz:(_B in 0..6), clpz:(_C in 0..6), clpz:(#_C#>= #_D), clpz:(_D in 0..6).
-
-'≺'(Q1s, Q2s, Truth) :-
-    if_((Q1s '≼' Q2s, dif(Q1s, Q2s)),
-        Truth = true,
-        Truth = false
-        ).
-
-'⋠'(Q1s, Q2s, Truth) :- '≼'(Q1s, Q2s, Falsity),
-                        reif:non(Falsity, Truth).
-
-'≽'(Q2s, Q1s, Truth) :-'≼'(Q1s, Q2s, Truth).
-
-'≼'(Q1s, Q2s) :- '≼'(Q1s, Q2s, true).
-'⋠'(Q1s, Q2s) :- '≼'(Q1s, Q2s, false).
-'≽'(Q2s, Q1s) :- '≼'(Q1s, Q2s, true).
-
-'≺'(Q1s, Q2s) :- '≺'(Q1s, Q2s, true).
-'⊁'(Q2s, Q1s) :- '≺'(Q1s, Q2s, false).
-
-%% Utility predicates used above:
-
-intlist_sum([X|Xs], Sum) :- intlist_sum_([X|Xs], Sum).
-intlist_sum_([X|Xs], Sum) :-
-    intlist_sum_(Xs, _Sum),
-    #Sum #= #X + #_Sum.
-intlist_sum_([], 0).
-
-%?- intlist_sum([], Nope).
-%@    false. % As desired.
-
-%?- findall(N, (N in 1..100, indomain(N)), Ns), time(intlist_sum(Ns, Sum)).
-%@    % CPU time: 0.000s, 379 inferences
-%@    Ns = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20|...], Sum = 5050.
-
-intlist_negated([X|Xs], [N|Ns]) :-
-    same_length(Xs, Ns),
-    #X #= -(#N),
-    intlist_negated(Xs, Ns).
-intlist_negated([], []).
-
-%?- intlist_negated(Xs, [-1,-2,-3]).
-%@    Xs = [1,2,3].
-
-%?- intlist_negated(Xs, Ns).
-%@    Xs = [_A], Ns = [_B], clpz:(#_A+ #_B#=0)
-%@ ;  Xs = [_A,_C], Ns = [_B,_D], clpz:(#_A+ #_B#=0), clpz:(#_C+ #_D#=0)
-%@ ;  Xs = [_A,_C,_E], Ns = [_B,_D,_F], clpz:(#_A+ #_B#=0), clpz:(#_C+ #_D#=0), clpz:(#_E+ #_F#=0)
-%@ ;  ... .
-
-intlist_partsums([X|Xs], [X|Σs]) :-
-    same_length(Xs, Σs), % eliminate unnecessary choice point
-    intlist_partsums_acc(Xs, Σs, X).
-
-intlist_partsums_acc([], [], _).
-intlist_partsums_acc([X|Xs], [Σ|Σs], A) :-
-    #Σ #= #X + #A,
-    intlist_partsums_acc(Xs, Σs, Σ).
-
-%?- [1/3, 1/2] '≼' [0/4, 0/1].
-%@    true.
-
-%?- [1/6,1/6] '≼' [0/6,2/6].
-%@    true.
-
-%?- [1/6,1/6] '≼' [0/6,2/5].
-%@    false.
-
-%?- [1/6,1/6] '≼' [0/6,2/7].
-%@    true.
-
-%?- [0/6,2/6] '≽' [1/6,1/6].
-%@    true.
-
-%?- [1/3,1/3] '≼' [1/3,1/3].
-%@    true.
-
-%?- [1/3,1/3] '≺' [1/3,1/3].
-%@    false.
-
-%?- [1/6,1/6] '≺' [0/6,2/6].
-%@    true.
-
-maxs(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= max(#N1, #N2)), N1s, N2s, Ns).
-mins(N1s, N2s, Ns) :- maplist(\N1^N2^N^(#N #= min(#N1, #N2)), N1s, N2s, Ns).
-
-%?- maxs([1,2,6], [3,4,5], Maxs).
-%@    Maxs = [3,4,6].
-%?- mins([1,2,6], [3,4,5], Mins).
-%@    Mins = [1,2,5].
-
-meet_(Q1s, Q2s, Ys, Hs) :-
-    same_length(Q1s, Q2s),
-    coefs(Q1s, Y1s, H1s),
-    coefs(Q2s, Y2s, H2s),
-    mins(Y1s, Y2s, Ys),
-    mins(H1s, H2s, Hs).
-
-meet_(Q1s, Q2s, Qs) :- % 'formal meet'
-    meet_(Q1s, Q2s, Ys, Hs),
-    coefs(Qs, Ys, Hs).
-
-%?- meet_([3/3,4/4], [4/6,0/0], M).
-%@    M = [4/3,3/4]. % Not a valid tally!
 
 % Let's try to find some very small examples!
 meet_invalid(Q1, Q2, M) :-
@@ -319,35 +93,8 @@ meet_invalid(Q1, Q2, M) :-
 %?- transform([1/1,1/1], M, [0,1], [2,3]).
 %@    M = [1/0,0/1].
 
-join(Q1s, Q2s, Ys, Hs) :-
-    same_length(Q1s, Q2s),
-    coefs(Q1s, Y1s, H1s),
-    coefs(Q2s, Y2s, H2s),
-    maxs(Y1s, Y2s, Ys),
-    maxs(H1s, H2s, Hs).
-
-% NB: If, as I believe, 𝒬 = (Qᴰ,≼) is an upper semilattice,
-%     then these joins will always exist and are unique.
-join(Q1s, Q2s, Qs) :-
-    join(Q1s, Q2s, Ys, Hs),
-    coefs(Qs, Ys, Hs).
-
-sum_(Z1, Z2, Sum) :- #Sum #= #Z1 + #Z2.
-diff_(Z1, Z2, Diff) :- #Diff #= #Z1 - #Z2.
-
 %?- maplist(diff_, [1,2,3], [0,1,2], Δs).
 %@    Δs = [1,1,1].
-
-intlist_downshift(Zs, ΔZs) :-
-    intlist_rollmin(Zs, Zs_),
-    maplist(diff_, Zs_, Zs, ΔZs).
-
-% Unlike meet_/3, which allows for 'imaginary' meets,
-% this predicate succeeds only if a valid meet obtains.
-meet(Q1s, Q2s, Qs) :-
-    meet_(Q1s, Q2s, Qs),
-    maplist(\Q^(Q=T/N, #T #=< #N), Qs).
-
 %?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], meet(Q1s, Q2s, Meet).
 %@    Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], Meet = [0/1,1/1,1/1].
 %?- Q1s = [0/0,1/1,0/0], Q2s = [0/1,0/0,2/2], nmax_meet(2, Q1s, Q2s, Meet0).
@@ -507,34 +254,6 @@ meet(Q1s, Q2s, Qs) :-
 % implementation, how shall we impose monotonicity?
 
 % Can we generalize a bit?
-intlist_rolled([X|Xs], G_3, [X|Zs]) :-
-    same_length(Xs, Zs),
-    intlist_rolled_(Xs, G_3, Zs, X).
-
-intlist_rolled_([X|Xs], G_3, [Z|Zs], R) :-
-    call(G_3, X, R, Z),
-    intlist_rolled_(Xs, G_3, Zs, Z).
-intlist_rolled_([], _, [], _).
-
-intlist_rollmin(Xs, As) :- intlist_rolled(Xs, clpz:min_, As).
-
-%?- intlist_rollmin([5,3,56,4,9], Ms).
-%@    Ms = [5,3,3,3,3].
-
-intlist_rollmax(Xs, Vs) :- intlist_rolled(Xs, clpz:max_, Vs).
-
-%?- intlist_rollmax([5,3,56,4,9], Ms).
-%@    Ms = [5,5,56,56,56].
-
-intlist_inverse(Xs, NegXs) :-
-    same_length(Xs, NegXs), % avoid choicepoint when used (-Xs, +NegXs)
-    maplist(\X^N^(#N #= - #X), Xs, NegXs).
-
-%?- intlist_inverse([5,3,56,4,9], Ns).
-%@    Ns = [-5,-3,-56,-4,-9].
-
-%?- intlist_inverse(Xs, [5,3,56,4,9]).
-%@    Xs = [-5,-3,-56,-4,-9].
 
 %?- M1 = [4/3,3/4], coefs(1, M1, Hs, Os), coefs(1, _M1, Hs, Os).
 %@    M1 = [4/3,3/4], Hs = [-4,-7], Os = [-7,-10], _M1 = [4/3,3/4].
@@ -1135,7 +854,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,3/3]].
 %@ [[3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 6.579s, 34_157_755 inferences
+%@  writing covering relation ..   % CPU time: 6.636s, 34_163_953 inferences
 %@ .. done.
 %@    true.
 
