@@ -19,7 +19,10 @@
 
 clpz:monotonic.
 
-reduce(P_2, [X|Xs], R) :- foldl(P_2, Xs, X, R).
+reduce(P_3, [X|Xs], R) :- foldl(P_3, Xs, X, R).
+reduce(P_3, X, Goal, R) :-
+    setof(X, Goal, Xs),
+    reduce(P_3, Xs, R).
 
 :- op(900, xfx, '≤'). % Mutually exclusive infix
 :- op(900, xfx, '≰'). % relations defined on ℕᴰ.
@@ -575,19 +578,16 @@ nmax_meet(Nmax, Q1s, Q2s, Qs) :-
 
 %?- nmax_meet(6, [0/6,4/6], [1/6,2/3], Qs).
 %@    Qs = [1/6,3/5].
-
-:- table d_endtally_rec/3.
-
-% This predicate describes precisely the final tallies and dose recommendations
-% which terminate the paths of the D-dose 3+3 design as described by our DCG.
-% Memoizing it via *tabling* supports a _complete_ description at the cost of
-% only a single, one-off comprehensive elaboration of the DCG.
+/*
 d_endtally_rec(D, FinalTally, Rec) :-
     length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
     phrase(path([I]-Is), Path),
     phrase((..., [Endstate,stop,recommend_dose(Rec)]), Path),
     state_tallies(Endstate, FinalTally).
-    
+*/
+d_endtally_rec(D, FinalTally, Rec) :-
+    d_tally_nextdose_final(D, FinalTally, Rec, true).
+
 %?- d_endtally_rec(2, Q, D).
 %@    Q = [0/3,0/6], D = 2
 %@ ;  Q = [0/3,1/6], D = 2
@@ -1078,7 +1078,7 @@ d_writehassedot(D) :-
 		       (   format("Collecting final tallies ..", []),
                            % NB: We use _unrectified_ d_endtally_rec/3 to exhibit
                            %     the non-functoriality of default 3+3 dose recs.
-                           findall(Q-X, d_endtally_rec(D,Q,X), QXs),
+                           setof(Q-X, d_endtally_rec(D,Q,X), QXs),
                            pairs_keys(QXs, Qs),
                            length(Qs, Nf),
                            format("~n sorting ~d final tallies ..", [Nf]),
@@ -1113,7 +1113,7 @@ write_stratum(OS, QXassoc, Qs) :-
             Qs),
     format(OS, "  }~n", []).
 
-%?- d_writehassedot(2). % after reworking qs_mins/2 & qs_maxs/2 ..
+%?- d_writehassedot(2).
 %@ Opening file 'HasseD2.dot'...
 %@ Collecting final tallies ..
 %@  sorting 29 final tallies ..
@@ -1135,7 +1135,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,3/3]].
 %@ [[3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 6.649s, 34_157_755 inferences
+%@  writing covering relation ..   % CPU time: 6.579s, 34_157_755 inferences
 %@ .. done.
 %@    true.
 
@@ -1172,7 +1172,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,3/6,3/3]].
 %@ [[3/6,3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 177.545s, 882_405_576 inferences
+%@  writing covering relation ..   % CPU time: 180.070s, 882_405_576 inferences
 %@ .. done.
 %@    true.
 
@@ -1575,35 +1575,57 @@ d_init(D, Init) :-
 %@    Init = [0/0,0/0,0/0].
 
 d_tally_dose(D, Tally, X) :-
-    (   d_tally_next(D, Tally, X)
-    ;   d_mendtally_rec(D, Tally, X)
-    ;   d_init(D, Tally), X = 1 % (**)
-    ).
+    d_tally_nextdose_final(D, Tally, X, _).
 
 %?- d_tally_dose(3, [0/0,0/0,0/0], X).
+%@    false. % before adding (**) clause of d_tally_nextdose_final/4
 %@    X = 1. % with (**) clause
-%@    false. % before adding (**) above
 
-% TODO: Given that I conclude with a reduce/3 computation,
-%       do I really need these all-solutions predicates?
-%       Might I do this recursively?
-%       Does it help that I have a DCG generating the sets
-%       of interest?  Could that somehow suffice to give me
-%       whatever it is that I gain from creating sets?
+joinof(X, Goal, J) :- reduce(join, X, Goal, J).
+meetof(X, Goal, M) :- reduce(meet, X, Goal, M).
 
 d_rx_join(D, X, Jx) :-
-    setof(Q, d_tally_dose(D, Q, X), Qxs),
-    reduce(join, Qxs, Jx).
+    joinof(Q, d_tally_dose(D, Q, X), Jx).
 
 d_rx_meet(D, X, Mx) :-
-    setof(Q, d_tally_dose(D, Q, X), Qxs),
-    reduce(meet, Qxs, Mx).
+    meetof(Q, d_tally_dose(D, Q, X), Mx).
 
 %?- d_rx_join(2, 2, J2).
 %@    J2 = [0/3,0/6].
 
 %?- d_rx_meet(2, 2, M2).
 %@    M2 = [1/6,1/3].
+
+%% binsof(-(K-V), +Goal_2, -Bins) is det
+%
+% Given Goal_2 with free variables K-V, unifies Bins with
+% the K-sorted list of sets of the form {V : Goal(K,V)}.
+% In the special case where K in 0..(N-1), Bins will be
+% a length-N list-of-lists such that nth0(K, Bins, Vs)
+% iff setof(V, Goal_2(K), Vs).
+% TODO: Given that this implementation ultimately depends
+%       on !/0 (via same_key/4 via group_pairs_by_key/2),
+%       and that my intended use at the moment is precisely
+%       the special case documented above, consider a more
+%       specialized and _purer_ recursive implementation.
+binsof(K-V, Goal, Bins) :-
+    setof(K-V, Goal, KVs),
+    group_pairs_by_key(KVs, Ps), % uses same_key/4, which has a !/0
+    pairs_values(Ps, Bins).
+
+%?- true+\(D=2, binsof(X-Q, d_tally_nextdose_final(D, Q, X, _), Bins), maplist(portray_clause, Bins)).
+%@ [[0/3,2/3],[0/3,2/6],[0/3,3/3],[0/3,3/6],[0/3,4/6],[1/3,0/0]].
+%@ [[0/3,0/0],[0/3,0/3],[0/3,1/3],[1/6,0/0],[1/6,0/3],[1/6,1/3]].
+%@    true
+%@ ;  [[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,3/3],[2/6,3/6],[2/6,4/6],[3/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,2/6],[3/6,3/3],[3/6,3/6],[3/6,4/6],[4/6,0/0]].
+%@ [[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]].
+%@ [[0/3,0/6],[0/3,1/6],[1/6,0/6],[1/6,1/6]].
+%@ true.
+%?- true+\(D=2, binsof(X-Q, Q^X+\d_tally_nextdose_final(D, Q, X, _), Bins), maplist(portray_clause, Bins)).
+%@ [[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,3/3],[2/6,3/6],[2/6,4/6],[3/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,2/6],[3/6,3/3],[3/6,3/6],[3/6,4/6],[4/6,0/0]].
+%@ [[0/3,2/3],[0/3,2/6],[0/3,3/3],[0/3,3/6],[0/3,4/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/3,0/0],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]].
+%@ [[0/3,0/0],[0/3,0/3],[0/3,0/6],[0/3,1/3],[0/3,1/6],[1/6,0/0],[1/6,0/3],[1/6,0/6],[1/6,1/3],[1/6,1/6]].
+%@    true.
 
 d_joins(D, Js) :-
     findall(X, (X in 0..D, indomain(X)), Xs),
@@ -1614,32 +1636,17 @@ d_meets(D, Ms) :-
     maplist(d_rx_meet(D), Xs, Ms).
 
 %?- D in 2..6, indomain(D), time(d_meets(D, Ms)).
-%@    % CPU time: 3.445s, 14_529_761 inferences
-%@    D = 2, Ms = [[4/6,3/5],[1/5,4/5],[1/5,1/2]]
-%@ ;  % CPU time: 25.122s, 95_637_410 inferences
-%@    D = 3, Ms = [[4/6,3/6,3/5],[1/5,4/6,3/5],[1/5,1/3,3/5],[1/5,1/5,1/2]]
-%@ ;  % CPU time: 203.674s, 624_595_369 inferences
-%@    D = 4, Ms = [[4/6,3/6,3/6,3/5],[1/5,4/6,3/6,3/5],[1/5,1/3,3/6,3/5],[1/5,1/5,1/3,3/5],[1/5,1/5,1/5,1/2]]
-%@ ;  % CPU time: 264.290s, 759_104_851 inferences
-%@    error('$interrupt_thrown',repl/0).
-% The post-rectification meets above are unchanged from those below.
-% That suggests the rectified tallies were not 'binding constraints'.
-% But now I must ask whether this fact looks 'obvious' in retrospect!
-% Rectification moves tallies _down_, from higher to lower partitions.
-% But it does this precisely because the moved tallies sit below some
-% other tally already located in that lower-down partition.  Therefore,
-% this move will not *necessarily* correct the mis-sorting of that
-% other tally.  (So I may not have overlooked anything obvious--phew!)
-%@    % CPU time: 2.193s, 9_802_470 inferences
-%@    D = 2, Ms = [[4/6,3/5],[1/5,4/5],[1/5,1/2]]
-%@ ;  % CPU time: 11.608s, 52_784_623 inferences
-%@    D = 3, Ms = [[4/6,3/6,3/5],[1/5,4/6,3/5],[1/5,1/5,4/5],[1/5,1/5,1/2]]
-%@ ;  % CPU time: 44.559s, 206_996_580 inferences
-%@    D = 4, Ms = [[4/6,3/6,3/6,3/5],[1/5,4/6,3/6,3/5],[1/5,1/5,4/6,3/5],[1/5,1/5,1/5,4/5],[1/5,1/5,1/5,1/2]]
-%@ ;  % CPU time: 147.920s, 690_356_469 inferences
-%@    D = 5, Ms = [[4/6,3/6,3/6,3/6,3/5],[1/5,4/6,3/6,3/6,3/5],[1/5,1/5,4/6,3/6,3/5],[1/5,1/5,1/5,4/6,3/5],[1/5,1/5,1/5,1/5,4/5],[1/5,1/5,1/5,1/5,1/2]]
-%@ ;  % CPU time: 452.192s, 2_087_367_540 inferences
-%@    D = 6, Ms = [[4/6,3/6,3/6,3/6,3/6,3/5],[1/5,4/6,3/6,3/6,3/6,3/5],[1/5,1/5,4/6,3/6,3/6,3/5],[1/5,1/5,1/5,4/6,3/6,3/5],[1/5,1/5,1/5,1/5,4/6,3/5],[1/5,1/5,1/5,1/5,1/5,4/5],[1/5,1/5,1/5,1/5,1/5,1/2]].
+%@    % CPU time: 2.092s, 9_651_008 inferences
+%@    D = 2, Ms = [[4/6,3/6],[1/6,4/6],[1/6,1/3]]
+%@ ;  % CPU time: 10.853s, 52_053_657 inferences
+%@    D = 3, Ms = [[4/6,3/6,3/6],[1/6,4/6,3/6],[1/6,1/6,4/6],[1/6,1/6,1/3]]
+%@ ;  % CPU time: 45.079s, 204_291_858 inferences
+%@    D = 4, Ms = [[4/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6],[1/6,1/6,4/6,3/6],[1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/3]]
+%@ ;  % CPU time: 150.619s, 681_728_248 inferences
+%@    D = 5, Ms = [[4/6,3/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6,3/6],[1/6,1/6,4/6,3/6,3/6],[1/6,1/6,1/6,4/6,3/6],[1/6,1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/6,1/3]]
+%@ ;  % CPU time: 516.718s, 2_062_296_022 inferences
+%@    D = 6, Ms = [[4/6,3/6,3/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6,3/6,3/6],[1/6,1/6,4/6,3/6,3/6,3/6],[1/6,1/6,1/6,4/6,3/6,3/6],[1/6,1/6,1/6,1/6,4/6,3/6],[1/6,1/6,1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/6,1/6,1/3]].
+% NB: Diffs from earlier are due solely to R=2 vs (previously) R=1
 
 % Do all these partitions start the trial enrolling at 1?
 
@@ -1652,11 +1659,25 @@ d_meets(D, Ms) :-
 
 d_starts1(D) :-
     D #> 1, % D=1 case is exceptional, in NOT starting cleanly from [0/0].
-    length(Init, D), maplist(=(0/0), Init),
+    d_init(D, Init),
     d_rx_meet(D, 1, M1), M1 '≼' Init, % <- (indeed this fails in D=1 case)
     d_rx_meet(D, 2, M2), M2 '⋠' Init.
 
-%?- D in 2..6, indomain(D), time(d_starts1(D)). % (retread timings shown)
+%?- D in 2..6, indomain(D), time(d_starts1(D)).
+%@    % CPU time: 1.382s, 6_444_663 inferences
+%@    D = 2
+%@ ;  % CPU time: 5.492s, 26_237_713 inferences
+%@    % CPU time: 17.256s, 82_656_098 inferences
+%@    % CPU time: 47.797s, 229_889_428 inferences
+%@    % CPU time: 122.517s, 595_570_903 inferences
+%@    false.
+%@    % CPU time: 1.394s, 6_436_270 inferences
+%@    D = 2
+%@ ;  % CPU time: 5.645s, 26_224_221 inferences
+%@    % CPU time: 17.866s, 82_637_504 inferences
+%@    % CPU time: 49.344s, 229_865_729 inferences
+%@    % CPU time: 139.378s, 595_542_096 inferences
+%@    false.
 %@    % CPU time: 1.452s, 6_525_450 inferences
 %@    D = 2
 %@ ;  % CPU time: 5.793s, 26_681_589 inferences
@@ -2009,7 +2030,7 @@ lg3_approx_perprotocol(E, QXs) :-
 */
 
 d_path(D, Path) :-
-    length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
+    d_init(D, [I|Is]),
     phrase(path([I]-Is), Path).
 
 %?- d_path(2, Path).
@@ -2022,14 +2043,30 @@ d_path(D, Path) :-
 %?- J+\(findall(Path, user:d_path(2, Path), Paths), lists:length(Paths, J)).
 %@    J = 46.
 
+%% d_tally_nextdose_final(+D, ?Q, ?X, ?Final) is nondet
+%
+% Describes the interim [Final=false] and final [Final=true] tallies
+% and subsequent next-dose recommendations which terminate the paths
+% of the D-dose 3+3 design as described by our DCG.
+% Memoizing it via *tabling* achieves a _complete_ description at the
+% cost of only a single, one-off comprehensive elaboration of the DCG.
+:- table d_tally_nextdose_final/3.
+d_tally_nextdose_final(D, Q, X, Final) :-
+    d_path(D, Path),
+    (   Final = false,
+        phrase((..., [State0,E,Ls-_], ...), Path),
+        member(E, [esc,des,sta]),
+        state_tallies(State0, Q),
+        length(Ls, X)
+    ;   Final = true,
+        phrase((..., [Endstate,stop,recommend_dose(X)]), Path),
+        state_tallies(Endstate, Q)
+    ).
+d_tally_nextdose_final(D, Q, 1, false) :- d_init(D, Q). % (**)
+
 % Let's enable checking all the interim tallies and dose recs
 d_tally_next(D, Tally, Next) :-
-    length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
-    phrase(path([I]-Is), Path),
-    phrase((..., [State0,E,Ls-_], ...), Path),
-    member(E, [esc,des,sta]),
-    state_tallies(State0, Tally),
-    length(Ls, Next).
+    d_tally_nextdose_final(D, Tally, Next, false).
 
 % Let's make sure to gain access to upper-Galois enrollments, too.
 % These correspond to the lower (left) adjoint L of Def 4.2.
