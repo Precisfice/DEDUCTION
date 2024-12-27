@@ -34,7 +34,7 @@ reduce(P_3, X, Goal, R) :-
 :- op(900, xfx, '≽').
 
 :- op(900, xfx, '≺').
-:- op(900, xfx, '⊁'). % minimal_in/2 uses '⊁'/2
+:- op(900, xfx, '⊁').
 
 '≼'(X,Y,T) :- enst:'≼'(X,Y,T).
 '≽'(X,Y,T) :- enst:'≽'(X,Y,T).
@@ -44,44 +44,7 @@ reduce(P_3, X, Goal, R) :-
 
 '≺'(X,Y,T) :- enst:'≺'(X,Y,T). % used by between_t/4
 '≺'(X,Y) :- enst:'≺'(X,Y).     % used by in_cover_t/4
-
-%%%%q_r(T/N, T:U) :- 0 #=< #T, 0 #=< #U, #N #= #T + #U.
-
-d_q_nmax(D, Qs, Nmax) :-
-    length(Qs, D),
-    maplist(\Q^(Q = T/N, 0 #=< #N, #N #=< #Nmax, 0 #=< #T, #T #=< N), Qs).
-
-d_q(D, Qs) :- d_q_nmax(D, Qs, 6).
-
-d_q(D, Qs) :-
-    length(Qs, D),
-    maplist(\Q^(Q = T/N, N in 0..6, 0 #=< #T, #T #=< N), Qs).
-
-%?- d_q(2, Qs).
-%@    Qs = [_B/_A,_D/_C], clpz:(_A in 0..6), clpz:(#_A#>= #_B), clpz:(_B in 0..6), clpz:(_C in 0..6), clpz:(#_C#>= #_D), clpz:(_D in 0..6).
-
-% Let's try to find some very small examples!
-meet_invalid(Q1, Q2, M) :-
-    Nmax in 0..3, indomain(Nmax),
-    N1 in 0..Nmax, indomain(N1),
-    N2 in 0..Nmax, indomain(N2),
-    qs_d_nmax(Q1, 2, N1),
-    qs_d_nmax(Q2, 2, N2),
-    meet_(Q1, Q2, M),
-    member(T/N, M),
-    #T #> #N.
-
-%?- meet_invalid(Q1, Q2, M).
-%@    Q1 = [0/0,1/1], Q2 = [1/1,0/1], M = [1/0,0/1]
-%@ ;  Q1 = [1/1,0/1], Q2 = [0/0,1/1], M = [1/0,0/1]
-%@ ;  Q1 = [0/0,1/1], Q2 = [1/1,0/1], M = [1/0,0/1]
-%@ ;  Q1 = [1/1,0/1], Q2 = [0/0,1/1], M = [1/0,0/1]
-%@ ;  Q1 = [0/0,1/1], Q2 = [1/1,0/1], M = [1/0,0/1]
-%@ ;  Q1 = [0/0,1/1], Q2 = [1/1,0/2], M = [1/0,0/1]
-%@ ;  ... . % Well, that's more like it!
-
-% So we now have some very simple examples of tally pairs
-% that do not have a valid meet.
+'⊁'(X,Y) :- enst:'⊁'(X,Y).     % used by minimal_in/2
 
 %?- transform([1/1,1/1], [0/0,1/1], Ys, Hs).
 %@    Ys = [1,1], Hs = [2,3].
@@ -882,31 +845,6 @@ d_qfs_rec(D, Qfs, Xrange) :-
 %?- d_qfs_rec(2, Q12s, 1..2), length(Q12s, L12).
 %@    Q12s = [[0/3,0/6],[0/3,1/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,0/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]], L12 = 14.
 
-% Construct maximal and minimal subsets
-% TODO: Eliminate duplicated code by taking relation as parameter.
-flip(R_3, X, Y, T) :- call(R_3, Y, X, T).
-%?- '≽'([1/2], [2/3]).
-%@    true.
-%?- call('≽'([1/2]), [2/3]).
-%@    true.
-%?- call('≼', [2/3], [1/2]).
-%@    true.
-%?- call(flip('≼', [1/2]), [2/3], T).
-%@    T = true.
-
-po_elts_maxs(_, [], []).
-po_elts_maxs(R_3, [X|Xs], Maxs) :-
-    tpartition(flip(R_3,X), Xs, _, Xs1),
-    if_(tmember_t(call(R_3,X), Xs1),
-        po_elts_maxs(R_3, Xs1, Maxs),
-        (   Maxs = [X|Maxs1],
-            po_elts_maxs(R_3, Xs1, Maxs1)
-        )
-       ).
-
-%?- D=3, X=3, findall(Qf, d_endtally_rec(D, Qf, X), Qfs), po_elts_maxs('≼', Qfs, Maxs).
-%@    D = 3, X = 3, Qfs = [[0/3,0/3,0/6],[0/3,0/3,1/6],[0/3,1/6,0/6],[0/3,1/6,1/6],[1/6,0/3,0/6],[1/6,0/3,1/6],[1/6,1/6,0/6],[1/6,1/6,1/6]], Maxs = [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
-
 %?- D=3, X=3, findall(Qf, d_endtally_rec(D, Qf, X), Qfs), qs_maxs(Qfs, Maxs).
 %@    D = 3, X = 3, Qfs = [[0/3,0/3,0/6],[0/3,0/3,1/6],[0/3,1/6,0/6],[0/3,1/6,1/6],[1/6,0/3,0/6],[1/6,0/3,1/6],[1/6,1/6,0/6],[1/6,1/6,1/6]], Maxs = [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
 
@@ -929,23 +867,6 @@ collect_minimal(Q, Mins0, Mins) :-
         Mins = Mins0,             % if so, Q is not minimal;
         Mins = [Q|Mins0]          % otherwise, it is.
        ).
-
-% Regions near the origin
-% TODO: Find a name conveying geometrical intutition ('sphere'? 'hypercube'?),
-%       or perhaps link this to *accessible* tallies as discussed in Fact 1.27.
-% TODO: Also deal with the 'qs' plurality; perhaps in this module, a given tally
-%       counts as 'q', and only _lists_ of tallies should be regarded a plural?
-%       Alternatively, perhaps there will be 'low-level' predicates that regard
-%       a tally as a list, properly called 'Qs', but 'higher-level' predicates
-%       that regard a 'Tally' or 'Tallies' at higher levels of abstraction.
-%       (Of course, in general these distinct manners of regarding tallies may
-%       well argue for distinct modules!)
-qs_d_nmax(Qs, D, Nmax) :-
-    length(Qs, D),
-    maplist(\Q^T^N^(Q = T/N), Qs, Ts, Ns),
-    Ns ins 0..Nmax, label(Ns),
-    maplist(\T^N^(T in 0..N), Ts, Ns), label(Ts).
-
 
 %?- time(d_gs(3, Gs)).
 %@    % CPU time: 2.937s, 13_867_327 inferences

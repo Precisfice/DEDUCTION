@@ -22,6 +22,7 @@
 :- use_module(library(reif)).
 :- use_module(library(lambda)).
 :- use_module(intlist).
+:- use_module(tally).
 :- use_module(freebase).
 
 clpz:monotonic. % The error occurs with or without this declaration.
@@ -166,6 +167,35 @@ meet_(Q1s, Q2s, Qs) :- % 'formal meet'
 %?- meet_([3/3,4/4], [4/6,0/0], M).
 %@    M = [4/3,3/4]. % Not a valid tally!
 
+% Let's try to find some very small examples!
+meet_invalid(Q1, Q2, M) :-
+    Nmax in 0..3, indomain(Nmax),
+    N1 in 0..Nmax, indomain(N1),
+    N2 in 0..Nmax, indomain(N2),
+    qs_d_nmax(Q1, 2, N1),
+    qs_d_nmax(Q2, 2, N2),
+    meet_(Q1, Q2, M),
+    member(T/N, M),
+    #T #> #N.
+
+%?- meet_invalid(Q1, Q2, M).
+%@    Q1 = [0/0,1/1], Q2 = [1/1,0/1], M = [1/0,0/1]
+%@ ;  Q1 = [1/1,0/1], Q2 = [0/0,1/1], M = [1/0,0/1]
+%@ ;  Q1 = [0/0,1/1], Q2 = [1/1,0/1], M = [1/0,0/1]
+%@ ;  Q1 = [1/1,0/1], Q2 = [0/0,1/1], M = [1/0,0/1]
+%@ ;  Q1 = [0/0,1/1], Q2 = [1/1,0/1], M = [1/0,0/1]
+%@ ;  Q1 = [0/0,1/1], Q2 = [1/1,0/2], M = [1/0,0/1]
+%@ ;  ... . % Well, that's more like it!
+
+% So we now have some very simple examples of tally pairs
+% that do not have a valid meet.
+
+% Unlike meet_/3, which allows for 'imaginary' meets,
+% this predicate succeeds only if a valid meet obtains.
+meet(Q1s, Q2s, Qs) :-
+    meet_(Q1s, Q2s, Qs),
+    maplist(\Q^(Q=T/N, #T #=< #N), Qs).
+
 join(Q1s, Q2s, Ys, Hs) :-
     same_length(Q1s, Q2s),
     coefs(Q1s, Y1s, H1s),
@@ -178,12 +208,6 @@ join(Q1s, Q2s, Ys, Hs) :-
 join(Q1s, Q2s, Qs) :-
     join(Q1s, Q2s, Ys, Hs),
     coefs(Qs, Ys, Hs).
-
-% Unlike meet_/3, which allows for 'imaginary' meets,
-% this predicate succeeds only if a valid meet obtains.
-meet(Q1s, Q2s, Qs) :-
-    meet_(Q1s, Q2s, Qs),
-    maplist(\Q^(Q=T/N, #T #=< #N), Qs).
 
 % ---------- Embedding stuff ----------
 
