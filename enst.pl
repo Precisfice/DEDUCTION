@@ -14,7 +14,9 @@
               join/3,
               meet/3,
               qs_int/2,
-              po_qs_sorted/3
+              po_qs_sorted/3,
+              qs_maxs/2,
+              qs_mins/2
 	  ]).
 
 :- use_module(library(lists)).
@@ -238,4 +240,26 @@ po_qs_sorted('≼', Qs, AscQs) :-
 po_qs_sorted('≽', Qs, DescQs) :-
     po_qs_sorted('≼', Qs, AscQs),
     reverse(AscQs, DescQs).
+
+% ---------- Maximal & Minimal sets ----------
+
+qs_maxs(Qs, Maxs) :-
+    po_qs_sorted('≽', Qs, DescQs),
+    foldl(collect_maximal, DescQs, [], Maxs).
+
+collect_maximal(Q, Maxs0, Maxs) :-
+    if_(tmember_t('≼'(Q), Maxs0), % ∃ Q' ∈ Mins s.t. Q ≼ Q'?
+        Maxs = Maxs0,             % if so, Q is not maximal;
+        Maxs = [Q|Maxs0]          % otherwise, it is.
+       ).
+
+qs_mins(Qs, Mins) :-
+    po_qs_sorted('≼', Qs, AscQs),
+    foldl(collect_minimal, AscQs, [], Mins).
+
+collect_minimal(Q, Mins0, Mins) :-
+    if_(tmember_t('≽'(Q), Mins0), % ∃ Q' ∈ Mins s.t. Q ≽ Q'?
+        Mins = Mins0,             % if so, Q is not minimal;
+        Mins = [Q|Mins0]          % otherwise, it is.
+       ).
 

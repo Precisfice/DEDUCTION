@@ -31,7 +31,7 @@ clpz:monotonic.
 '≺'(Q1s, Q2s) :- '≺'(Q1s, Q2s, true).      % used by in_cover_t/4
 '⊁'(Q2s, Q1s) :- '≺'(Q1s, Q2s, false).     % used by minimal_in/2
 
-% ---------- Minimal & Maximal sets ----------
+% ---------- the Covering relation ----------
 
 % Suppose we take a list (qua set) of all final tallies, and
 % recursively peel off the minimal elements, i.e. those which

@@ -327,26 +327,6 @@ We are looking also for *minimal* such values of the gₓ ∈ 𝒬.
 %?- D=3, X=3, findall(Qf, d_endtally_rec(D, Qf, X), Qfs), qs_maxs(Qfs, Maxs).
 %@    D = 3, X = 3, Qfs = [[0/3,0/3,0/6],[0/3,0/3,1/6],[0/3,1/6,0/6],[0/3,1/6,1/6],[1/6,0/3,0/6],[1/6,0/3,1/6],[1/6,1/6,0/6],[1/6,1/6,1/6]], Maxs = [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
 
-qs_maxs(Qs, Maxs) :-
-    po_qs_sorted('≽', Qs, DescQs),
-    foldl(collect_maximal, DescQs, [], Maxs).
-
-collect_maximal(Q, Maxs0, Maxs) :-
-    if_(tmember_t('≼'(Q), Maxs0), % ∃ Q' ∈ Mins s.t. Q ≼ Q'?
-        Maxs = Maxs0,             % if so, Q is not maximal;
-        Maxs = [Q|Maxs0]          % otherwise, it is.
-       ).
-
-qs_mins(Qs, Mins) :-
-    po_qs_sorted('≼', Qs, AscQs),
-    foldl(collect_minimal, AscQs, [], Mins).
-
-collect_minimal(Q, Mins0, Mins) :-
-    if_(tmember_t('≽'(Q), Mins0), % ∃ Q' ∈ Mins s.t. Q ≽ Q'?
-        Mins = Mins0,             % if so, Q is not minimal;
-        Mins = [Q|Mins0]          % otherwise, it is.
-       ).
-
 %?- time(d_gs(3, Gs)).
 %@    % CPU time: 2.937s, 13_867_327 inferences
 %@    Gs = [[2/6,0/0,0/0],[0/6,2/6,0/0],[0/3,0/6,2/6],[0/3,0/3,0/6]]. % R=2
@@ -755,7 +735,7 @@ d_rx_mins(D, X, Mxs) :-
     qs_mins(Qxs, Mxs).
 
 %?- d_rx_mins(2, 2, M2s).
-%@    M2s = [[1/6,1/3],[1/6,0/0],[0/3,0/0]].
+%@    M2s = [[1/6,1/3]].
 
 d_minsets(D, Mss) :-
     findall(X, (X in 0..D, indomain(X)), Xs),
