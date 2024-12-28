@@ -13,9 +13,7 @@
 :- use_module(library(format)).
 :- use_module(library(debug)).
 :- use_module(library(tabling)).
-%:- use_module(library(iso_ext)).
 
-:- use_module(rcpearl).
 :- use_module(intlist).
 :- use_module(enst).
 :- use_module(tally).
@@ -40,24 +38,6 @@ reduce(P_3, X, Goal, R) :-
 '≽'(X,Y) :- enst:'≽'(X,Y).
 '⋠'(X,Y) :- enst:'⋠'(X,Y). % used by d_starts1/1
 
-
-% TODO: Compare the computation by meet/3 against a brute-force calculation
-%       that directly implements the _definition_ of meet.  This comparison
-%       ought to demonstrate that meets are indeed *unique*.
-nmax_meet(Nmax, Q1s, Q2s, Qs) :-
-    % 1. Generate a list of 'all possible' Qss to test.
-    same_length(Q1s, Q2s),
-    length(Q1s, D),
-    findall(Qs, qs_d_nmax(Qs, D, Nmax), Qss),
-    % 2. Filter out elements that are below both Q1s and Q2s.
-    tfilter('≽'(Q1s), Qss, Qss1),
-    tfilter('≽'(Q2s), Qss1, Qss12),
-    % 3. Find the maximal elements of the resulting list.
-    qs_maxs(Qss12, Meets),
-    member(Qs, Meets).
-
-%?- nmax_meet(6, [0/6,4/6], [1/6,2/3], Qs).
-%@    Qs = [1/6,3/5].
 
 /*
 It's time now to investigate what trial designs arise from
