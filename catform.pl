@@ -18,13 +18,9 @@
 :- use_module(enst).
 :- use_module(tally).
 :- use_module(run33).
+:- use_module(comprehension).
 
 clpz:monotonic.
-
-reduce(P_3, [X|Xs], R) :- foldl(P_3, Xs, X, R).
-reduce(P_3, X, Goal, R) :-
-    setof(X, Goal, Xs),
-    reduce(P_3, Xs, R).
 
 % Pending https://github.com/mthom/scryer-prolog/issues/2547,
 % some pretty operators resist export, and require 'extraction':
@@ -446,37 +442,23 @@ d_Qfstratamax(D, Mss) :-
 % identifying these disjoint sets, and then seeking simple
 % descriptions of them in terms of our partial order ≼.
 
-joinof(X, Goal, J) :- reduce(join, X, Goal, J).
-meetof(X, Goal, M) :- reduce(meet, X, Goal, M).
-
 d_rx_join(D, X, Jx) :-
     joinof(Q, d_tally_dose(D, Q, X), Jx).
 
 d_rx_meet(D, X, Mx) :-
     meetof(Q, d_tally_dose(D, Q, X), Mx).
 
+%?- d_tally_dose(2, Q, 1).
+%@    Q = [0/3,2/6]
+%@ ;  Q = [0/6,2/6]
+%@ ;  Q = [0/3,2/6]
+%@ ;  ... .
+
 %?- d_rx_join(2, 2, J2).
 %@    J2 = [0/3,0/6].
 
 %?- d_rx_meet(2, 2, M2).
 %@    M2 = [1/6,1/3].
-
-%% binsof(-(K-V), +Goal_2, -Bins) is det
-%
-% Given Goal_2 with free variables K-V, unifies Bins with
-% the K-sorted list of sets of the form {V : Goal(K,V)}.
-% In the special case where K in 0..(N-1), Bins will be
-% a length-N list-of-lists such that nth0(K, Bins, Vs)
-% iff setof(V, Goal_2(K), Vs).
-% TODO: Given that this implementation ultimately depends
-%       on !/0 (via same_key/4 via group_pairs_by_key/2),
-%       and that my intended use at the moment is precisely
-%       the special case documented above, consider a more
-%       specialized and _purer_ recursive implementation.
-binsof(K-V, Goal, Bins) :-
-    setof(K-V, Goal, KVs),
-    group_pairs_by_key(KVs, Ps), % uses same_key/4, which has a !/0
-    pairs_values(Ps, Bins).
 
 d_joins(D, Js) :-
     findall(X, (X in 0..D, indomain(X)), Xs),
@@ -487,17 +469,16 @@ d_meets(D, Ms) :-
     maplist(d_rx_meet(D), Xs, Ms).
 
 %?- D in 2..6, indomain(D), time(d_meets(D, Ms)).
-%@    % CPU time: 2.092s, 9_651_008 inferences
+%@    % CPU time: 2.610s, 13_400_664 inferences
 %@    D = 2, Ms = [[4/6,3/6],[1/6,4/6],[1/6,1/3]]
-%@ ;  % CPU time: 10.853s, 52_053_657 inferences
+%@ ;  % CPU time: 13.385s, 69_959_004 inferences
 %@    D = 3, Ms = [[4/6,3/6,3/6],[1/6,4/6,3/6],[1/6,1/6,4/6],[1/6,1/6,1/3]]
-%@ ;  % CPU time: 45.079s, 204_291_858 inferences
+%@ ;  % CPU time: 50.931s, 272_714_547 inferences
 %@    D = 4, Ms = [[4/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6],[1/6,1/6,4/6,3/6],[1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/3]]
-%@ ;  % CPU time: 150.619s, 681_728_248 inferences
+%@ ;  % CPU time: 169.544s, 914_682_014 inferences
 %@    D = 5, Ms = [[4/6,3/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6,3/6],[1/6,1/6,4/6,3/6,3/6],[1/6,1/6,1/6,4/6,3/6],[1/6,1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/6,1/3]]
-%@ ;  % CPU time: 516.718s, 2_062_296_022 inferences
+%@ ;  % CPU time: 515.768s, 2_799_989_072 inferences
 %@    D = 6, Ms = [[4/6,3/6,3/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6,3/6,3/6],[1/6,1/6,4/6,3/6,3/6,3/6],[1/6,1/6,1/6,4/6,3/6,3/6],[1/6,1/6,1/6,1/6,4/6,3/6],[1/6,1/6,1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/6,1/6,1/3]].
-% NB: Diffs from earlier are due solely to R=2 vs (previously) R=1
 
 % Do all these partitions start the trial enrolling at 1?
 

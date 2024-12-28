@@ -13,6 +13,8 @@
               %% op(900, xfx, '⊁'),
               join/3,
               meet/3,
+              joinof/3,
+              meetof/3,
               qs_int/2,
               po_qs_sorted/3,
               qs_maxs/2,
@@ -28,6 +30,7 @@
 :- use_module(intlist).
 :- use_module(tally).
 :- use_module(freebase).
+:- use_module(comprehension).
 :- use_module(library(pairs)).
 
 clpz:monotonic.
@@ -213,6 +216,12 @@ join(Q1s, Q2s, Ys, Hs) :-
 join(Q1s, Q2s, Qs) :-
     join(Q1s, Q2s, Ys, Hs),
     coefs(Qs, Ys, Hs).
+
+:- meta_predicate(joinof(?, 0, ?)).
+:- meta_predicate(meetof(?, 0, ?)).
+
+joinof(X, Goal, J) :- reduce(join, X, Goal, J).
+meetof(X, Goal, M) :- reduce(meet, X, Goal, M).
 
 % ---------- Embedding 𝒬 ↪ (ℕ,≤) ----------
 
