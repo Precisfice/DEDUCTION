@@ -24,6 +24,7 @@
 :- use_module(library(reif)).
 :- use_module(library(lambda)).
 :- use_module(library(iso_ext)).
+:- use_module(library(time)).
 :- use_module(intlist).
 :- use_module(tally).
 :- use_module(freebase).
@@ -213,8 +214,7 @@ join(Q1s, Q2s, Qs) :-
     join(Q1s, Q2s, Ys, Hs),
     coefs(Qs, Ys, Hs).
 
-% ---------- Embedding stuff ----------
-
+% ---------- Embedding 𝒬 ↪ (ℕ,≤) ----------
 
 qs_int(Qs, K) :-
     coefs(Qs, Ys, Hs),
@@ -228,6 +228,36 @@ qs_int(Qs, K) :-
 
 %?- Qs = [0/0,0/0], qs_int(Qs, K).
 %@    Qs = [0/0,0/0], K = 0.
+
+% Let's now check this encoding, to be sure it embeds every
+% arrow of ≼.
+d_nmax_wrongway(D, Nmax, Q1s, Q2s) :-
+    qs_d_nmax(Q1s, D, Nmax), qs_int(Q1s, K1),
+    qs_d_nmax(Q2s, D, Nmax), qs_int(Q2s, K2),
+    #K1 #> #K2, % fail faster
+    Q1s '≼' Q2s.
+
+%?- time(d_nmax_wrongway(2, 3, Q1, Q2)).
+%@    % CPU time: 10.157s, 50_278_434 inferences
+%@    false.
+%?- time(d_nmax_wrongway(2, 4, Q1, Q2)).
+%@    % CPU time: 48.824s, 255_477_892 inferences
+%@    false.
+%?- time(d_nmax_wrongway(2, 5, Q1, Q2)).
+%@    % CPU time: 193.112s, 978_666_671 inferences
+%@    false.
+%?- time(d_nmax_wrongway(2, 6, Q1, Q2)).
+%@    % CPU time: 614.967s, 3_077_569_171 inferences
+%@    false.
+%?- time(d_nmax_wrongway(3, 1, Q1, Q2)).
+%@    % CPU time: 0.922s, 4_783_641 inferences
+%@    false.
+%?- time(d_nmax_wrongway(3, 2, Q1, Q2)).
+%@    % CPU time: 56.801s, 301_275_822 inferences
+%@    false.
+%?- time(d_nmax_wrongway(3, 3, Q1, Q2)).
+%@    % CPU time: 1147.127s, 4_811_099_116 inferences
+%@    false.
 
 % ---------- Sorting ----------
 
