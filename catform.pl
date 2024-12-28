@@ -13,12 +13,13 @@
 :- use_module(library(format)).
 :- use_module(library(debug)).
 :- use_module(library(tabling)).
-:- use_module(library(iso_ext)).
+%:- use_module(library(iso_ext)).
 
 :- use_module(rcpearl).
 :- use_module(intlist).
 :- use_module(enst).
-:- use_module(freebase).
+:- use_module(tally).
+:- use_module(run33).
 
 clpz:monotonic.
 
@@ -33,18 +34,11 @@ reduce(P_3, X, Goal, R) :-
 :- op(900, xfx, '⋠').
 :- op(900, xfx, '≽').
 
-:- op(900, xfx, '≺').
-:- op(900, xfx, '⊁').
-
 '≼'(X,Y,T) :- enst:'≼'(X,Y,T).
 '≽'(X,Y,T) :- enst:'≽'(X,Y,T).
 '≼'(X,Y) :- enst:'≼'(X,Y).
 '≽'(X,Y) :- enst:'≽'(X,Y).
 '⋠'(X,Y) :- enst:'⋠'(X,Y). % used by d_starts1/1
-
-'≺'(X,Y,T) :- enst:'≺'(X,Y,T). % used by between_t/4
-'≺'(X,Y) :- enst:'≺'(X,Y).     % used by in_cover_t/4
-'⊁'(X,Y) :- enst:'⊁'(X,Y).     % used by minimal_in/2
 
 %?- transform([1/1,1/1], [0/0,1/1], Ys, Hs).
 %@    Ys = [1,1], Hs = [2,3].
@@ -257,133 +251,12 @@ nmax_meet(Nmax, Q1s, Q2s, Qs) :-
 
 %?- nmax_meet(6, [0/6,4/6], [1/6,2/3], Qs).
 %@    Qs = [1/6,3/5].
-/*
-d_endtally_rec(D, FinalTally, Rec) :-
-    length(Init, D), maplist(=(0/0), Init), Init = [I|Is],
-    phrase(path([I]-Is), Path),
-    phrase((..., [Endstate,stop,recommend_dose(Rec)]), Path),
-    state_tallies(Endstate, FinalTally).
-*/
-d_endtally_rec(D, FinalTally, Rec) :-
-    d_tally_nextdose_final(D, FinalTally, Rec, true).
-
-%?- d_endtally_rec(2, Q, D).
-%@    Q = [0/3,0/6], D = 2
-%@ ;  Q = [0/3,1/6], D = 2
-%@ ;  Q = [0/6,2/3], D = 1
-%@ ;  Q = [0/6,2/6], D = 1
-%@ ;  Q = [0/6,3/3], D = 1
-%@ ;  Q = [0/6,3/6], D = 1
-%@ ;  Q = [0/6,4/6], D = 1
-%@ ;  Q = [1/6,0/6], D = 2
-%@ ;  Q = [1/6,1/6], D = 2
-%@ ;  Q = [1/6,2/3], D = 1
-%@ ;  Q = [1/6,2/6], D = 1
-%@ ;  Q = [1/6,3/3], D = 1
-%@ ;  Q = [1/6,3/6], D = 1
-%@ ;  Q = [1/6,4/6], D = 1
-%@ ;  Q = [2/3,0/0], D = 0
-%@ ;  Q = [2/6,0/0], D = 0
-%@ ;  Q = [2/6,2/3], D = 0
-%@ ;  Q = [2/6,2/6], D = 0
-%@ ;  Q = [2/6,3/3], D = 0
-%@ ;  Q = [2/6,3/6], D = 0
-%@ ;  Q = [2/6,4/6], D = 0
-%@ ;  Q = [3/3,0/0], D = 0
-%@ ;  Q = [3/6,0/0], D = 0
-%@ ;  Q = [3/6,2/3], D = 0
-%@ ;  Q = [3/6,2/6], D = 0
-%@ ;  Q = [3/6,3/3], D = 0
-%@ ;  Q = [3/6,3/6], D = 0
-%@ ;  Q = [3/6,4/6], D = 0
-%@ ;  Q = [4/6,0/0], D = 0
-%@ ;  false.
-
-% Now we readily "check the functoriality" of the dose recommendations
-/*
-?- d_endtally_rec(2, Q1, D1),
-   d_endtally_rec(2, Q2, D2),
-   Q1 '≼' Q2, % Q1 evidently no safer than Q2,
-   D1 #>  D2. % yet recommended D1 exceeds D2.
-%@    Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
-%@ ;  false.
-*/
-
-% A different way to put this would be:
-/*
-?- d_endtally_rec(2, Q1, D1),
-   d_endtally_rec(2, Q2, D2),
-      Q1 '≼' Q2,  % Q1 is evidently no safer than Q2,
-   #\(D1 #=< D2). % yet D1 is NOT likewise related to D2.
-%@    Q1 = [1/6,1/6], D1 = 2, Q2 = [0/6,2/6], D2 = 1
-%@ ;  false.
-*/
-
-% That initial listing in Section 4.1 ought to have been done with
-% this predicate too!
-/*
-?- N+\(setof(Q-Rec, d_endtally_rec(2, Q, Rec), QRecs),
-       maplist(portray_clause, QRecs),
-       length(QRecs, N)).
-%@ [0/3,0/6]-2.
-%@ [0/3,1/6]-2.
-%@ [0/6,2/3]-1.
-%@ [0/6,2/6]-1.
-%@ [0/6,3/3]-1.
-%@ [0/6,3/6]-1.
-%@ [0/6,4/6]-1.
-%@ [1/6,0/6]-2.
-%@ [1/6,1/6]-2.
-%@ [1/6,2/3]-1.
-%@ [1/6,2/6]-1.
-%@ [1/6,3/3]-1.
-%@ [1/6,3/6]-1.
-%@ [1/6,4/6]-1.
-%@ [2/3,0/0]-0.
-%@ [2/6,0/0]-0.
-%@ [2/6,2/3]-0.
-%@ [2/6,2/6]-0.
-%@ [2/6,3/3]-0.
-%@ [2/6,3/6]-0.
-%@ [2/6,4/6]-0.
-%@ [3/3,0/0]-0.
-%@ [3/6,0/0]-0.
-%@ [3/6,2/3]-0.
-%@ [3/6,2/6]-0.
-%@ [3/6,3/3]-0.
-%@ [3/6,3/6]-0.
-%@ [3/6,4/6]-0.
-%@ [4/6,0/0]-0.
-%@    N = 29.
-*/
-
-% Clearly, some of these 29 final tallies must be shared
-% between several of the 46 distinct trial paths.
-% Let's demonstrate how!
-
-endtally_path(FinalTally, Path) :-
-    phrase(path([0/0]-[0/0]), Path),
-    phrase((..., [Endstate,stop,recommend_dose(_)]), Path),
-    state_tallies(Endstate, FinalTally).
-
-%?- endtally_path(Q, P).
-%@    Q = [0/3,0/6], P = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[0/6,0/3]-[],stop,recommend_dose(2)]
-%@ ;  Q = [0/3,1/6], P = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[1/6,0/3]-[],stop,recommend_dose(2)]
-%@ ;  ... .
 
 /*
 It's time now to investigate what trial designs arise from
 a rectified tally-dose mapping.  We are looking for all
 incremental enrollments that are consistent with the
 preorder obtained 
-*/
-
-/*
-?- d_mendtally_rec(2, Q1, D1),
-   d_mendtally_rec(2, Q2, D2),
-   Q1 '≼' Q2, % Q1 evidently no safer than Q2,
-   D1 #>  D2. % yet recommended D1 exceeds D2.
-%@    false. % Rectification was successful.
 */
 
 % Some good visualizations would seem to be necessary now
@@ -394,64 +267,12 @@ preorder obtained
 % But to begin, let's explore some special solutions yielded
 % by specific heuristics.
 
-% Suppose we take a list (qua set) of all final tallies, and
-% recursively peel off the minimal elements, i.e. those which
-% have no arrows into the remainder.
-minimal_in(M, Qs) :-
-    member(M, Qs),
-    maplist('⊁'(M), Qs).
-
-/*
-?- Ms+\(findall(Q, d_mendtally_rec(2,Q,_), FinalTallies),
-        findall(M, minimal_in(M, FinalTallies), Ms)).
-%@    Ms = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
-*/
-
-% The https://en.wikipedia.org/wiki/Covering_relation is
-% fundamental, and surely warrants a dedicated predicate.
-% NB: The time-complexity of in_cover_t/3 could be reduced
-%     by exploiting the arithmetized sort behind d_strata/2.
-%     But we retain this implementation for the time being,
-%     since its simplicity renders it 'obviously' correct.
-in_cover_t(Qs, Q1, Q2, Truth) :-
-    member(Q1, Qs),
-    member(Q2, Qs),
-    Q1 '≺' Q2,
-    if_(tmember_t(between_t(Q1,Q2), Qs),
-        Truth = false,
-        Truth = true
-       ).
-
-between_t(Q1, Q2, Q, Truth) :-
-    if_((Q1 '≺' Q, Q '≺' Q2),
-        Truth = true,
-        Truth = false
-       ).
-
-in_cover(Qs, Q1, Q2) :- in_cover_t(Qs, Q1, Q2, true).
-
-d_ncovers(D, N) :-
-    findall(Q, d_mendtally_rec(D,Q,_), Qs),
-    findall(Q1-Q2, in_cover(Qs, Q1, Q2), Covers),
-    length(Covers, N).
-
-%?- time(d_ncovers(2, N)).
-%@    % CPU time: 8.045s, 40_522_204 inferences
-%@    N = 50.
-
-%?- time(d_ncovers(3, N)).
-%@    % CPU time: 242.710s, 1_230_061_670 inferences
-%@    N = 194.
-
 % At least for the D=2 case, a useful Hasse diagram for 𝒬f seems within reach.
 % One thing that could be of special help would be finding small sets of q's
 % that share the same covered and covering elements, since these could be
 % collected into single nodes of the Hasse diagram.
 % As a step toward finding any such little collections, let me partition 𝒬f
 % into a list of recursively peeled-off minimal sets.
-
-%?- findall(Q, d_mendtally_rec(2, Q, _), Qs), findall(Qm, minimal_in(Qm, Qs), Qms).
-%@    Qs = [[0/3,0/6],[0/3,1/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,0/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6],[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,... / ...],[... / ...|...]|...], Qms = [[3/3,0/0],[3/6,3/3],[3/6,4/6],[4/6,0/0]].
 
 % Thus, it seems k'th element of Hs ranges from -k*Nmax to 0.
 % This is at least rather simple!  But the Os look a bit more
@@ -549,36 +370,12 @@ d_nmax_wrongway(D, Nmax, Q1s, Q2s) :-
 % sharing the same Ts profile but differing in the Us.
 % (The weaker implication ≼ ⟹ ≤ simply won't suffice.)
 
-d_sortedQfs(D, SQs) :-
-    findall(Q, d_mendtally_rec(D,Q,_), Qs),
-    po_qs_sorted('≽', Qs, SQs).
-
-po_qs_sorted('≼', Qs, AscQs) :-
-    maplist(qs_int, Qs, Ks),
-    pairs_keys_values(KQs, Ks, Qs),
-    sort(KQs, SKQs),
-    pairs_values(SKQs, AscQs).
-    
-po_qs_sorted('≽', Qs, DescQs) :-
-    po_qs_sorted('≼', Qs, AscQs),
-    reverse(AscQs, DescQs).
-    
-
 %?- D=2, Nmax=3, L+\(findall(Q, qs_d_nmax(Q, D, Nmax), Qs), po_qs_sorted('≽', Qs, SQs), length(SQs, L)).
 %@    D = 2, Nmax = 3, L = 100.
 %?- D=2, Nmax=6, L+\(findall(Q, qs_d_nmax(Q, D, Nmax), Qs), po_qs_sorted('≽', Qs, SQs), length(SQs, L)).
 %@    D = 2, Nmax = 6, L = 784.
 %?- D=3, Nmax=6, L+\(findall(Q, qs_d_nmax(Q, D, Nmax), Qs), po_qs_sorted('≽', Qs, SQs), length(SQs, L)).
 %@    D = 3, Nmax = 6, L = 21952.
-
-%?- D=2, L+\(d_sortedQfs(D, SQs), length(SQs, L)).
-%@    D = 2, L = 29.
-
-%?- D=3, L+\(d_sortedQfs(D, SQs), length(SQs, L)).
-%@    D = 3, L = 93.
-
-%?- D=4, L+\(d_sortedQfs(D, SQs), length(SQs, L)).
-%@    D = 4, L = 261.
 
 % The guarantee I have regarding such a sorted Qf list is that,
 % if I process its elements front-to-back, each next element
@@ -588,118 +385,6 @@ po_qs_sorted('≽', Qs, DescQs) :-
 % Nevertheless, this weaker guarantee is able to support
 % an efficient stratification of the list into recursively
 % peeled-off maximal sets.
-
-sift(Q, [Bot|Higher], Strata) :-
-    if_(tmember_t('≼'(Q), Bot),
-        Strata = [[Q],Bot|Higher],
-        sift_(Higher, Q, Bot, Strata)).
-
-sift_([], Q, Bot, [[Q|Bot]]).
-sift_([Next|More], Q, Bot, Strata) :-
-    if_(tmember_t('≼'(Q), Next),
-        Strata = [[Q|Bot],Next|More],
-        (   Strata = [Bot|Strata1],
-            sift_(More, Q, Next, Strata1)
-        )
-       ).
-
-d_strata(D, Qss) :-
-    d_sortedQfs(D, Qfs),
-    foldl(sift, Qfs, [[]], RQss),
-    reverse(RQss, Qss).
-
-%?- S+\(d_strata(2, Qss), maplist(portray_clause, Qss), length(Qss, S)).
-%@ [[0/3,0/6]].
-%@ [[0/3,1/6],[1/6,0/6]].
-%@ [[0/6,2/6]].
-%@ [[0/6,2/3],[1/6,1/6]].
-%@ [[2/6,0/0],[0/6,3/6]].
-%@ [[2/3,0/0],[0/6,3/3],[1/6,2/6]].
-%@ [[0/6,4/6],[1/6,2/3]].
-%@ [[3/6,0/0],[1/6,3/6]].
-%@ [[3/3,0/0],[1/6,3/3],[2/6,2/6]].
-%@ [[1/6,4/6],[2/6,2/3]].
-%@ [[4/6,0/0],[2/6,3/6]].
-%@ [[2/6,3/3],[3/6,2/6]].
-%@ [[2/6,4/6],[3/6,2/3]].
-%@ [[3/6,3/6]].
-%@ [[3/6,3/3]].
-%@ [[3/6,4/6]].
-%@    S = 16.
-
-%?- S+\(d_strata(3, Qss), maplist(portray_clause, Qss), length(Qss, S)).
-%@ [[0/3,0/3,0/6]].
-%@ [[0/3,0/3,1/6],[0/3,1/6,0/6]].
-%@ [[0/3,0/6,2/6],[1/6,0/3,0/6]].
-%@ [[0/3,0/6,2/3],[0/3,1/6,1/6],[1/6,1/6,0/6]].
-%@ [[0/6,2/6,0/0],[0/3,0/6,3/6],[1/6,0/3,1/6]].
-%@ [[0/6,2/3,0/0],[0/3,0/6,3/3],[0/3,1/6,2/6],[1/6,0/6,2/6]].
-%@ [[2/6,0/0,0/0],[0/3,0/6,4/6],[0/3,1/6,2/3],[0/6,2/6,2/6],[1/6,0/6,2/3],[1/6,1/6,1/6]].
-%@ [[2/3,0/0,0/0],[0/6,3/6,0/0],[0/3,1/6,3/6],[1/6,0/6,3/6]].
-%@ [[0/6,3/3,0/0],[0/3,1/6,3/3],[0/6,2/6,2/3],[1/6,0/6,3/3],[1/6,2/6,0/0],[1/6,1/6,2/6]].
-%@ [[0/6,4/6,0/0],[1/6,2/3,0/0],[0/3,1/6,4/6],[0/6,2/6,3/6],[1/6,0/6,4/6],[1/6,1/6,2/3]].
-%@ [[3/6,0/0,0/0],[0/6,2/6,3/3],[1/6,3/6,0/0],[0/6,3/6,2/6],[1/6,1/6,3/6]].
-%@ [[3/3,0/0,0/0],[1/6,3/3,0/0],[0/6,2/6,4/6],[0/6,3/6,2/3],[1/6,1/6,3/3],[2/6,2/6,0/0],[1/6,2/6,2/6]].
-%@ [[2/6,2/3,0/0],[0/6,3/6,3/6],[1/6,1/6,4/6],[1/6,2/6,2/3]].
-%@ [[4/6,0/0,0/0],[0/6,3/6,3/3],[1/6,4/6,0/0],[1/6,2/6,3/6]].
-%@ [[0/6,3/6,4/6],[1/6,2/6,3/3],[2/6,3/6,0/0],[1/6,3/6,2/6]].
-%@ [[2/6,3/3,0/0],[1/6,2/6,4/6],[1/6,3/6,2/3],[3/6,2/6,0/0],[2/6,2/6,2/6]].
-%@ [[3/6,2/3,0/0],[1/6,3/6,3/6],[2/6,2/6,2/3]].
-%@ [[1/6,3/6,3/3],[2/6,4/6,0/0],[2/6,2/6,3/6]].
-%@ [[1/6,3/6,4/6],[2/6,2/6,3/3],[3/6,3/6,0/0],[2/6,3/6,2/6]].
-%@ [[3/6,3/3,0/0],[2/6,2/6,4/6],[2/6,3/6,2/3],[3/6,2/6,2/6]].
-%@ [[2/6,3/6,3/6],[3/6,2/6,2/3]].
-%@ [[2/6,3/6,3/3],[3/6,4/6,0/0],[3/6,2/6,3/6]].
-%@ [[2/6,3/6,4/6],[3/6,2/6,3/3],[3/6,3/6,2/6]].
-%@ [[3/6,2/6,4/6],[3/6,3/6,2/3]].
-%@ [[3/6,3/6,3/6]].
-%@ [[3/6,3/6,3/3]].
-%@ [[3/6,3/6,4/6]].
-%@    S = 27.
-
-% Write out Hasse diagram as (GraphViz) DOT file.
-d_writehassedot(D) :-
-    phrase(format_("HasseD~d.dot", [D]), Filename),
-    atom_chars(File, Filename),
-    format("Opening file ~q...~n", [File]), % feedback to console
-    setup_call_cleanup(open(File, write, OS),
-		       (   format("Collecting final tallies ..", []),
-                           % NB: We use _unrectified_ d_endtally_rec/3 to exhibit
-                           %     the non-functoriality of default 3+3 dose recs.
-                           setof(Q-X, d_endtally_rec(D,Q,X), QXs),
-                           pairs_keys(QXs, Qs),
-                           length(Qs, Nf),
-                           format("~n sorting ~d final tallies ..", [Nf]),
-                           po_qs_sorted('≽', Qs, DescQs),
-                           format("~n stratifying ..~n", []),
-                           foldl(sift, DescQs, [[]], Qss),
-                           reverse(Qss, RQss), maplist(portray_clause, RQss),
-                           format(OS, "strict digraph hasseD~d {~n", [D]),
-                           format(OS, "  rankdir=~a;~n", ['BT']),
-                           format(OS, "  node [colorscheme=~w, fontname=\"~w\"];~n",
-                                  ['set14','Helvetica:bold']),
-                           format("Writing strata to DOT file ..", []),
-                           list_to_assoc(QXs, QXassoc),
-                           maplist(write_stratum(OS,QXassoc), Qss),
-                           format("~n writing covering relation ..", []) ->
-                           reverse(DescQs, AscQs), % speeds cover calculation
-                           time((   in_cover(AscQs, Q1, Q2),
-			            format(OS, "  \"~w\" -> \"~w\";~n", [Q1,Q2]),
-			            fail % exhaust all (Q1 -> Q2) arrows
-			        ;   true
-			        )),
-                           format(OS, "}~n", [])
-		       ),
-		       close(OS)
-		      ),
-    format(".. done.~n", []).
-
-write_stratum(OS, QXassoc, Qs) :-
-    format(OS, "  { rank=same;~n", []),
-    maplist(\Q^(get_assoc(Q, QXassoc, X), #Color #= #X + 1,
-                format(OS, "    \"~w\" [fontcolor=~d];~n", [Q,Color])),
-            Qs),
-    format(OS, "  }~n", []).
 
 %?- d_writehassedot(2).
 %@ Opening file 'HasseD2.dot'...
@@ -723,7 +408,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,3/3]].
 %@ [[3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 6.677s, 34_163_953 inferences
+%@  writing covering relation ..   % CPU time: 6.705s, 34_157_755 inferences
 %@ .. done.
 %@    true.
 
@@ -760,7 +445,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,3/6,3/3]].
 %@ [[3/6,3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 180.070s, 882_405_576 inferences
+%@  writing covering relation ..   % CPU time: 170.194s, 882_405_553 inferences
 %@ .. done.
 %@    true.
 
@@ -831,19 +516,6 @@ as defined in Eq (15).
 
 We are looking also for *minimal* such values of the gₓ ∈ 𝒬.
 */
-
-% Generate the several relevant subsets of 𝒬f
-% TODO: Keeping in mind that we are calculating F⁻¹(Xrange),
-%       there could be some value to a left-to-right naming
-%       such as d_rec_Finv/3.
-d_qfs_rec(D, Qfs, Xrange) :-
-    findall(Qf, (d_mendtally_rec(D, Qf, X), X in Xrange), Qfs).
-
-%?- d_qfs_rec(2, Q0s, 0), length(Q0s, L0).
-%@    Q0s = [[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,3/3],[2/6,3/6],[2/6,4/6],[3/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,2/6],[3/6,3/3],[3/6,3/6],[3/6,4/6],[4/6,0/0]], L0 = 15.
-
-%?- d_qfs_rec(2, Q12s, 1..2), length(Q12s, L12).
-%@    Q12s = [[0/3,0/6],[0/3,1/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,0/6],[1/6,1/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]], L12 = 14.
 
 %?- D=3, X=3, findall(Qf, d_endtally_rec(D, Qf, X), Qfs), qs_maxs(Qfs, Maxs).
 %@    D = 3, X = 3, Qfs = [[0/3,0/3,0/6],[0/3,0/3,1/6],[0/3,1/6,0/6],[0/3,1/6,1/6],[1/6,0/3,0/6],[1/6,0/3,1/6],[1/6,1/6,0/6],[1/6,1/6,1/6]], Maxs = [[0/3,0/3,0/6],[0/3,1/6,0/6],[1/6,0/3,0/6],[1/6,1/6,0/6]].
@@ -1068,31 +740,6 @@ d_Qfstratamax(D, Mss) :-
 % projecting off the lowest dose, and the remaining 13 do so when
 % the top dose is removed.
 
-%:- table d_mendtally_rec_/4. % TODO: Understand why I cannot table this.
-% (I can hardly use tabling safely, if I don't understand why it failed here!)
-d_mendtally_rec(D, Q, X) :- d_mendtally_rec_(D, Q, X, _).
-
-d_mendtally_rec_(D, Q, X, Xls) :-
-    d_endtally_rec(D, Q, Xu), % Q-Xu is a final tally w/ *unrectified* rec, from a D-dose 3+3
-    findall(Xl, (d_endtally_rec(D, Ql, Xl),
-                 Xu #> Xl,  % Final tally Ql received a rec *lower* than Xu,
-                 Q '≼' Ql), % although it is evidently at least as safe as Q.
-            Xls),
-    foldl(clpz:min_, Xls, Xu, X).
-
-%?- d_mendtally_rec_(3, Q, D, [_|_]).
-%@    Q = [0/3,1/6,1/6], D = 2
-%@ ;  Q = [1/6,0/3,1/6], D = 2
-%@ ;  Q = [1/6,1/6,1/6], D = 2
-%@ ;  Q = [1/6,1/6,2/3], D = 1
-%@ ;  Q = [1/6,1/6,2/6], D = 1
-%@ ;  Q = [1/6,1/6,3/3], D = 1
-%@ ;  Q = [1/6,1/6,3/6], D = 1
-%@ ;  Q = [1/6,1/6,4/6], D = 1
-%@ ;  false.
-% NB: Indeed there were only 8 unique Q1's
-%     among the 16 solutions found above.
-
 % TODO: Bring the following explorations up-of-date
 %       with our now-expanded ≼.
 
@@ -1112,20 +759,6 @@ d_mendtally_rec_(D, Q, X, Xls) :-
 % Accordingly, our process of 'discovery' can proceed by
 % identifying these disjoint sets, and then seeking simple
 % descriptions of them in terms of our partial order ≼.
-
-d_init(D, Init) :-
-    #D #> 0, length(Init, D),
-    maplist(=(0/0), Init).
-
-%?- d_init(3, Init).
-%@    Init = [0/0,0/0,0/0].
-
-d_tally_dose(D, Tally, X) :-
-    d_tally_nextdose_final(D, Tally, X, _).
-
-%?- d_tally_dose(3, [0/0,0/0,0/0], X).
-%@    false. % before adding (**) clause of d_tally_nextdose_final/4
-%@    X = 1. % with (**) clause
 
 joinof(X, Goal, J) :- reduce(join, X, Goal, J).
 meetof(X, Goal, M) :- reduce(meet, X, Goal, M).
@@ -1158,20 +791,6 @@ binsof(K-V, Goal, Bins) :-
     setof(K-V, Goal, KVs),
     group_pairs_by_key(KVs, Ps), % uses same_key/4, which has a !/0
     pairs_values(Ps, Bins).
-
-%?- true+\(D=2, binsof(X-Q, d_tally_nextdose_final(D, Q, X, _), Bins), maplist(portray_clause, Bins)).
-%@ [[0/3,2/3],[0/3,2/6],[0/3,3/3],[0/3,3/6],[0/3,4/6],[1/3,0/0]].
-%@ [[0/3,0/0],[0/3,0/3],[0/3,1/3],[1/6,0/0],[1/6,0/3],[1/6,1/3]].
-%@    true
-%@ ;  [[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,3/3],[2/6,3/6],[2/6,4/6],[3/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,2/6],[3/6,3/3],[3/6,3/6],[3/6,4/6],[4/6,0/0]].
-%@ [[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]].
-%@ [[0/3,0/6],[0/3,1/6],[1/6,0/6],[1/6,1/6]].
-%@ true.
-%?- true+\(D=2, binsof(X-Q, Q^X+\d_tally_nextdose_final(D, Q, X, _), Bins), maplist(portray_clause, Bins)).
-%@ [[2/3,0/0],[2/6,0/0],[2/6,2/3],[2/6,2/6],[2/6,3/3],[2/6,3/6],[2/6,4/6],[3/3,0/0],[3/6,0/0],[3/6,2/3],[3/6,2/6],[3/6,3/3],[3/6,3/6],[3/6,4/6],[4/6,0/0]].
-%@ [[0/3,2/3],[0/3,2/6],[0/3,3/3],[0/3,3/6],[0/3,4/6],[0/6,2/3],[0/6,2/6],[0/6,3/3],[0/6,3/6],[0/6,4/6],[1/3,0/0],[1/6,2/3],[1/6,2/6],[1/6,3/3],[1/6,3/6],[1/6,4/6]].
-%@ [[0/3,0/0],[0/3,0/3],[0/3,0/6],[0/3,1/3],[0/3,1/6],[1/6,0/0],[1/6,0/3],[1/6,0/6],[1/6,1/3],[1/6,1/6]].
-%@    true.
 
 d_joins(D, Js) :-
     findall(X, (X in 0..D, indomain(X)), Xs),
@@ -1574,45 +1193,6 @@ lg3_approx_perprotocol(E, QXs) :-
 %@ [1/6,1/6,0/3]-3.
 %@ E = 2, QXs = [[0/0,0/0,0/0]-1,[0/3,0/3,0/0]-3,[0/3,0/3,1/3]-3,[0/3,1/6,0/0]-3,[0/3,1/6,0/3]-3,[0/3,1/6,1/3]-3,[1/6,0/3,0/3]-3,[1/6,1/6,0/3]-3].
 */
-
-d_path(D, Path) :-
-    d_init(D, [I|Is]),
-    phrase(path([I]-Is), Path).
-
-%?- d_path(2, Path).
-%@    Path = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[0/6,0/3]-[],stop,recommend_dose(2)]
-%@ ;  Path = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[1/6,0/3]-[],stop,recommend_dose(2)]
-%@ ;  Path = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[2/6,0/3]-[],des,[0/6]-[2/6],stop,recommend_dose(1)]
-%@ ;  Path = [sta,[0/3]-[0/0],esc,[0/3,0/3]-[],sta,[2/6,0/3]-[],des,[1/6]-[2/6],stop,recommend_dose(1)]
-%@ ;  ... .
-
-%?- J+\(findall(Path, user:d_path(2, Path), Paths), lists:length(Paths, J)).
-%@    J = 46.
-
-%% d_tally_nextdose_final(+D, ?Q, ?X, ?Final) is nondet
-%
-% Describes the interim [Final=false] and final [Final=true] tallies
-% and subsequent next-dose recommendations which terminate the paths
-% of the D-dose 3+3 design as described by our DCG.
-% Memoizing it via *tabling* achieves a _complete_ description at the
-% cost of only a single, one-off comprehensive elaboration of the DCG.
-:- table d_tally_nextdose_final/3.
-d_tally_nextdose_final(D, Q, X, Final) :-
-    d_path(D, Path),
-    (   Final = false,
-        phrase((..., [State0,E,Ls-_], ...), Path),
-        member(E, [esc,des,sta]),
-        state_tallies(State0, Q),
-        length(Ls, X)
-    ;   Final = true,
-        phrase((..., [Endstate,stop,recommend_dose(X)]), Path),
-        state_tallies(Endstate, Q)
-    ).
-d_tally_nextdose_final(D, Q, 1, false) :- d_init(D, Q). % (**)
-
-% Let's enable checking all the interim tallies and dose recs
-d_tally_next(D, Tally, Next) :-
-    d_tally_nextdose_final(D, Tally, Next, false).
 
 % Let's make sure to gain access to upper-Galois enrollments, too.
 % These correspond to the lower (left) adjoint L of Def 4.2.
