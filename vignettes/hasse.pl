@@ -9,7 +9,6 @@
 :- use_module('../intlist.pl').
 :- use_module('../tally.pl').
 :- use_module('../enst.pl').
-:- use_module('../freebase.pl').
 :- use_module(library(pairs)).
 :- use_module('../run33.pl').
 :- use_module(library(format)).
@@ -152,7 +151,7 @@ write_stratum(OS, QXassoc, Qs) :-
 %@ [[3/6,3/3]].
 %@ [[3/6,4/6]].
 %@ Writing strata to DOT file ..
-%@  writing covering relation ..   % CPU time: 6.596s, 34_163_953 inferences
+%@  writing covering relation ..   % CPU time: 6.586s, 34_163_953 inferences
 %@ .. done.
 %@    true.
 
