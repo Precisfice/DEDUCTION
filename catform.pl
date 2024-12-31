@@ -19,6 +19,7 @@
 :- use_module(tally).
 :- use_module(run33).
 :- use_module(comprehension).
+:- use_module(cascade).
 
 clpz:monotonic.
 
@@ -230,52 +231,13 @@ d_Qfstratamax(D, Mss) :-
 % identifying these disjoint sets, and then seeking simple
 % descriptions of them in terms of our partial order ≼.
 
-d_rx_join(D, X, Jx) :-
-    joinof(Q, d_tally_dose(D, Q, X), Jx).
-
-d_rx_meet(D, X, Mx) :-
-    meetof(Q, d_tally_dose(D, Q, X), Mx).
-
 %?- d_tally_dose(2, Q, 1).
 %@    Q = [0/3,2/6]
 %@ ;  Q = [0/6,2/6]
 %@ ;  Q = [0/3,2/6]
 %@ ;  ... .
 
-%?- d_rx_join(2, 2, J2).
-%@    J2 = [0/3,0/6].
-
-%?- d_rx_meet(2, 2, M2).
-%@    M2 = [1/6,1/3].
-
-d_joins(D, Js) :-
-    findall(X, (X in 0..D, indomain(X)), Xs),
-    maplist(d_rx_join(D), Xs, Js).
-
-d_meets(D, Ms) :-
-    findall(X, (X in 0..D, indomain(X)), Xs),
-    maplist(d_rx_meet(D), Xs, Ms).
-
-%?- D in 2..6, indomain(D), time(d_meets(D, Ms)).
-%@    % CPU time: 2.610s, 13_400_664 inferences
-%@    D = 2, Ms = [[4/6,3/6],[1/6,4/6],[1/6,1/3]]
-%@ ;  % CPU time: 13.385s, 69_959_004 inferences
-%@    D = 3, Ms = [[4/6,3/6,3/6],[1/6,4/6,3/6],[1/6,1/6,4/6],[1/6,1/6,1/3]]
-%@ ;  % CPU time: 50.931s, 272_714_547 inferences
-%@    D = 4, Ms = [[4/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6],[1/6,1/6,4/6,3/6],[1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/3]]
-%@ ;  % CPU time: 169.544s, 914_682_014 inferences
-%@    D = 5, Ms = [[4/6,3/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6,3/6],[1/6,1/6,4/6,3/6,3/6],[1/6,1/6,1/6,4/6,3/6],[1/6,1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/6,1/3]]
-%@ ;  % CPU time: 515.768s, 2_799_989_072 inferences
-%@    D = 6, Ms = [[4/6,3/6,3/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6,3/6,3/6],[1/6,1/6,4/6,3/6,3/6,3/6],[1/6,1/6,1/6,4/6,3/6,3/6],[1/6,1/6,1/6,1/6,4/6,3/6],[1/6,1/6,1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/6,1/6,1/3]].
-
 % Do all these partitions start the trial enrolling at 1?
-
-% The degenerate case D=1 does NOT make a 'clean start' from [0/0]:
-%?- d_rx_meet(1, 1, M1).
-%@    M1 = [1/3].
-%?- d_rx_meet(1, 1, M1), M1 '≼' [0/0].
-%@    false.
-% But happily, this turns out to be the exception!
 
 d_starts1(D) :-
     D #> 1, % D=1 case is exceptional, in NOT starting cleanly from [0/0].
@@ -284,30 +246,13 @@ d_starts1(D) :-
     d_rx_meet(D, 2, M2), M2 '⋠' Init.
 
 %?- D in 2..6, indomain(D), time(d_starts1(D)).
-%@    % CPU time: 1.382s, 6_444_663 inferences
+%@    % CPU time: 1.407s, 6_615_957 inferences
 %@    D = 2
-%@ ;  % CPU time: 5.492s, 26_237_713 inferences
-%@    % CPU time: 17.256s, 82_656_098 inferences
-%@    % CPU time: 47.797s, 229_889_428 inferences
-%@    % CPU time: 122.517s, 595_570_903 inferences
+%@ ;  % CPU time: 5.568s, 27_051_973 inferences
+%@    % CPU time: 17.289s, 85_399_086 inferences
+%@    % CPU time: 47.473s, 237_469_384 inferences
+%@    % CPU time: 127.682s, 614_642_575 inferences
 %@    false.
-%@    % CPU time: 1.394s, 6_436_270 inferences
-%@    D = 2
-%@ ;  % CPU time: 5.645s, 26_224_221 inferences
-%@    % CPU time: 17.866s, 82_637_504 inferences
-%@    % CPU time: 49.344s, 229_865_729 inferences
-%@    % CPU time: 139.378s, 595_542_096 inferences
-%@    false.
-%@    % CPU time: 1.452s, 6_525_450 inferences
-%@    D = 2
-%@ ;  % CPU time: 5.793s, 26_681_589 inferences
-%@    D = 3
-%@ ;  % CPU time: 18.339s, 84_213_814 inferences
-%@    D = 4
-%@ ;  % CPU time: 57.714s, 234_167_553 inferences
-%@    D = 5
-%@ ;  % CPU time: 135.980s, 606_129_161 inferences
-%@    D = 6.
 
 % Let's now examine how close an approximation we can achieve
 % to the 3+3 protocol, using these cascading partitions.
@@ -332,9 +277,9 @@ d_x_mx(D, X, Mx) :-
     nth0(X, Ms, Mx). % Thus, X in 0..(D-1)
 
 %?- d_x_mx(2, X, Mx).
-%@ Found partition M1..M2 = [[1/5,4/5],[1/5,1/2]]
-%@    X = 0, Mx = [1/5,4/5]
-%@ ;  X = 1, Mx = [1/5,1/2].
+%@ Found partition M1..M2 = [[1/6,4/6],[1/6,1/3]]
+%@    X = 0, Mx = [1/6,4/6]
+%@ ;  X = 1, Mx = [1/6,1/3].
 
 d_x_escapees(D, X, Qs) :-
     d_x_mx(D, X, Mx),
@@ -343,50 +288,28 @@ d_x_escapees(D, X, Qs) :-
     setof(Q, (d_tally_dose(D, Q, X), Mx '≼' Q), Qs).
 
 %?- d_x_escapees(2, X, Qs).
-%@ Found partition M1..M2 = [[1/5,4/5],[1/5,1/2]]
-%@ Checking against M1 = [1/5,4/5]..
-%@ Checking against M2 = [1/5,1/2]..
+%@ Found partition M1..M2 = [[1/6,4/6],[1/6,1/3]]
+%@ Checking against M1 = [1/6,4/6]..
+%@ Checking against M2 = [1/6,1/3]..
 %@    X = 1, Qs = [[0/3,2/6],[0/6,2/3],[0/6,2/6]].
-%?- [1/5,1/2]'≼'[0/3,2/6].
-%@    true.
-%?- [1/5,1/2]'≼'[0/6,2/6].
-%@    true.
-%?- [1/5,1/2]'≼'[0/6,2/6].
-%@    true.
-% I think we do learn something from this!
-% Let's consider each of these 3 cases, in reverse order:
-% * [0/6,2/6]
-%   This case has Rec=1 per protocol.  But it is also true that ..
-%?- [1/6,1/6]'≼'[0/6,2/6].
-%@    true.
-%   Thus, perhaps we can in attribute this approximation
-%   error to the unrectified Rec=2 for [1/6,1/6].
-% * [0/3,2/6]
-%   Here again, we seem to have a consequence of non-functorial
-%   dose assignment.  By all means, let's see if rectification
-%   solves this.
-% * [0/6,2/3]
-%   By contrast with the above, this would seem to be a case
-%   where we might depend on enrollment rules, to augment the
-%   filtering performed by Ms.
 
 %?- d_x_escapees(3, X, Qs).
-%@ Found partition M1..M3 = [[1/5,4/6,3/5],[1/5,1/5,4/5],[1/5,1/5,1/2]]
-%@ Checking against M1 = [1/5,4/6,3/5]..
-%@ Checking against M2 = [1/5,1/5,4/5]..
-%@    X = 1, Qs = [[0/3,2/6,0/0],[0/3,2/6,2/3],[0/3,2/6,2/6],[0/3,2/6,3/6],[0/3,2/6,4/6],[0/6,2/3,0/0],[0/6,2/6,0/0],[0/6,2/6,2/3],[0/6,2/6,2/6],[0/6,2/6,3/3],[0/6,2/6,3/6],[0/6,2/6,4/6]]
-%@ ;  Checking against M3 = [1/5,1/5,1/2]..
-%@ X = 2, Qs = [[0/3,0/3,2/6],[0/3,0/3,3/6],[0/3,0/6,2/3],[0/3,0/6,2/6],[0/3,0/6,3/3],[0/3,0/6,3/6],[0/3,1/6,2/3],[0/3,1/6,2/6],[1/6,0/3,2/6],[1/6,0/6,2/3],[1/6,0/6,2/6]].
+%@ Found partition M1..M3 = [[1/6,4/6,3/6],[1/6,1/6,4/6],[1/6,1/6,1/3]]
+%@ Checking against M1 = [1/6,4/6,3/6]..
+%@ Checking against M2 = [1/6,1/6,4/6]..
+%@    X = 1, Qs = [[0/0,0/0,0/0],[0/3,2/3,0/0],[0/3,2/6,0/0],[0/3,2/6,2/3],[0/3,2/6,2/6],[0/3,2/6,3/6],[0/6,2/3,0/0],[0/6,2/6,0/0],[0/6,2/6,2/3],[0/6,2/6,2/6],[0/6,2/6,3/3],[0/6,2/6,3/6],[0/6,2/6,4/6],[1/3,0/0,0/0]]
+%@ ;  Checking against M3 = [1/6,1/6,1/3]..
+%@ X = 2, Qs = [[0/3,0/3,2/6],[0/3,0/6,2/3],[0/3,0/6,2/6],[0/3,0/6,3/6],[0/3,1/6,2/6],[1/6,0/3,2/6],[1/6,0/6,2/3],[1/6,0/6,2/6]].
 
 %?- d_x_escapees(4, X, Qs).
-%@ Found partition M1..M4 = [[1/5,4/6,3/6,3/5],[1/5,1/5,4/6,3/5],[1/5,1/5,1/5,4/5],[1/5,1/5,1/5,1/2]]
-%@ Checking against M1 = [1/5,4/6,3/6,3/5]..
-%@ Checking against M2 = [1/5,1/5,4/6,3/5]..
-%@    X = 1, Qs = [[0/3,2/6,0/0,0/0],[0/3,2/6,2/3,0/0],[0/3,2/6,2/6,0/0],[0/3,2/6,2/6,2/3],[0/3,2/6,2/6,2/6],[0/3,2/6,2/6,3/3],[0/3,2/6,2/6,3/6],[0/3,2/6,2/6,4/6],[0/3,2/6,3/6,0/0],[0/3,2/6,3/6,2/3],[0/3,2/6,3/6,2/6],[0/3,2/6,3/6,3/6],[0/3,2/6,3/6,4/6],[0/3,2/6,4/6,0/0],[0/6,2/3,0/0,0/0],[0/6,2/6,0/0,0/0],[0/6,2/6,2/3,... / ...],[0/6,2/6,... / ...|...],[0/6,... / ...|...],[... / ...|...]|...]
-%@ ;  Checking against M3 = [1/5,1/5,1/5,4/5]..
-%@ X = 2, Qs = [[0/3,0/3,2/6,0/0],[0/3,0/3,2/6,2/3],[0/3,0/3,2/6,2/6],[0/3,0/3,2/6,3/6],[0/3,0/3,2/6,4/6],[0/3,0/3,3/6,0/0],[0/3,0/3,3/6,2/6],[0/3,0/3,3/6,3/6],[0/3,0/6,2/3,0/0],[0/3,0/6,2/6,0/0],[0/3,0/6,2/6,2/3],[0/3,0/6,2/6,2/6],[0/3,0/6,2/6,3/3],[0/3,0/6,2/6,3/6],[0/3,0/6,2/6,4/6],[0/3,0/6,3/3,0/0],[0/3,0/6,3/6,... / ...],[0/3,0/6,... / ...|...],[0/3,... / ...|...],[... / ...|...]|...]
-%@ ;  Checking against M4 = [1/5,1/5,1/5,1/2]..
-%@ X = 3, Qs = [[0/3,0/3,0/3,2/6],[0/3,0/3,0/3,3/6],[0/3,0/3,0/6,2/3],[0/3,0/3,0/6,2/6],[0/3,0/3,0/6,3/3],[0/3,0/3,0/6,3/6],[0/3,0/3,0/6,4/6],[0/3,0/3,1/6,2/3],[0/3,0/3,1/6,2/6],[0/3,0/3,1/6,3/6],[0/3,1/6,0/3,2/3],[0/3,1/6,0/3,2/6],[0/3,1/6,0/3,3/6],[0/3,1/6,0/6,2/3],[0/3,1/6,0/6,2/6],[0/3,1/6,0/6,3/3],[0/3,1/6,0/6,... / ...],[0/3,1/6,... / ...|...],[0/3,... / ...|...],[... / ...|...]|...].
+%@ Found partition M1..M4 = [[1/6,4/6,3/6,3/6],[1/6,1/6,4/6,3/6],[1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/3]]
+%@ Checking against M1 = [1/6,4/6,3/6,3/6]..
+%@ Checking against M2 = [1/6,1/6,4/6,3/6]..
+%@    X = 1, Qs = [[0/0,0/0,0/0,0/0],[0/3,2/3,0/0,0/0],[0/3,2/6,0/0,0/0],[0/3,2/6,2/3,0/0],[0/3,2/6,2/6,0/0],[0/3,2/6,2/6,2/3],[0/3,2/6,2/6,2/6],[0/3,2/6,2/6,3/3],[0/3,2/6,2/6,3/6],[0/3,2/6,2/6,4/6],[0/3,2/6,3/3,0/0],[0/3,2/6,3/6,0/0],[0/3,2/6,3/6,2/3],[0/3,2/6,3/6,2/6],[0/3,2/6,3/6,3/6],[0/3,2/6,4/6,0/0],[0/6,2/3,0/0,... / ...],[0/6,2/6,... / ...|...],[0/6,... / ...|...],[... / ...|...]|...]
+%@ ;  Checking against M3 = [1/6,1/6,1/6,4/6]..
+%@ X = 2, Qs = [[0/3,0/0,0/0,0/0],[0/3,0/3,2/3,0/0],[0/3,0/3,2/6,0/0],[0/3,0/3,2/6,2/3],[0/3,0/3,2/6,2/6],[0/3,0/3,2/6,3/6],[0/3,0/3,3/6,0/0],[0/3,0/3,3/6,2/6],[0/3,0/6,2/3,0/0],[0/3,0/6,2/6,0/0],[0/3,0/6,2/6,2/3],[0/3,0/6,2/6,2/6],[0/3,0/6,2/6,3/3],[0/3,0/6,2/6,3/6],[0/3,0/6,2/6,4/6],[0/3,0/6,3/3,0/0],[0/3,0/6,3/6,... / ...],[0/3,0/6,... / ...|...],[0/3,... / ...|...],[... / ...|...]|...]
+%@ ;  Checking against M4 = [1/6,1/6,1/6,1/3]..
+%@ X = 3, Qs = [[0/3,0/3,0/3,2/6],[0/3,0/3,0/6,2/3],[0/3,0/3,0/6,2/6],[0/3,0/3,0/6,3/6],[0/3,0/3,1/6,2/6],[0/3,1/6,0/3,2/6],[0/3,1/6,0/6,2/3],[0/3,1/6,0/6,2/6],[0/3,1/6,0/6,3/6],[0/3,1/6,1/6,2/6],[1/6,0/3,0/3,2/6],[1/6,0/3,0/6,2/3],[1/6,0/3,0/6,2/6],[1/6,0/3,0/6,3/6],[1/6,0/3,1/6,2/6],[1/6,1/6,0/3,2/6],[1/6,1/6,0/6,... / ...],[1/6,1/6,... / ...|...]].
 
 % From the above, I seem to have learned that meets alone
 % do not adequately represent the relevant partitions of
@@ -455,155 +378,6 @@ d_minsets(D, Mss) :-
 %?- time(d_meets(4, Ms)).
 %@    % CPU time: 240.604s, 1_166_191_534 inferences
 %@    Ms = [[4/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6],[1/6,1/3,3/6,3/6],[1/6,1/6,1/3,3/6],[1/6,1/6,1/6,1/3]].
-
-% Given a descending cascade of tallies [L|Ls] = [Lᴅ ≻ ... ≻ L₁],
-% we have a nested sequence of principal upper sets,
-%
-%               ↑Lᴅ ⊂ ... ⊂ ↑L₁ ⊂ ↑𝟘 ≡ 𝒬,
-%
-% where 𝟘 denotes the initial object for the accessible part of 𝒬,
-% for example [6/6,6/6] in the 2-dose 3+3 trial.
-% Because this covers [the accessible region of] 𝒬, we obtain a
-% functor E:𝒬⟶{0≤...≤D} according to
-%
-%             E(q) = max[{k | Q ≽ Lₖ}∪{0}].
-%
-% Provided we understand L₀ = 𝟘, we can write equivalently,
-%
-%                 k ≤ E(q)  iff  Lₖ ≼ q,
-%
-% revealing an adjunction L ⊣ E, in which L₋:{0≤...≤D}→𝒬 is the
-% lower adjoint to an upper-Galois enrollment E:𝒬⟶𝒟={0≤...≤D}.
-cascade_tally_uadjoint([], _, 0).
-cascade_tally_uadjoint([L|Ls], Q, X) :-
-    if_(Q '≽' L, length([L|Ls], X),
-        cascade_tally_uadjoint(Ls, Q, X)).
-
-% Conversely, any length-D tally cascade [Gᴅ-1 ≻ ... ≻ G₀]
-% defines also a nested sequence of principal _lower_ sets,
-%
-%    Gᴅ≡𝟙 ≻ Gᴅ-1 ≻ ... ≻ L₀  ⟹  𝒬 ⊃ ↓Gᴅ-1 ⊃ ... ⊃ ↓G₀,
-%
-% where 𝟙 denotes the _final_ object for [the accessible part
-% of] 𝒬 -- for example, [0/6,0/6] in the 2-dose 3+3 trial.
-% From this we obtain in like manner a lower-Galois E⊣G, with
-%
-%                E(q) ≤ k  iff  q ≼ Gₖ.
-%
-% Operationally, the implementation keeps discarding the earlier
-% (and so higher-up) elements of the cascade Gs so long as they
-% are above Q (i.e., Q ≼ Gᵢ), until Q is above the remainder.
-% Consequently, the last Gₖ peeled off will be the highest level
-% in the cascade that exceeds Q.  Because we've used zero-based
-% indexing here, however, the remainder of the list will be of
-% length k -- precisely the index we seek.
-cascade_tally_ladjoint([], _, 0).
-cascade_tally_ladjoint([G|Gs], Q, X) :-
-    if_(Q '≼' G, cascade_tally_ladjoint(Gs, Q, X),
-       length([G|Gs], X)).
-
-
-d_meetscascade(D, Ls) :-
-    d_meets(D, [_|Ms]), % drop trivial bottom meet qua 𝟘
-    reverse(Ms, Ls).
-
-%?- d_meetscascade(3, Ls).
-%@    Ls = [[1/6,1/6,1/3],[1/6,1/3,3/6],[1/6,4/6,3/6]].
-
-ug3(Q, X) :-
-    cascade_tally_uadjoint(
-        [[1/6,1/6,1/3],[1/6,1/3,3/6],[1/6,4/6,3/6]],
-        Q, X).
-
-%?- ug3([0/0,0/0,0/0], StartD).
-%@    StartD = 2.
-
-d_joinscascade(D, Gs) :-
-    d_joins(D, Js),
-    reverse(Js, [_|Gs]). % drop trivial top join qua 𝟙
-
-%?- d_joinscascade(3, Gs).
-%@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]]. % same
-%@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]].
-
-lg3(Q, X) :-
-    cascade_tally_ladjoint(
-        [[0/3,0/6,0/0],[0/6,1/3,0/0],[2/6,0/0,0/0]],
-        Q, X).
-
-%?- lg3([0/0,0/0,0/0], StartD).
-%@    StartD = 2.
-
-% Interestingly, in neither case do we obtain the 'clean start'
-% from an initial〈0/0〉dose.  On the one hand, perhaps I ask
-% for too much, that miraculously the rest of the 3+3 protocol
-% just so happens to be consistent with the very special case
-% of initial dosing.  OTOH, maybe this type of self-consistency
-% will turn out to be a desirable property of dose-escalation
-% protocols generally.  But either way, such investigations lie
-% farther down the road; the more pressing question is whether
-% I can achieve reasonably close approximations to 3+3 protocol
-% in the form of (upper/lower) Galois enrollments.
-
-% Since if anything we ought to be interested in protocols
-% that are SAFER than 3+3, let us focus on the behavior of
-% the lower-Galois enrollment lg/2, which (except at <0/0>)
-% yields dose recommendations matching or below 3+3's.
-
-lg3_approx_perprotocol(E, QXs) :-
-    D = 3,
-    E in 0..D, indomain(E),
-    setof(Q-X,
-          (   d_tally_dose(D, Q, X),
-              lg3(Q, E),
-              X \== E
-          ), QXs).
-
-%?- lg3_approx_perprotocol(3, QXs).
-%@    false. % lg3 assigns dose 3 at least as cautiously as 3+3
-%?- lg3_approx_perprotocol(2, QXs).
-%@    QXs = [[0/0,0/0,0/0]-1,
-%            [0/3,0/3,0/0]-3,
-%            [0/3,0/3,1/3]-3, (a)
-%            [0/3,1/6,0/0]-3,
-%            [0/3,1/6,0/3]-3,
-%            [0/3,1/6,1/3]-3, (b)
-%            [1/6,0/3,0/3]-3,
-%            [1/6,1/6,0/3]-3].
-% What do we learn here?
-% Apart from the 'messy' start-up (to be dealt with separately),
-% we find at least one case (a) where lg3 backs away from quite
-% incautious behavior by 3+3.  The same might be said of (b) as
-% well, except that it implicates also 3+3's maximum dose-wise
-% enrollment constraint in addition to its dose-assignment rule
-% (inasmuch as one can even discuss these elements separately).
-%
-% Let's ask what would happen if we followed lg3's rules:
-%?- lg3([0/3,1/6,1/3], E).
-%@    E = 2.
-%?- lg3([0/3,1/7,1/3], E).
-%@    E = 2.
-%?- lg3([0/3,1/8,1/3], E).
-%@    E = 2.
-%?- lg3([0/3,1/9,1/3], E).
-%@    E = 2.
-%?- lg3([0/3,1/10,1/3], E).
-%@    E = 3. % INTERESTING!
-% Wow!!  I didn't expect this at all!
-% My intuition was that we would remain stuck forever at E=2.
-% But now I'll hazard the guess that our 1:2 generator arrow
-% (ie, r:=2) now yields enough linkage between adjacent doses
-% to enable ultimately an escalation out of E=2.
-% This is a really important discovery, since it opens up the
-% possibility of abstracting dose-escalation rules from trial
-% size limits, allowing analysis of ASYMPTOTIC PROPERTIES.
-% This, in turn, suggests that dose-escalation protocols of
-% this general form (ie, Galois, or at least _lower_-Galois)
-% hold enough promise to be worth exploring _systematically_,
-% searching with high degrees of freedom, far beyond simple
-% heuristics such as d_meetscascade/2 and d_joinscascade/2.
-% Accordingly, I'll need to resume work on the visualization,
-% and bring that to a usable state!
 
 /*
 ?- E = 2, setof(Q-X, (d_tally_dose(3, Q, X), lg(Q, E), X \== E), QXs),
