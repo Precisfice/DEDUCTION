@@ -135,11 +135,52 @@ in a single pass.
 % efficiencies possible here, and that a 'monolithic'
 % recursion may better solve the problem.
 
+% TODO:
+% Clarify the status of d_gs/2 and d_ls/2 vis-à-vis
+% cascade:d_joins/2 and cascade:d_meets/2.  I believe
+% the former are just the special cases where _final_
+% tallies only are considered.
+
+% Aiming to exhibit d_gs/2 as a special case of d_joins/2,
+% we generalize cascade:d_joins/2 and cascade:d_rx_join/3
+% by injecting a _final_ boolean to the argument lists.
+d_joins_final(D, Js, Final) :-
+    findall(X, (X in 0..D, indomain(X)), Xs),
+    maplist(d_final_rx_join(D,Final), Xs, Js).
+
+d_final_rx_join(D, Final, X, Jx) :-
+    joinof(Q, d_tally_nextdose_final(D, Q, X, Final), Jx).
+
+d_gs_final(D, Gs, Final) :-
+    d_joins_final(D, Gs, Final). % TODO: Trim the resulting list?
+
+%?- d_gs_final(3, Gs, true).
+%@    Gs = [[2/6,0/0,0/0],[0/6,2/6,0/0],[0/3,0/6,2/6],[0/3,0/3,0/6]].
+%?- d_gs(3, Gs).
+%@    Gs = [[2/6,0/0,0/0],[0/6,2/6,0/0],[0/3,0/6,2/6],[0/3,0/3,0/6]].
+/*
+?- D in 2..6, indomain(D),
+   format("D = ~d", [D]),
+   time((d_joins_final(D, Gs, true),
+         d_gs(D, Gs0),
+         Gs \== Gs0
+        )).
+%@ D = 2   % CPU time: 2.831s, 13_035_697 inferences
+%@ D = 3   % CPU time: 13.776s, 65_528_000 inferences
+%@ D = 4   % CPU time: 51.344s, 245_252_251 inferences
+%@ D = 5   % CPU time: 165.334s, 789_070_050 inferences
+%@ D = 6   % CPU time: 483.069s, 2_314_696_548 inferences
+%@    false.
+*/
+
 d_gs(D, Gs) :-
     d_Qfstratamax(D, Mss),
     maplist(\Ms^J^(reduce(join, Ms, J)), Mss, Gs).
+    %%maplist(\Ms^J^(reduce(join, Ms, J)), Mss, Gs).
 
 %?- time(d_gs(2, OMGs)).
+%@    % CPU time: 0.726s, 3_374_590 inferences
+%@    OMGs = [[2/6,0/0],[0/6,2/6],[0/3,0/6]].
 %@    % CPU time: 0.897s, 4_510_253 inferences
 %@    OMGs = [[2/6,0/0],[0/6,2/6],[0/3,0/6]].
 
@@ -479,17 +520,6 @@ d_Qfstratamin(D, Mss) :-
 %?- D = 3, time(d_Qfstratamin(D, Mss)).
 %@    % CPU time: 0.292s, 1_456_793 inferences
 %@    D = 3, Mss = [[[1/6,1/6,1/6]],[[1/6,1/6,4/6]],[[1/6,4/6,0/0],[1/6,3/6,4/6]],[[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]]].
-
-%?- d_ls(3, Ls).
-%@ Listing Qs......    % CPU time: 1.564s, 6_773_188 inferences
-%@ Stratifying Qf..    % CPU time: 2.981s, 13_964_951 inferences
-%@ Finding l's ..
-%@ ↑[1/6,1/6,1/6] ⊇ [[1/6,1/6,1/6]].
-%@ ↑[1/6,1/6,4/6] ⊇ [[1/6,1/6,4/6]].
-%@ ↑[1/6,4/6,3/6] ⊇ [[1/6,4/6,0/0],[1/6,3/6,4/6]].
-%@ ↑[4/6,3/6,3/6] ⊇ [[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]].
-%@    % CPU time: 25.780s, 132_984_158 inferences
-%@    Ls = [[1/6,1/6,1/6],[1/6,1/6,4/6],[1/6,4/6,3/6],[4/6,3/6,3/6]].
 
 /*
 TODO:
