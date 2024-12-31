@@ -173,10 +173,40 @@ d_gs_final(D, Gs, Final) :-
 %@    false.
 */
 
+% TODO:
+% Now what of _performance_?  Does the sorting employed
+% in d_gs/2 confer some advantage which I might profitably
+% carry over into cascade:d_joins/2?
+/*
+?- D in 2..6, indomain(D),
+   format("D = ~d~n", [D]),
+   time(d_joins_final(D, Gs, true)),
+   time(d_gs(D, Gs0)),
+   Gs \== Gs0.
+%@ D = 2
+%@    % CPU time: 2.075s, 9_661_083 inferences
+%@    % CPU time: 0.723s, 3_374_613 inferences
+%@ D = 3
+%@    % CPU time: 10.887s, 51_753_544 inferences
+%@    % CPU time: 2.899s, 13_774_455 inferences
+%@ D = 4
+%@    % CPU time: 41.889s, 201_520_978 inferences
+%@    % CPU time: 9.080s, 43_731_272 inferences
+%@ D = 5
+%@    % CPU time: 140.322s, 666_188_495 inferences
+%@    % CPU time: 25.757s, 122_881_554 inferences
+%@ D = 6
+%@    % CPU time: 416.286s, 1_993_223_450 inferences
+%@    % CPU time: 70.679s, 321_473_097 inferences
+%@    false.
+*/
+% These timing differences are meaningful, and the
+% ratios (2.9, 3.75, 4.6, 5.45, 5.9) grow roughly
+% linearly with D.
+
 d_gs(D, Gs) :-
     d_Qfstratamax(D, Mss),
     maplist(\Ms^J^(reduce(join, Ms, J)), Mss, Gs).
-    %%maplist(\Ms^J^(reduce(join, Ms, J)), Mss, Gs).
 
 %?- time(d_gs(2, OMGs)).
 %@    % CPU time: 0.726s, 3_374_590 inferences
