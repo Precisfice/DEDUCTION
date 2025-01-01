@@ -145,8 +145,8 @@ in a single pass.
 % we generalize cascade:d_joins/2 and cascade:d_rx_join/3
 % by injecting a _final_ boolean to the argument lists.
 d_joins_final(D, Js, Final) :-
-    findall(X, (X in 0..D, indomain(X)), Xs),
-    maplist(d_final_rx_join(D,Final), Xs, Js).
+    binsof(X-Q, d_tally_nextdose_final(D, Q, X, Final), Bins),
+    maplist(join, Bins, Js).
 
 d_final_rx_join(D, Final, X, Jx) :-
     joinof(Q, d_tally_nextdose_final(D, Q, X, Final), Jx).
@@ -177,6 +177,29 @@ d_gs_final(D, Gs, Final) :-
 % Now what of _performance_?  Does the sorting employed
 % in d_gs/2 confer some advantage which I might profitably
 % carry over into cascade:d_joins/2?
+/* After reimplementing d_joins_final/3 using binsof/3 ..
+?- D in 2..6, indomain(D),
+   format("D = ~d~n", [D]),
+   time(d_joins_final(D, Gs, true)),
+   time(d_gs(D, Gs0)),
+   Gs \== Gs0.
+%@ D = 2
+%@    % CPU time: 0.742s, 3_493_704 inferences
+%@    % CPU time: 0.725s, 3_374_613 inferences
+%@ D = 3
+%@    % CPU time: 2.992s, 14_576_522 inferences
+%@    % CPU time: 2.900s, 13_774_455 inferences
+%@ D = 4
+%@    % CPU time: 9.469s, 47_127_431 inferences
+%@    % CPU time: 9.105s, 43_731_272 inferences
+%@ D = 5
+%@    % CPU time: 26.665s, 134_570_805 inferences
+%@    % CPU time: 25.390s, 122_881_554 inferences
+%@ D = 6
+%@    % CPU time: 70.519s, 357_231_875 inferences
+%@    % CPU time: 66.678s, 321_473_097 inferences
+%@    false.
+*/
 /*
 ?- D in 2..6, indomain(D),
    format("D = ~d~n", [D]),

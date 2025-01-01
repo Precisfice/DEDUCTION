@@ -13,6 +13,8 @@
               %% op(900, xfx, '⊁'),
               join/3,
               meet/3,
+              join/2, % TODO
+              meet/2, % TODO
               joinof/3,
               meetof/3,
               qs_int/2,
@@ -235,6 +237,8 @@ meet(Q1s, Q2s, Qs) :-
     meet_(Q1s, Q2s, Qs),
     maplist(\Q^(Q=T/N, #T #=< #N), Qs).
 
+meet(Qss, M) :- reduce(meet, Qss, M).
+
 join(Q1s, Q2s, Ys, Hs) :-
     same_length(Q1s, Q2s),
     coefs(Q1s, Y1s, H1s),
@@ -247,6 +251,8 @@ join(Q1s, Q2s, Ys, Hs) :-
 join(Q1s, Q2s, Qs) :-
     join(Q1s, Q2s, Ys, Hs),
     coefs(Qs, Ys, Hs).
+
+join(Qss, J) :- reduce(join, Qss, J).
 
 :- meta_predicate(joinof(?, 0, ?)).
 :- meta_predicate(meetof(?, 0, ?)).

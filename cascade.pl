@@ -2,9 +2,7 @@
 % Galois enrollments defined by tally cascades
 
 :- module(cascade, [
-              d_rx_meet/3
-              ,d_rx_join/3
-              ,d_meets/2
+              d_meets/2
               ,d_joins/2
               ,d_meetscascade/2
               ,d_joinscascade/2
@@ -20,6 +18,7 @@
 
 :- use_module(enst).
 :- use_module(run33).
+:- use_module(comprehension).
 
 clpz:monotonic.
 
@@ -87,8 +86,8 @@ d_meetscascade(D, Ls) :-
     reverse(Ms, Ls).
 
 d_meets(D, Ms) :-
-    findall(X, (X in 0..D, indomain(X)), Xs),
-    maplist(d_rx_meet(D), Xs, Ms).
+    binsof(X-Q, d_tally_dose(D, Q, X), Bins),
+    maplist(meet, Bins, Ms).
 
 %?- D in 2..6, indomain(D), time(d_meets(D, Ms)).
 %@    % CPU time: 2.618s, 13_400_664 inferences
@@ -102,13 +101,8 @@ d_meets(D, Ms) :-
 %@ ;  % CPU time: 516.133s, 2_799_989_072 inferences
 %@    D = 6, Ms = [[4/6,3/6,3/6,3/6,3/6,3/6],[1/6,4/6,3/6,3/6,3/6,3/6],[1/6,1/6,4/6,3/6,3/6,3/6],[1/6,1/6,1/6,4/6,3/6,3/6],[1/6,1/6,1/6,1/6,4/6,3/6],[1/6,1/6,1/6,1/6,1/6,4/6],[1/6,1/6,1/6,1/6,1/6,1/3]].
 
-d_rx_meet(D, X, Mx) :-
-    meetof(Q, d_tally_dose(D, Q, X), Mx).
-
-%?- d_rx_meet(2, 2, M2).
-%@    M2 = [1/6,1/3].
-
 %?- d_meetscascade(3, Ls).
+%@    Ls = [[1/6,1/6,1/3],[1/6,1/6,4/6],[1/6,4/6,3/6]].
 %@    Ls = [[1/6,1/6,1/3],[1/6,1/6,4/6],[1/6,4/6,3/6]].
 
 ug3(Q, X) :-
@@ -124,16 +118,11 @@ d_joinscascade(D, Gs) :-
     reverse(Js, [_|Gs]). % drop trivial top join qua 𝟙
 
 d_joins(D, Js) :-
-    findall(X, (X in 0..D, indomain(X)), Xs),
-    maplist(d_rx_join(D), Xs, Js).
-
-d_rx_join(D, X, Jx) :-
-    joinof(Q, d_tally_dose(D, Q, X), Jx).
-
-%?- d_rx_join(2, 2, J2).
-%@    J2 = [0/3,0/6].
+    binsof(X-Q, d_tally_dose(D, Q, X), Bins),
+    maplist(join, Bins, Js).
 
 %?- d_joinscascade(3, Gs).
+%@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]].
 %@    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]].
 
 lg3(Q, X) :-
