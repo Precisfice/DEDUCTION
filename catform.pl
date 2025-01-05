@@ -492,9 +492,95 @@ d_Qfstratamin(D, Mss) :-
    % CPU time: 3.012s, 14_466_474 inferences
    D = 3, Mss = [[[1/6,1/6,1/6]],[[1/6,1/6,4/6]],[[1/6,4/6,0/0],[1/6,3/6,4/6]],[[4/6,0/0,0/0],[3/6,4/6,0/0],[3/6,3/6,4/6]]].
 
+% TODO:
+
+% 1. Simulate and summarize rolling-enrollment trials.
+% (a) generate tally sequences with a DCG
+
+% TODO: Does meta_predicate apply to DCGs?
+% :- meta_predicate(galois(?, 0, ?)).
+
+%% galois//3
+%
+% Describes realizations of a dose-escalation trial
+% with protocol determined by 3 parameters:
+%
+% - Rec_2(+Q, -X) :- X is recommended enrolling dose from tally Q
+% - Enr_2(+Q0, +X, -Q) :- Tally Q0 allows enrollment of 1 participant at dose X,
+%                         and this yields [post-assessment] tally Q.
+% - Q0, an initial tally typically initialized via d_init(D, Q0) for some D > 0.
+%
+% The trial realization consist of a sequence of pairs X-Q,
+% with X being an enrolling dose and Q the resulting tally.
+galois(Rec_2, Enr_2, Q0) --> { call(Rec_2, Q0, X),
+                               call(Enr_2, Q0, X, Q) },
+                             [X-Q],
+                             galois(Rec_2, Enr_2, Q).
+galois(_, _, _) --> [].
+
+
+%% genl33(+D, +MaxN, -Path) is multi
+%
+% Describes paths of a lower-Galois rectification of the D-dose 3+3 protocol.
+genl33(D, MaxN, Path) :-
+    d_joinscascade(D, Gs),
+    Rec_2 = cascade_tally_ladjoint(Gs),
+    Enr_2 = max_enroll(MaxN),
+    d_init(D, Init),
+    phrase(galois(Rec_2, Enr_2, Init), Path).
+
+?- genl33(2, 12, Path).
+   Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,0/4],2-[0/7,0/5]]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,0/4],2-[0/7,1/5]]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,0/4]]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,1/4],2-[0/7,1/5]]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,1/4],2-[0/7,2/5]]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,1/4]]
+;  ... .
+
+%% max_enroll(+MaxN, +Q0, +X, -Q) is multi
+%
+% For use as a partial goal max_enroll(MaxN)/3 in arg 2 of galois//3.
+% Importantly, the nondeterminism here embodies the unknown resolution
+% of toxicity assessment at the time of enrollment.
+max_enroll(MaxN, Qs0, X, Qs) :-
+    tally_netn(Qs0, N0),
+    #N0 #< #MaxN,
+    T in 0..1,
+    nth1(X, Qs0, Tx0/Nx0),
+    #Tx #= #Tx0 + T,
+    #Nx #= #Nx0 + 1,
+    nth1(X, Qs0, _, Qs0_),    %TBD: Excessive effort, merely to
+    nth1(X, Qs, Tx/Nx, Qs0_), %     replace 1 element of a list?
+    indomain(T). %TBD: Could I defer labeling of T?
+
+?- max_enroll(12, [1/6,2/3], 1, Qs).
+   Qs = [1/7,2/3]
+;  Qs = [2/7,2/3].
+
+tally_netn(Qs, ΣN) :- % net enrollment
+    qs_ts_ns(Qs, _, Ns),
+    sum(Ns, #=, #ΣN).
+
+qs_ts_ns([T/N|Qs], [T|Ts], [N|Ns]) :- qs_ts_ns(Qs, Ts, Ns).
+qs_ts_ns([], [], []).
+
+?- qs_ts_ns([1/6,2/3], Ts, Ns).
+   Ts = [1,2], Ns = [6,3].
+
+?- tally_netn([1/6,2/3], N).
+   N = 9.
+
 /*
-TODO:
-
-1. Simulate and visualize rolling-enrollment trials.
-
+?- d_gs(2,Gs), d_init(Init),
+   phrase(lgalois(cascade_tally_ladjoint(Gs), Enroller(Emax), Init), Path).
 */
+
+% (b) define a probability function on *instances* of final tallies
+% (c) show probabilities add to 1
+
+% 2. Introduce delayed toxicity assessment
+% (a) define an arrivals process (qua DCG?)
+% (b) define a DCG that receives arrivals process as _input_
+% (c) develop a clear viz incorporating pending assessments
+
