@@ -580,7 +580,7 @@ genu33(D, MaxN, Path) :-
 
 %% max_enroll(+MaxN, +Q0, +X, -Q) is multi
 %
-% For use as a partial goal max_enroll(MaxN)/3 in arg 2 of galois//3.
+% For use as a grammar goal in galois//3.
 % Importantly, the nondeterminism here embodies the unknown resolution
 % of toxicity assessment at the time of enrollment.
 max_enroll(MaxN, Qs0, X, Qs) :-
