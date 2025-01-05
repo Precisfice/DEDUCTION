@@ -506,17 +506,17 @@ d_Qfstratamin(D, Mss) :-
 % with protocol determined by 3 parameters:
 %
 % - Rec_2(+Q, -X) :- X is recommended enrolling dose from tally Q
-% - Enr_2(+Q0, +X, -Q) :- Tally Q0 allows enrollment of 1 participant at dose X,
+% - Enr_3(+Q0, +X, -Q) :- Tally Q0 allows enrollment of 1 participant at dose X,
 %                         and this yields [post-assessment] tally Q.
 % - Q0, an initial tally typically initialized via d_init(D, Q0) for some D > 0.
 %
 % The trial realization consist of a sequence of pairs X-Q,
 % with X being an enrolling dose and Q the resulting tally.
-galois(Rec_2, Enr_2, Q0) --> { call(Rec_2, Q0, X),
-                               call(Enr_2, Q0, X, Q) },
+galois(Rec_2, Enr_3, Q0) --> { call(Rec_2, Q0, X),
+                               call(Enr_3, Q0, X, Q) },
                              [X-Q],
-                             galois(Rec_2, Enr_2, Q).
-galois(_, _, _) --> [].
+                             galois(Rec_2, Enr_3, Q).
+galois(_, _, _) --> []. %TBD: Emit the final dose recommendation?
 
 
 %% genl33(+D, +MaxN, -Path) is multi
@@ -525,9 +525,9 @@ galois(_, _, _) --> [].
 genl33(D, MaxN, Path) :-
     d_joinscascade(D, Gs),
     Rec_2 = cascade_tally_ladjoint(Gs),
-    Enr_2 = max_enroll(MaxN),
+    Enr_3 = max_enroll(MaxN),
     d_init(D, Init),
-    phrase(galois(Rec_2, Enr_2, Init), Path).
+    phrase(galois(Rec_2, Enr_3, Init), Path).
 
 ?- genl33(2, 12, Path).
    Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,0/4],2-[0/7,0/5]]
@@ -537,6 +537,16 @@ genl33(D, MaxN, Path) :-
 ;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,1/4],2-[0/7,2/5]]
 ;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,1/4]]
 ;  ... .
+
+% Why didn't escalation occur sooner?
+?- d_joinscascade(2, Gs).
+   Gs = [[0/6,0/0],[2/6,0/0]].
+
+?- d_meetscascade(2, Gs).
+   Gs = [[1/6,1/3],[1/6,4/6]].
+
+% Could I have used the meets cascade instead?
+% Would that make any sense?
 
 %% max_enroll(+MaxN, +Q0, +X, -Q) is multi
 %
