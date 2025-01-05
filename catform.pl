@@ -524,10 +524,10 @@ galois(_, _, _) --> []. %TBD: Emit the final dose recommendation?
 % Describes paths of a lower-Galois rectification of the D-dose 3+3 protocol.
 genl33(D, MaxN, Path) :-
     d_joinscascade(D, Gs),
-    Rec_2 = cascade_tally_ladjoint(Gs),
-    Enr_3 = max_enroll(MaxN),
     d_init(D, Init),
-    phrase(galois(Rec_2, Enr_3, Init), Path).
+    phrase(galois(cascade_tally_ladjoint(Gs),
+                  max_enroll(MaxN),
+                  Init), Path).
 
 ?- genl33(2, 12, Path).
    Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,0/4],2-[0/7,0/5]]
