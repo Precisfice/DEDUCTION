@@ -505,18 +505,19 @@ d_Qfstratamin(D, Mss) :-
 % Describes realizations of a dose-escalation trial
 % with protocol determined by 3 parameters:
 %
-% - Rec_2(+Q, -X) :- X is recommended enrolling dose from tally Q
-% - Enr_3(+Q0, +X, -Q) :- Tally Q0 allows enrollment of 1 participant at dose X,
-%                         and this yields [post-assessment] tally Q.
+% - Rec_2(+Q, -X) :- X is recommended enrolling dose from tally Q.
+% - MaxN, the maximum allowed total enrollment.
 % - Q0, an initial tally typically initialized via d_init(D, Q0) for some D > 0.
 %
 % The trial realization consist of a sequence of pairs X-Q,
 % with X being an enrolling dose and Q the resulting tally.
-galois(Rec_2, Enr_3, Q0) --> { call(Rec_2, Q0, X),
-                               call(Enr_3, Q0, X, Q) },
+galois(Rec_2, MaxN, Q0) --> { call(Rec_2, Q0, X),
+                              max_enroll(MaxN, Q0, X, Q) },
                              [X-Q],
-                             galois(Rec_2, Enr_3, Q).
-galois(_, _, _) --> []. %TBD: Emit the final dose recommendation?
+                             galois(Rec_2, MaxN, Q).
+galois(_, MaxN, Qf) --> { tally_netn(Qf, Nf),
+                          #Nf #>= #MaxN },
+                        []. %TBD: Emit the final dose recommendation?
 
 
 %% genl33(+D, +MaxN, -Path) is multi
@@ -526,16 +527,14 @@ genl33(D, MaxN, Path) :-
     d_joinscascade(D, Gs),
     d_init(D, Init),
     phrase(galois(cascade_tally_ladjoint(Gs),
-                  max_enroll(MaxN),
+                  MaxN,
                   Init), Path).
 
 ?- genl33(2, 12, Path).
    Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,0/4],2-[0/7,0/5]]
 ;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,0/4],2-[0/7,1/5]]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,0/4]]
 ;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,1/4],2-[0/7,1/5]]
 ;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,1/4],2-[0/7,2/5]]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],1-[0/4,0/0],1-[0/5,0/0],1-[0/6,0/0],1-[0/7,0/0],2-[0/7,0/1],2-[0/7,0/2],2-[0/7,0/3],2-[0/7,1/4]]
 ;  ... .
 
 % Why didn't escalation occur sooner?
@@ -555,20 +554,29 @@ genu33(D, MaxN, Path) :-
     d_meetscascade(D, Ls),
     d_init(D, Init),
     phrase(galois(cascade_tally_uadjoint(Ls),
-                  max_enroll(MaxN),
+                  MaxN,
                   Init), Path).
 
 ?- genu33(2, 12, Path).
    Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,0/3],2-[0/3,0/4],2-[0/3,0/5],2-[0/3,0/6],2-[0/3,0/7],2-[0/3,0/8],2-[0/3,0/9]]
 ;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,0/3],2-[0/3,0/4],2-[0/3,0/5],2-[0/3,0/6],2-[0/3,0/7],2-[0/3,0/8],2-[0/3,1/9]]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,0/3],2-[0/3,0/4],2-[0/3,0/5],2-[0/3,0/6],2-[0/3,0/7],2-[0/3,0/8]]
 ;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,0/3],2-[0/3,0/4],2-[0/3,0/5],2-[0/3,0/6],2-[0/3,0/7],2-[0/3,1/8],2-[0/3,1/9]]
 ;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,0/3],2-[0/3,0/4],2-[0/3,0/5],2-[0/3,0/6],2-[0/3,0/7],2-[0/3,1/8],2-[0/3,2/9]]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,0/3],2-[0/3,0/4],2-[0/3,0/5],2-[0/3,0/6],2-[0/3,0/7],2-[0/3,1/8]]
 ;  ... .
 
 % Well, that's more like it!  But now can I
 % _explain_ why the upper-Galois works better?
+/*
+
+ Although R=2 has now introduced enough arrows into our partial order
+ to bring it into alignment with apparently inherent structure within
+ the 3+3 design, '≼' does remain quite /partial/ -- i.e. *sparse*.
+
+ An intuition then might be that this sparseness renders the condition
+ Lₖ ≼ q on k ≤ E(q) -- for *right*-adjoint E ⊢ L -- stringent enough
+ to restrain escalation, even though the Ls are computed as _meets_.
+
+*/
 
 %% max_enroll(+MaxN, +Q0, +X, -Q) is multi
 %
