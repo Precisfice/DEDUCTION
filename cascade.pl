@@ -7,7 +7,7 @@
               ,d_meetscascade/2
               ,d_joinscascade/2
               ,cascade_tally_ladjoint/3
-              %,cascade_tally_uadjoint/3 % of no practical use?
+              ,cascade_tally_uadjoint/3
           ]).
 
 :- use_module(library(lists)).
