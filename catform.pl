@@ -595,9 +595,10 @@ max_enroll_t(MaxN, Qs0, X, Qs, Truth) :-
     %TBD: Explore whether using a simple (,)/3 here
     %     (however abstraction-breaking this may be)
     %     could yield clearer code.
-    %TBD: Consider also whether checking infeasibility
-    %     first would clarify the logic.
-    if_((#N0 #< #MaxN, 0 #< #X),
+    if_((X = 0; N0 = MaxN),
+        (   Truth = false,
+            Qs = []
+        ),
         (   Truth = true,
             T in 0..1,
             nth1(X, Qs0, Tx0/Nx0),
@@ -606,9 +607,6 @@ max_enroll_t(MaxN, Qs0, X, Qs, Truth) :-
             nth1(X, Qs0, _, Qs0_),    %TBD: Excessive effort, merely to
             nth1(X, Qs, Tx/Nx, Qs0_), %     replace 1 element of a list?
             indomain(T) %TBD: Could I defer labeling of T?
-        ),
-        (   Truth = false,
-            Qs = []
         )).
 
 ?- max_enroll_t(12, [1/6,2/3], 1, Qs, Truth).
