@@ -631,6 +631,20 @@ qs_ts_ns([], [], []).
 qs_ts_us(Qs, Ts, Us) :-
     maplist(\Q^T^U^(Q = T/N, #U #= N - T), Qs, Ts, Us).
 
+%% base_exp_power(+B, +E, -P) is det
+%
+% P is B^E, for B rational and E a non-negative integer;
+% a WORKAROUND pending resolution of Scryer Issue #2753.
+base_exp_power(B, E, P) :-
+    length(Bs, E),
+    maplist(=(B), Bs),
+    foldl(\X^Y^Z^(Z is X * Y), Bs, 1, P).
+
+?- B is 1 rdiv 3, base_exp_power(B, 4, P).
+   B = 1 rdiv 3, P = 1 rdiv 81.
+?- B is 1 rdiv 3, base_exp_power(B, 0, P).
+   B = 1 rdiv 3, P = 1.
+
 %% prob1(+Pxs, +Qs, -P1) is det
 %
 % Calculates P1, the probability of any _single_ sequence of
@@ -638,15 +652,17 @@ qs_ts_us(Qs, Ts, Us) :-
 % Such a P1 may be assigned to individual _final_ tallies of
 % a trial path.
 prob1(Pxs, Qs, P1) :-
-    maplist(\Px^Po^(Po is 1.0 - Px), Pxs, Pos),
+    maplist(\Px^Po^(Po is 1 - Px), Pxs, Pos),
     % So Pxs are dosewise probabilities of toxicity, and
     % Pos are the [complementary] probs of non-toxicity.
     qs_ts_us(Qs, Ts, Us),
     append(Ts, Us, As),
     append(Pxs, Pos, Ps),
-    maplist(\P^A^PA^(PA is P^A), Ps, As, PAs),
+    maplist(base_exp_power, Ps, As, PAs),
     reduce(\X^Y^Z^(Z is X*Y), PAs, P1).
 
+?- prob1([1 rdiv 10, 3 rdiv 10], [0/3,1/3], P1).
+   P1 = 107163 rdiv 1000000.
 ?- prob1([0.1, 0.3], [0/3,1/3], P1).
    P1 = 0.10716300000000001.
 ?- P1 is 0.9^3 * 0.3^1 * 0.7^2.
@@ -662,21 +678,40 @@ prob1(Pxs, Qs, P1) :-
 ;  Qf = [0/3,1/9]
 ;  ... .
 
+%% n_probs(+N, -Probs) is det
+%
+% Probs is an ascending sequence of _rational_ probabilities
+% bounded away from 0 and 1, suitable (e.g.) for checking
+% that certain computed probabilities 'generically' sum to 1.
+n_probs(N, Probs) :-
+    length(Primes, N),
+    append(Primes, _, [2,3,5,7,11,13,17,19]),
+    reverse(Primes, DescPrimes),
+    maplist(\X^Y^(Y is 1 rdiv X), DescPrimes, Probs).
+
+?- n_probs(3, Probs).
+   Probs = [1 rdiv 5,1 rdiv 3,1 rdiv 2].
+
 checkprob(D, MaxN, Prob) :-
-    #D #= 2, %TBD: Generalize arg1 of prob1/3 below
     findall(Qf, (genu33(D, MaxN, Path), reverse(Path, [final(_),_-Qf|_])), Qfs),
     length(Qfs, NQf),
     format("% |Qfs| = ~d~n", [NQf]),
-    maplist(prob1([0.1, 0.2]), Qfs, P1s),
+    n_probs(D, Probs),
+    maplist(prob1(Probs), Qfs, P1s),
     reduce(\X^Y^Z^(Z is X+Y), P1s, Prob).
 
 ?- checkprob(2, 12, Prob).
 % |Qfs| = 306
-   Prob = 1.0000000000000009.
+   Prob = 1.
 
 ?- checkprob(2, 6, Prob).
 % |Qfs| = 23
-   Prob = 1.0000000000000002.
+   Prob = 1.
+
+?- time(checkprob(3, 12, Prob)).
+% |Qfs| = 1059
+   % CPU time: 13.830s, 69_410_060 inferences
+   Prob = 1.
 
 % 2. Introduce delayed toxicity assessment
 % (a) define an arrivals process (qua DCG?)
