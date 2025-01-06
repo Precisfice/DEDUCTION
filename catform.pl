@@ -506,27 +506,23 @@ d_Qfstratamin(D, Mss) :-
 % with protocol determined by 3 parameters:
 %
 % - Rec_2(+Q, -X) :- X is recommended enrolling dose from tally Q.
-% - MaxN, the maximum allowed total enrollment.
+% - Enr_4(+Qs0, +X, -Qs, ?Truth) reifies enrollability of Qs0
+%                                at dose X to yield Qs.
 % - Q0, an initial tally typically initialized via d_init(D, Q0) for some D > 0.
 %
 % The trial realization consist of a sequence of pairs X-Q,
 % with X being an enrolling dose and Q the resulting tally,
 % terminated by a single integer Xf representing the final
 % dose recommendation.
-galois(Rec_2, MaxN, Q0) --> { call(Rec_2, Q0, X),
-                              #X #> 0,
-                              max_enroll(MaxN, Q0, X, Q) },
-                             [X-Q],
-                             galois(Rec_2, MaxN, Q).
-galois(Rec_2, MaxN, Qf) --> { tally_netn(Qf, Nf),
-                              #Nf #>= #MaxN,
-                              call(Rec_2, Qf, Xf) },
-                            [final(Xf)].
-galois(Rec_2, MaxN, Qf) --> { tally_netn(Qf, N),
-                              #N #< #MaxN,
-                              call(Rec_2, Qf, 0) },
-                            [final(0)].
-
+galois(Rec_2, Enr_4, Q0) --> { call(Rec_2, Q0, X),
+                               if_(call(Enr_4, Q0, X, Q),
+                                   Emit = X-Q,
+                                   Emit = final(X)
+                                  )
+                             },
+                             [Emit],
+                             galois(Rec_2, Enr_4, Q).
+galois(_, _, []) --> [].
 
 %% genl33(+D, +MaxN, -Path) is multi
 %
@@ -535,7 +531,7 @@ genl33(D, MaxN, Path) :-
     d_joinscascade(D, Gs),
     d_init(D, Init),
     phrase(galois(cascade_tally_ladjoint(Gs),
-                  MaxN,
+                  max_enroll_t(MaxN),
                   Init), Path).
 
 ?- genl33(2, 12, Path).
@@ -562,7 +558,7 @@ genu33(D, MaxN, Path) :-
     d_meetscascade(D, Ls),
     d_init(D, Init),
     phrase(galois(cascade_tally_uadjoint(Ls),
-                  MaxN,
+                  max_enroll_t(MaxN),
                   Init), Path).
 
 ?- genu33(2, 12, Path).
@@ -586,25 +582,38 @@ genu33(D, MaxN, Path) :-
 
 */
 
-%% max_enroll(+MaxN, +Q0, +X, -Q) is multi
+%% max_enroll_t(+MaxN, +Q0, +X, -Q, ?Truth) is multi
 %
 % For use as a grammar goal in galois//3.
+% Tally Q results from enrolling Q0 at dose X, with _enrollability_
+% reified in Truth.  Observe that enrollability fails iff either
+% X = 0 or Qs0 is already maximally enrolled.
 % Importantly, the nondeterminism here embodies the unknown resolution
 % of toxicity assessment at the time of enrollment.
-max_enroll(MaxN, Qs0, X, Qs) :-
+max_enroll_t(MaxN, Qs0, X, Qs, Truth) :-
     tally_netn(Qs0, N0),
-    #N0 #< #MaxN,
-    T in 0..1,
-    nth1(X, Qs0, Tx0/Nx0),
-    #Tx #= #Tx0 + T,
-    #Nx #= #Nx0 + 1,
-    nth1(X, Qs0, _, Qs0_),    %TBD: Excessive effort, merely to
-    nth1(X, Qs, Tx/Nx, Qs0_), %     replace 1 element of a list?
-    indomain(T). %TBD: Could I defer labeling of T?
+    %TBD: Explore whether using a simple (,)/3 here
+    %     (however abstraction-breaking this may be)
+    %     could yield clearer code.
+    %TBD: Consider also whether checking infeasibility
+    %     first would clarify the logic.
+    if_((#N0 #< #MaxN, 0 #< #X),
+        (   Truth = true,
+            T in 0..1,
+            nth1(X, Qs0, Tx0/Nx0),
+            #Tx #= #Tx0 + T,
+            #Nx #= #Nx0 + 1,
+            nth1(X, Qs0, _, Qs0_),    %TBD: Excessive effort, merely to
+            nth1(X, Qs, Tx/Nx, Qs0_), %     replace 1 element of a list?
+            indomain(T) %TBD: Could I defer labeling of T?
+        ),
+        (   Truth = false,
+            Qs = []
+        )).
 
-?- max_enroll(12, [1/6,2/3], 1, Qs).
-   Qs = [1/7,2/3]
-;  Qs = [2/7,2/3].
+?- max_enroll_t(12, [1/6,2/3], 1, Qs, Truth).
+   Qs = [1/7,2/3], Truth = true
+;  Qs = [2/7,2/3], Truth = true.
 
 tally_netn(Qs, ΣN) :- % net enrollment
     qs_ts_ns(Qs, _, Ns),
@@ -670,23 +679,6 @@ checkprob(D, MaxN, Prob) :-
 ?- checkprob(2, 6, Prob).
 % |Qfs| = 23
    Prob = 1.0000000000000002.
-
-?- genu33(2, 6, Path).
-   Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,0/3],final(2)]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,1/3],final(2)]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,1/2],1-[0/4,1/2],final(2)]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,1/2],1-[1/4,1/2],final(1)]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,1/1],1-[0/4,1/1],1-[0/5,1/1],final(2)]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,1/1],1-[0/4,1/1],1-[1/5,1/1],final(1)]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,1/1],1-[1/4,1/1],1-[1/5,1/1],final(1)]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,1/1],1-[1/4,1/1],1-[2/5,1/1],final(0)]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[1/6,0/0],final(2)]
-;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[2/6,0/0],final(0)]
-;  Path = [1-[0/1,0/0],1-[1/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[1/6,0/0],final(2)]
-;  Path = [1-[0/1,0/0],1-[1/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[2/6,0/0],final(0)]
-;  Path = [1-[1/1,0/0],1-[1/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[1/6,0/0],final(2)]
-;  Path = [1-[1/1,0/0],1-[1/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[2/6,0/0],final(0)]
-;  false.
 
 % 2. Introduce delayed toxicity assessment
 % (a) define an arrivals process (qua DCG?)
