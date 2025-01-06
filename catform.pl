@@ -514,6 +514,7 @@ d_Qfstratamin(D, Mss) :-
 % terminated by a single integer Xf representing the final
 % dose recommendation.
 galois(Rec_2, MaxN, Q0) --> { call(Rec_2, Q0, X),
+                              #X #> 0,
                               max_enroll(MaxN, Q0, X, Q) },
                              [X-Q],
                              galois(Rec_2, MaxN, Q).
@@ -521,6 +522,10 @@ galois(Rec_2, MaxN, Qf) --> { tally_netn(Qf, Nf),
                               #Nf #>= #MaxN,
                               call(Rec_2, Qf, Xf) },
                             [final(Xf)].
+galois(Rec_2, MaxN, Qf) --> { tally_netn(Qf, N),
+                              #N #< #MaxN,
+                              call(Rec_2, Qf, 0) },
+                            [final(0)].
 
 
 %% genl33(+D, +MaxN, -Path) is multi
@@ -614,13 +619,74 @@ qs_ts_ns([], [], []).
 ?- tally_netn([1/6,2/3], N).
    N = 9.
 
-/*
-?- d_gs(2,Gs), d_init(Init),
-   phrase(lgalois(cascade_tally_ladjoint(Gs), Enroller(Emax), Init), Path).
-*/
-
 % (b) define a probability function on *instances* of final tallies
+
+qs_ts_us(Qs, Ts, Us) :-
+    maplist(\Q^T^U^(Q = T/N, #U #= N - T), Qs, Ts, Us).
+
+%% prob1(+Pxs, +Qs, -P1) is det
+%
+% Calculates P1, the probability of any _single_ sequence of
+% toxicity assessments (Ts in 0..1) consistent with tally Qs.
+% Such a P1 may be assigned to individual _final_ tallies of
+% a trial path.
+prob1(Pxs, Qs, P1) :-
+    maplist(\Px^Po^(Po is 1.0 - Px), Pxs, Pos),
+    % So Pxs are dosewise probabilities of toxicity, and
+    % Pos are the [complementary] probs of non-toxicity.
+    qs_ts_us(Qs, Ts, Us),
+    append(Ts, Us, As),
+    append(Pxs, Pos, Ps),
+    maplist(\P^A^PA^(PA is P^A), Ps, As, PAs),
+    reduce(\X^Y^Z^(Z is X*Y), PAs, P1).
+
+?- prob1([0.1, 0.3], [0/3,1/3], P1).
+   P1 = 0.10716300000000001.
+?- P1 is 0.9^3 * 0.3^1 * 0.7^2.
+   P1 = 0.10716300000000001.
+    
 % (c) show probabilities add to 1
+
+?- Qf+\(genu33(2, 12, Path), reverse(Path, [_,_-Qf|_])).
+   Qf = [0/3,0/9]
+;  Qf = [0/3,1/9]
+;  Qf = [0/3,1/9]
+;  Qf = [0/3,2/9]
+;  Qf = [0/3,1/9]
+;  ... .
+
+checkprob(D, MaxN, Prob) :-
+    #D #= 2, %TBD: Generalize arg1 of prob1/3 below
+    findall(Qf, (genu33(D, MaxN, Path), reverse(Path, [final(_),_-Qf|_])), Qfs),
+    length(Qfs, NQf),
+    format("% |Qfs| = ~d~n", [NQf]),
+    maplist(prob1([0.1, 0.2]), Qfs, P1s),
+    reduce(\X^Y^Z^(Z is X+Y), P1s, Prob).
+
+?- checkprob(2, 12, Prob).
+% |Qfs| = 306
+   Prob = 1.0000000000000009.
+
+?- checkprob(2, 6, Prob).
+% |Qfs| = 23
+   Prob = 1.0000000000000002.
+
+?- genu33(2, 6, Path).
+   Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,0/3],final(2)]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,0/2],2-[0/3,1/3],final(2)]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,1/2],1-[0/4,1/2],final(2)]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,0/1],2-[0/3,1/2],1-[1/4,1/2],final(1)]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,1/1],1-[0/4,1/1],1-[0/5,1/1],final(2)]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,1/1],1-[0/4,1/1],1-[1/5,1/1],final(1)]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,1/1],1-[1/4,1/1],1-[1/5,1/1],final(1)]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[0/3,0/0],2-[0/3,1/1],1-[1/4,1/1],1-[2/5,1/1],final(0)]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[1/6,0/0],final(2)]
+;  Path = [1-[0/1,0/0],1-[0/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[2/6,0/0],final(0)]
+;  Path = [1-[0/1,0/0],1-[1/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[1/6,0/0],final(2)]
+;  Path = [1-[0/1,0/0],1-[1/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[2/6,0/0],final(0)]
+;  Path = [1-[1/1,0/0],1-[1/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[1/6,0/0],final(2)]
+;  Path = [1-[1/1,0/0],1-[1/2,0/0],1-[1/3,0/0],1-[1/4,0/0],1-[1/5,0/0],1-[2/6,0/0],final(0)]
+;  false.
 
 % 2. Introduce delayed toxicity assessment
 % (a) define an arrivals process (qua DCG?)
