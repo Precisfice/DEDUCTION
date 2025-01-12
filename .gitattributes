@@ -4,5 +4,5 @@
 # highlighting.
 
 # Let's simply call HTML and TeX 'vendored' to exclude them:
-*.html linguist-vendored=true
-*.tex linguist-vendored=true
+*.html linguist-vendored
+*.tex linguist-documentation
