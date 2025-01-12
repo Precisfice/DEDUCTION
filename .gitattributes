@@ -5,4 +5,4 @@
 
 # Let's simply call HTML and TeX 'vendored' to exclude them:
 *.html linguist-vendored
-*.tex linguist-documentation
+catform.tex linguist-documentation
