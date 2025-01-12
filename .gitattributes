@@ -3,11 +3,6 @@
 # UI does correctly recognize *.pl as Prolog code, such as for syntax
 # highlighting.
 
-# Here's a copy of Scryer's .gitattributes:
-*.png binary
-*.pl text eol=lf
-*.rs text eol=lf diff=rust
-*.md text eol=lf diff=markdown
-
-# What if I say HTML is vendored, to force a recalc?
+# Let's simply call HTML and TeX 'vendored' to exclude them:
 *.html linguist-vendored=true
+*.tex  linguist-vendored=true
