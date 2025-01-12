@@ -3,8 +3,11 @@
 # UI does correctly recognize *.pl as Prolog code, such as for syntax
 # highlighting.
 
+# Here's a copy of Scryer's .gitattributes:
 *.png binary
 *.pl text eol=lf
 *.rs text eol=lf diff=rust
 *.md text eol=lf diff=markdown
 
+# What if I say HTML is vendored, to force a recalc?
+*.html linguist-vendored=true
