@@ -1,0 +1,6 @@
+# Attempted hints to improve GitHub language percentages bar-chart.
+# Weirdly, although the bar-chart omits Prolog, elsewhere the GitHub
+# UI does correctly recognize *.pl as Prolog code, such as for syntax
+# highlighting.
+
+*.pl linguist-language=Prolog
