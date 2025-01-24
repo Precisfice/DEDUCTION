@@ -154,20 +154,13 @@ dltprobs(Mu_, Sigma_, Probs) :-
 % of the T adjustment being implicit.  Note also that with arrivals
 % occuring in ℝeal time, all arrival times are distinct.
 
-% Perhaps this FIFO queue is my opportunity to use list-differences?
-% Yes, indeed -- see §15.4 of Sterling & Shapiro!
+% Furthermore, since we can quickly keysort/2 this pending-assessments
+% list by _time_, there is no need to pursue the efficiencies of a
+% list-differences formulation.
 
-% Let's proceed in as declarative a spirit as possible, seeking a
-% _meaning_ (ontology?) for our list difference.  I would like to say
-% that pending assessments in list-difference form As-Bs *means* that
-% As is the sorted list of current _and future_ pending assessments
-% for participants destined to record an 'o', while Bs is the future
-% tail of this list.  (Thus, As is partially uninstantiated, and Bs
-% would be totally uninstantiated, I think.)
-
-% By recognizing that the _state_ of the trial consists of a pair of
-% 'pessimistic' current tally with pending assessents, we can reduce
-% the arity of these predicates.
+% By recognizing that the _state_ of the trial consists of a pair Q-P
+% of 'pessimistic' current tally Q with pending assessents P, we can
+% reduce the arity of these predicates.
 
 %% rec_state0_arrival_state(+Rec_2, +S0, +(Z-MTD), -S)
 %
@@ -175,17 +168,49 @@ dltprobs(Mu_, Sigma_, Probs) :-
 % S is the new trial state which results from enrolling at time Z a
 % new participant who has the given MTD ∈ ℝ⁺:
 %
-% TODO: Must I include an Enr_4 argument as well?
+% TODO: Should I include an Enr_4 argument as well?
 %
 % - Rec_2(+Q, -X) :- X is recommended enrolling dose from tally Q.
 % - Enr_4(+Qs0, +X, -Qs, ?Truth) reifies enrollability of Qs0
 %                                at dose X to yield Qs.
 %
-/*
 rec_state0_arrival_state(Rec_2, S0, Z-MTD, S) :-
-    state0_now_state(S0, Z, S),
+    state0_now_state(S0, Z, S1),
+    % We now have a 'transient' state S1 = Q1-P1, including an
+    % up-to-date tally Q1 which we may use to determine the dose at
+    % which to enroll the arriving participant.
+    Rec_2(Q1, X),
+    % Given this recommended enrolling dose X, we consider 3 cases:
+    %
+    % 1. X = 0 means the trial is not currently enrolling.  But this
+    % in turn could be true for several distinct reasons.  If there
+    % are no pending assessments, then the trial has stopped!  But in
+    % case there _are_ pending assessments, it is possible that the
+    % enrollment will resume.  The challenge of looking ahead to such
+    % a possibility might be something Prolog handles very nicely.
+    % Also, the spirit of Losing No Solutions helps to ensure we fully
+    % consider every such possibility.  But have I preserved enough
+    % information about the pending assessments, to enable all proper
+    % considerations to be made, upon enrollment?  Thus far, I have
+    % treated the list P in S=Q-P as a mere *accounting* device that
+    % embodies simulated foreknowledge of assessment outcomes.  But
+    % this does not reflect full information available on enrollment.
     todo.
-*/
+
+%% state0_now_state(+S0, +Z, -S)
+%
+% Given a state S0 = Q0-P0, consisting of pessimistic tally Q0 paired
+% with pending non-tox assessments P0, renders a new state S = Q-P
+% that is _current_ as of time Z, adapted to the new information from
+% those P0 assessments which have resolved by time Z.
+state0_now_state(Q0-P0, Z, Q-P):-
+    pending_now_resolved_pending(P0, Z, As, P),
+    tally0_resolved_tally(Q0, As, Q).
+
+tally0_pending0_arrival_tally_pending(Q0, P0, Z-MTD, Q, P) :-
+    tally0_pending0_time_tally(Q0, P0, Z, Q),
+    todo.
+    
 
 %% pending0_now_resolved_pending(+P0, +Z, -R, -P)
 %
@@ -217,52 +242,55 @@ pending0_now_resolved_pending([Z0-X0|ZX0s], Z, [X0|X0s], ZXs) :-
 %
 % Qs is the tally which results from the non-tox resolution of pending
 % assessments at doses in list Xs.
-/*
-tally0_resolved_tally(Qs, [], Qs).
-tally0_resolved_tally(Q0s, [X|Xs], Qs) :-
-    nth1(X, Q0s, T0/N),
-    #T #= #T0 - 1,
-    tally0_resolved_tally(Q1s, Xs, Qs),
-    todo.
-*/
+tally0_resolved_tally(Q0s, Xs, Qs) :-
+    same_length(Q0s, ΔTs),
+    posints_bins(Xs, ΔTs),
+    qs_ts_ns(Q0s, T0s, Ns),
+    maplist(\T0^ΔT^T^(#T0 - #ΔT #= #T), T0s, ΔTs, Ts),
+    qs_ts_ns(Qs, Ts, Ns).
+
+?- tally0_resolved_tally([1/5,2/3,0/0], [2,1], Qs).
+   Qs = [0/5,1/3,0/0]
+;  false.
+
+%% posints_bins(+Ns, -Bins)
+%
+% Ns is a list of positive integers, and Bins is a 1-indexed list
+% such that nth1(N, Bins, F) iff N appears exactly F times in Ns.
+% That is, Bins lists the _frequency_ in Ns for each number 1..L,
+% where length(Bins, L).
+%
+% Generally, this predicate will be invoked with the length of Bins
+% fixed, but its elements uninstantiated.
+posints_bins(Ns, Bins) :-
+    length(Bins, L),
+    findall(B, (B in 1..L, indomain(B)), Bs),
+    append(Ns, Bs, N1s),  % each B ∈ 1..L occurs at least once in N1s
+    samsort(N1s, SN1s),
+    list_rle(SN1s, NC1s), % NC1s now overcounts each bin by +1
+    pairs_values(NC1s, Bins1),
+    maplist(\F1^F^(#F1 #= #F + 1), Bins1, Bins).
+
+?- length(Bins, 7), posints_bins([5,2,7,5,3,5,7,5,6,7], Bins).
+   Bins = [0,1,1,0,4,1,3]
+;  false.
 
 ?- nth1(2, [a,b,c,d,e], C, R).
    C = b, R = "acde".
 
-% By implementing natlist_freqs/2 below, we will set ourselves up to
-% apply resolved assessments efficiently to an outdated tally.
-
-%% natlist_freqs(+Ns, -Freqs)
+%% samsort(+Ls0, Ls)
 %
-% Ns is a list of non-negative integers, and Freqs is an integer list
-% of length M = max(Ns), such that nth0(N, Freqs, C) iff the number N
-% appears C times in Ns.
-%
-natlist_freqs(Ns, Freqs) :-
-    foldl(clpz:max_, Ns, 0, Max),
-    findall(X, (X in 0..Max, indomain(X)), Xs),
-    append(Ns, Xs, N1s),  % each of 0..Max appears at least once
-    multisort(N1s, SN1s),
-    list_rle(SN1s, NC1s),  % RLE now overcounts each of 0..Max by 1
-    pairs_values(NC1s, Freqs1),
-    maplist(\F1^F^(#F1 #= #F + 1), Freqs1, Freqs).
+% See https://github.com/mthom/scryer-prolog/issues/1163#issuecomment-1006135163
+% HT @triska
+samsort(Ls0, Ls) :-
+        same_length(Ls0, Pairs0), % https://github.com/mthom/scryer-prolog/issues/192
+        pairs_keys(Pairs0, Ls0),
+        keysort(Pairs0, Pairs),
+        pairs_keys(Pairs, Ls).
 
-?- natlist_freqs([0,1,1,2,4,4,4,6], Freqs).
-   Freqs = [1,2,1,0,3,0,1]
-;  false.
-
-%% multisort(+Xs, -SXs)
-%
-% SXs is Xs sorted _without_ removing duplicates as sort/2 does.
-multisort(Xs, SXs) :-
-    length(Xs, N),
-    findall(Y, (Y in 1..N, indomain(Y)), Ys),
-    pairs_keys_values(XYs, Xs, Ys),
-    sort(XYs, SXYs),
-    pairs_keys_values(SXYs, SXs, _).
-
-?- multisort([4,2,4,2,3,5], SXs).
+?- samsort([4,2,4,2,3,5], SXs).
    SXs = [2,2,3,4,4,5].
+
 
 %% list_rle(?Xs, ?XNs)
 %
@@ -300,17 +328,3 @@ rle([]) --> [].
 qs_ts_ns([T/N|Qs], [T|Ts], [N|Ns]) :- qs_ts_ns(Qs, Ts, Ns).
 qs_ts_ns([], [], []).
 
-/*
-%% state0_now_state(+S0, +Z, -S)
-%
-% Renders a state S0 = Q0-P0, consisting of pessimistic tally Q0
-% paired with pending assessments P0, _current_ as of time Z.
-state0_now_state(Q-[], _, Q-[]).
-state0_now_state(Q0-[Z-X|_P0], Q-):-
-    P0 = [].
-
-tally0_pending0_arrival_tally_pending(Q0, P0, Z-MTD, Q, P) :-
-    tally0_pending0_time_tally(Q0, P0, Z, Q),
-    todo.
-    
-*/
