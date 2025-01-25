@@ -8,6 +8,7 @@
 :- use_module(library(dif)).
 :- use_module(library(pairs)).
 :- use_module(library(clpz)).
+:- use_module(library(reif)).
 
 clpz:monotonic.
 
@@ -106,9 +107,9 @@ dltprobs(Mu_, Sigma_, Probs) :-
 % - Q ∈ 𝒬, a realized tally from assessments completed up to now
 % - Rx ∈ 0..D, the current dose recommendation
 % - Ws, a queue of enrolled participants Waiting for dose assignments
-% - As, an assoc mapping times to future Arrivals or Assessments:
-%   - Arrivals are denoted arr(t, MTD)
-%   - Assessments are denoted ao(t, d) or ax(t, d).
+% - As, a keysort/2-ed list of Time-A for future Arrivals/Assessments:
+%   - Arrivals are denoted arr(MTD)
+%   - Assessments are denoted ao(d) or ax(d).
 %
 % We scale _time_ so that the DLT assessment period is 1.  This allows
 % us (among other conveniences) to model the time-to-toxicity in case
@@ -120,7 +121,10 @@ dltprobs(Mu_, Sigma_, Probs) :-
 % the express purpose of computing the pessimistic tally, we will just
 % filter the whole list of upcoming events to identify unresolved
 % assessments.
-rolling(Rec_2, Q, Rx, Ws, [arr(Z,MTD)|As]) -->
+%
+% TODO: Ideally, this would be condensed & formatted to fit on 1 page
+%       of the monograph -- or at most two facing pages.
+rolling(Rec_2, Q, Rx, Ws, [Z-arr(MTD)|As]) -->
     { (   Rx == 0 % TODO: Ensure that Rx=0 only if assessments remain pending.
       ;   Ws = [W|_]
       )
@@ -132,39 +136,36 @@ rolling(Rec_2, Q, Rx, Ws, [arr(Z,MTD)|As]) -->
     % negligible harm to sim speed.
     { append(Ws, [MTD], Ws1) },
     rolling(Rec_2, Q, Rx, Ws1, As).
-rolling(Rec_2, Q, Rx, [], [arr(Z,MTD)|As]) -->
+rolling(Rec_2, Q, Rx, [], [Z-arr(MTD)|As]) -->
     { Rx > 0,
-      (   MTD <  Rx, T = 1, Za is Z + MTD/Rx
-      ;   MTD >= Rx, T = 0, Za is Z + 1.0
+      (   MTD <  Rx, A = ax(Rx), Za is Z + MTD/Rx
+      ;   MTD >= Rx, A = ao(Rx), Za is Z + 1.0
       ),
       % Although `Za is min(MTD/Rx, 1.0)` would yield Za in one go,
       % the elementary branches above seem clearer.
-      sched(As, asx(Za, Rx, T), As1),
-      upcoming_assessments(As1, Ps),
-      tally_pending_pesstally(Q, Ps, Qp),
+      sched(As, Za-A, As1),
+      tally_pending_pesstally(Q, As1, Qp),
       call(Rec_2, Qp, Rx1)
     },
     [enroll(Z,MTD)],
     rolling(Rec_2, Q, Rx1, [], As1).
-rolling(Rec_2, Q, Rx, Ws, [ax(Z,Dose)|As]) -->
+rolling(Rec_2, Q, Rx, Ws, [Z-ax(Dose)|As]) -->
     {
         tallyx(Q, Dose, Q1),
         % Tallying an 'x' has no effect on Qpess,
         % and therefore leaves Rx unchanged.
-        upcoming_assessments(As, Ps),
-        tally_pending_pesstally(Q, Ps, Qp),
+        tally_pending_pesstally(Q, As, Qp),
         call(Rec_2, Qp, Rx1)
     },
     [x(Dose)],
     rolling(Rec_2, Q1, Rx1, Ws, As).
-rolling(Rec_2, Q, Rx, Ws, [ao(Z,Dose)|As]) -->
+rolling(Rec_2, Q, Rx, Ws, [Z-ao(Dose)|As]) -->
     {
         tallyo(Q, Dose, Q1),
         % Tallying an 'o' DOES affect Qpess,
         % so Rx may have changed, and requires
         % recalculation.
-        upcoming_assessments(As, Ps),
-        tally_pending_pesstally(Q1, Ps, Q1p),
+        tally_pending_pesstally(Q1, As, Q1p),
         call(Rec_2, Q1p, Rx1)
     },
     [o(Dose)],
@@ -173,148 +174,97 @@ rolling(Rec_2, Q, Rx, Ws, [ao(Z,Dose)|As]) -->
 % TODO: Basic tally-arithmetic predicates belong in tally.pl!
 %       But let's hold off defining these there, until we see
 %       how the construction of a 'pessimistic' tally works.
+
+% Implementing the monoidal (+)/3 operation on 𝒬 might serve me best!
+% Can we define that in a syncactically appealing way?
+
+%% qsum_(?Q0s, ?ΔQs, ?Qs)
+%
+% Akin to clpz:max_, but taking Q0s, ΔQs, Qs ∈ 𝒬 as arguments, so that
+% Qs = Q0s + ΔQs, '+' here being the 𝒬's symmetric monoidal operation.
+%
+% TODO: Since this aims to extend declarative integer arithmetic to 𝒬,
+%       we might do well to pursue this more vigorously, including to
+%       the full MGQ, with attention to fair enumeration, etc.
+qsum_(Q0s, ΔQs, Qs) :-
+    same_length(Q0s, ΔQs), % Needed for
+    same_length(Q0s, Qs),  % termination
+    qs_ts_ns(Q0s, T0s, N0s),
+    qs_ts_ns(ΔQs, ΔTs, ΔNs),
+    qs_ts_ns(Qs, Ts, Ns),
+    maplist(sum_, T0s, ΔTs, Ts),
+    maplist(sum_, N0s, ΔNs, Ns).
+
+sum_(X, Y, Z) :- #Z #= #X + #Y.
+
+?- qsum_([0/1,1/1], [0/0,0/1], Qs).
+   Qs = [0/1,1/2].
+
+%% d_x_qs(+D, +X, -Qs)
+%
+% X in 1..D and Qs = <1/1>ₓ per Notation 2.5 of the monograph.  That
+% is, Qs is a length-D list of 0/0 *except* that nth1(X, Qs, 1/1).
+d_x_qs(D, X, Qs) :-
+    0 #< #X, #X #=< #D,
+    length(Qs, D),
+    qs_ts_ns(Qs, Ns, Ns),
+    d_unitvec_x(D, X, Ns),
+    % Now we just need Ns as a 'unit vector' in X direction
+    false.
+
+d_unitvec_x(D, O1s, X) :-
+    length(O1s, D),
+    0 #< #X, #X #< D,
+    countup(D, Ix),
+    maplist(=(X), Ix, TFs), % NB: this is reif:(=)/3
+    maplist(clpz:zo_t, O1s, TFs).
+
+?- d_unitvec_x(5, O1s, 2).
+   O1s = [0,1,0,0,0].
+
+% TODO: Use this instead, wherever I've done a findall/3,
+%       to obtain this kind of sequence.
+countup(N, Ns) :- N > 0, countup_(N, [], Ns).
+countup_(M, Ns, Ns_) :-
+    M > 1, M_ is M - 1,
+    countup_(M_, [M|Ns], Ns_).
+countup_(1, Ns, [1|Ns]).
+
+?- countup(5, Ns).
+   Ns = [1,2,3,4,5].
+
 tallyx(Q, Dose, Q1) :-
-    todo.
+    length(Q, D),
+    d_unitvec_x(D, Ns, Dose),
+    qs_ts_ns(ΔQ, Ns, Ns),
+    qsum_(Q, ΔQ, Q1).
 tallyo(Q, Dose, Q1) :-
-    todo.
+    length(Q, D),
+    d_unitvec_x(D, Ns, Dose),
+    same_length(Q, Ts),
+    maplist(=(0), Ts),
+    qs_ts_ns(ΔQ, Ts, Ns),
+    qsum_(Q, ΔQ, Q1).
 
-sched(As, A, As1) :-
-    todo.
+?- Q = [0/3,0/3,2/3], tallyo(Q, 2, Qo), tallyx(Q, 2, Qx). 
+   Q = [0/3,0/3,2/3], Qo = [0/3,0/4,2/3], Qx = [0/3,1/4,2/3].
 
-upcoming_assessments(As, Ps) :-
-    todo.
+sched(As, Za-A, As1) :- keysort([Za-A|As], As1).
 
-tally_pending_pesstally(Q, Ps, Qp) :-
-    todo.
-
-% At any time, the realized state consists of:
-% - a tally of completed assessments ('the current tally')
-% - a queue of _waiting_ enrollees, which may grow during intervals
-%   when pending assessments are keeping the tally so pessimistic
-%   that the current recommended dose is zero.
-
-% Additionally, there is 'unrealized state' in the form of a time-series
-% of all upcoming events, which are all either:
-% - resolutions of pending assessments (time, dose, 0..1), or
-% - new arrivals (time, MTDᵢ).
-
-% The evolution of this state should generate a list of events
-% described by a DCG.
-
-% Servicing of a new arrival at time t requires the following steps:
-% 1. Tally any assessments that have resolved before time t
-% 2. Construct a 'pessimistic' tally by tallying all still-pending
-%    assessments as toxicities
-% 3. Based on this pessimistic tally, determine enrolling dose dᵢ
-% 4. If arrival's MTDᵢ exceeds dᵢ, record a pending non-toxicity
-%    to be resolved at time T+Δ.  Otherwise, calculate the delay
-%    to observation of the toxic respons via to exp(dᵢ - MTDᵢ),
-%    and schedule a pending toxicity accordingly.
-% 5. In case dᵢ = 0, but the *actual* current tally would permit
-%    enrollment, place the arrival in the _waiting_ queue. 
-
-% The above requires maintaining several FIFO queues, but because
-% these are indexed by time, their representation requires only
-% pairlists, which are easily sorted.  Note moreover that, with
-% arrivals occuring in ℝeal time, all arrival times are distinct.
-
-% Furthermore, since we can quickly keysort/2 this pending-assessments
-% list by _time_, there is no need to pursue the efficiencies of a
-% list-differences formulation.
-
-% By recognizing that the _state_ of the trial consists of a pair Q-P
-% of 'pessimistic' current tally Q with pending assessents P, we can
-% reduce the arity of these predicates.
-
-%% rec_state0_arrival_state(+Rec_2, +S0, +(Z-MTD), -S)
+%% tally_pending_pesstally(+Q, +As, -Qp)
 %
-% Under the dose-recommendation rule Rec_2, and given trial state S0,
-% S is the new trial state which results from enrolling at time Z a
-% new participant who has the given MTD ∈ ℝ⁺:
-%
-% TODO: Should I include an Enr_4 argument as well?
-%
-% - Rec_2(+Q, -X) :- X is recommended enrolling dose from tally Q.
-% - Enr_4(+Qs0, +X, -Qs, ?Truth) reifies enrollability of Qs0
-%                                at dose X to yield Qs.
-%
-rec_state0_arrival_state(Rec_2, S0, Z-MTD, S) :-
-    state0_now_state(S0, Z, S1),
-    % We now have a 'transient' state S1 = Q1-P1, including an
-    % up-to-date tally Q1 which we may use to determine the dose at
-    % which to enroll the arriving participant.
-    Rec_2(Q1, X),
-    % Given this recommended enrolling dose X, we consider 3 cases:
-    %
-    % 1. X = 0 means the trial is not currently enrolling.  But this
-    % in turn could be true for several distinct reasons.  If there
-    % are no pending assessments, then the trial has stopped!  But in
-    % case there _are_ pending assessments, it is possible that the
-    % enrollment will resume.  The challenge of looking ahead to such
-    % a possibility might be something Prolog handles very nicely.
-    % Also, the spirit of Losing No Solutions helps to ensure we fully
-    % consider every such possibility.  But have I preserved enough
-    % information about the pending assessments, to enable all proper
-    % considerations to be made, upon enrollment?  Thus far, I have
-    % treated the list P in S=Q-P as a mere *accounting* device that
-    % embodies simulated foreknowledge of assessment outcomes.  But
-    % this does not reflect full information available on enrollment.
-    todo.
+% Given the current tally Q and As, a [Time-A|_] pairlist of upcoming
+% events, Qp is the 'pessimistic' tally obtaining in the worst-case
+% scenario where all pending assessments in As turn out as toxicities.
+tally_pending_pesstally(Q, As, Qp) :-
+    findall(Dose, (member(Z-A, As), member(A, [ao(Dose), ax(Dose)])), Ps),
+    same_length(Q, Ns),
+    posints_bins(Ps, Ns),
+    qs_ts_ns(ΔQ, Ns, Ns),
+    qsum_(Q, ΔQ, Qp).
 
-%% state0_now_state(+S0, +Z, -S)
-%
-% Given a state S0 = Q0-P0, consisting of pessimistic tally Q0 paired
-% with pending non-tox assessments P0, renders a new state S = Q-P
-% that is _current_ as of time Z, adapted to the new information from
-% those P0 assessments which have resolved by time Z.
-state0_now_state(Q0-P0, Z, Q-P):-
-    pending_now_resolved_pending(P0, Z, As, P),
-    tally0_resolved_tally(Q0, As, Q).
-
-tally0_pending0_arrival_tally_pending(Q0, P0, Z-MTD, Q, P) :-
-    tally0_pending0_time_tally(Q0, P0, Z, Q),
-    todo.
-    
-
-%% pending0_now_resolved_pending(+P0, +Z, -R, -P)
-%
-% R is the list of doses from the head of pending-assessments list P0
-% for which toxicity assessments have resolved by time Z, and P is the
-% remaining tail of assessments still pending as of time Z.
-%
-% Implementation notes:
-% * Pending-assessments lists are sorted chronologically.
-% * Our right-continuous treatment of _time_ accords with our usage,
-%   "resolved BY time Z".
-pending0_now_resolved_pending([], _, [], []).
-pending0_now_resolved_pending([Z1-X1|ZXs], Z, [], [Z1-X1|ZXs]) :- Z1 > Z, !.
-pending0_now_resolved_pending([Z0-X0|ZX0s], Z, [X0|X0s], ZXs) :-
-    Z0 =< Z,
-    pending0_now_resolved_pending(ZX0s, Z, X0s, ZXs).
-
-?- pending0_now_resolved_pending([1.2-3,4.5-2], 0.1, R, P).
-   R = [], P = [1.2-3,4.5-2].
-
-?- pending0_now_resolved_pending([1.2-3,4.5-2], 2.1, R, P).
-   R = [3], P = [4.5-2].
-
-?- pending0_now_resolved_pending([1.2-3,4.5-2], 5.1, R, P).
-   R = [3,2], P = [].
-
-
-%% tally0_resolved_tally(+Q0s, +Xs, -Qs)
-%
-% Qs is the tally which results from the non-tox resolution of pending
-% assessments at doses in list Xs.
-tally0_resolved_tally(Q0s, Xs, Qs) :-
-    same_length(Q0s, ΔTs),
-    posints_bins(Xs, ΔTs),
-    qs_ts_ns(Q0s, T0s, Ns),
-    maplist(\T0^ΔT^T^(#T0 - #ΔT #= #T), T0s, ΔTs, Ts),
-    qs_ts_ns(Qs, Ts, Ns).
-
-?- tally0_resolved_tally([1/5,2/3,0/0], [2,1], Qs).
-   Qs = [0/5,1/3,0/0]
+?- tally_pending_pesstally([0/3,2/3], [0.1-ax(2), 0.3-arr(4.5), 0.5-ao(1)], Qp).
+   Qp = [1/4,3/4]
 ;  false.
 
 %% posints_bins(+Ns, -Bins)
