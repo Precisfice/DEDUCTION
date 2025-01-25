@@ -13,41 +13,6 @@ clpz:monotonic.
 
 :- use_module(probdist).
 
-rate_arrivals(Rate, Ts) :-
-    same_length(Ts, ΔTs),
-    maplist(rexp(Rate), ΔTs),
-    numlist_partsums(ΔTs, Ts).
-
-?- length(Ts, 4), rate_arrivals(2.0, Ts).
-   Ts = [0.5662067068679191,1.40316178028145,1.617681423182813,1.9161774261915316].
-   Ts = [0.05990944141731505,0.3684931225434027,0.41019471665761614,0.7406373917462235].
-   Ts = [0.22713646401782478,0.3990310183928857,0.44462988541493365,0.8934476284250478].
-   Ts = [0.21588283841756808,0.3412300892149634,1.2039454695297602,2.00139750572733].
-
-?- rate_arrivals(1, Ts).
-   Ts = [0.10930209769116438]
-;  Ts = [1.9241620786500748,2.3662116568817693]
-;  Ts = [1.0746998885641768,1.1487024434865538,3.5952139696514047]
-;  Ts = [0.9603219746053693,2.1080645360024977,2.7963162628534546,2.956646474384808]
-;  ... .
-
-numlist_partsums([X|Xs], [X|Σs]) :-
-    same_length(Xs, Σs), % (eliminates an unnecessary choice point)
-    numlist_partsums_acc(Xs, Σs, X).
-
-numlist_partsums_acc([], [], _).
-numlist_partsums_acc([X|Xs], [Σ|Σs], A) :-
-    Σ is X + A,
-    numlist_partsums_acc(Xs, Σs, Σ).
-
-% Especially because it depends on numlist_partsums/2, the above feels
-% heavy-handed in comparison to the lightweight and elegant DCG below.
-% This DCG does suffer (inherently?) from a choice-point that somehow
-% really annoys me.  But noting how numlist_partsums/2 incorporates a
-% special-purpose choicepoint-eliminating goal, I suppose there may be
-% little harm in wrapping this _generative_ DCG with one little !/0
-% that commits to the generated list.
-
 % TODO: Document persistence of the choice-point despite permutations
 %       of the DCG rules.
 
@@ -134,25 +99,124 @@ dltprobs(Mu_, Sigma_, Probs) :-
 % current trial state to a new one upon admitting a new participant.
 % Of course, this requires that we specify what this state is!
 
-% At any time, the state consists of:
-% - a 'pessimistic' tally
-% - a dosewise list of pending non-toxicities
+%% rolling(Rec_2, Q, Ps, Ws, As)//5
+%
+% Describes events of a rolling-enrollment trial defined by the
+% dose-recommendation rule Rec_2, given a current state consisting of:
+% - Q ∈ 𝒬, a realized tally from assessments completed up to now
+% - Rx ∈ 0..D, the current dose recommendation
+% - Ws, a queue of enrolled participants Waiting for dose assignments
+% - As, an assoc mapping times to future Arrivals or Assessments:
+%   - Arrivals are denoted arr(t, MTD)
+%   - Assessments are denoted ao(t, d) or ax(t, d).
+%
+% We scale _time_ so that the DLT assessment period is 1.  This allows
+% us (among other conveniences) to model the time-to-toxicity in case
+% MTD < Rx simply as Delay = MTD/Rx.
+%
+% Sketching out some DCG rules will help me to elaborate these ideas.
+% We implement Ws as a list with enqueuing via append/3 at O(n) cost.
+% Instead of maintaining a separate list of pending assessments, for
+% the express purpose of computing the pessimistic tally, we will just
+% filter the whole list of upcoming events to identify unresolved
+% assessments.
+rolling(Rec_2, Q, Rx, Ws, [arr(Z,MTD)|As]) -->
+    { (   Rx == 0 % TODO: Ensure that Rx=0 only if assessments remain pending.
+      ;   Ws = [W|_]
+      )
+    },
+    [enqueue(Z,MTD)],
+    % Note that except in unusual scenarios with high arrival rates
+    % (or during brief bursts of arrivals), the list Ws will stay
+    % quite short on average.  Consequently, this O(n) append/3 does
+    % negligible harm to sim speed.
+    { append(Ws, [MTD], Ws1) },
+    rolling(Rec_2, Q, Rx, Ws1, As).
+rolling(Rec_2, Q, Rx, [], [arr(Z,MTD)|As]) -->
+    { Rx > 0,
+      (   MTD <  Rx, T = 1, Za is Z + MTD/Rx
+      ;   MTD >= Rx, T = 0, Za is Z + 1.0
+      ),
+      % Although `Za is min(MTD/Rx, 1.0)` would yield Za in one go,
+      % the elementary branches above seem clearer.
+      sched(As, asx(Za, Rx, T), As1),
+      upcoming_assessments(As1, Ps),
+      tally_pending_pesstally(Q, Ps, Qp),
+      call(Rec_2, Qp, Rx1)
+    },
+    [enroll(Z,MTD)],
+    rolling(Rec_2, Q, Rx1, [], As1).
+rolling(Rec_2, Q, Rx, Ws, [ax(Z,Dose)|As]) -->
+    {
+        tallyx(Q, Dose, Q1),
+        % Tallying an 'x' has no effect on Qpess,
+        % and therefore leaves Rx unchanged.
+        upcoming_assessments(As, Ps),
+        tally_pending_pesstally(Q, Ps, Qp),
+        call(Rec_2, Qp, Rx1)
+    },
+    [x(Dose)],
+    rolling(Rec_2, Q1, Rx1, Ws, As).
+rolling(Rec_2, Q, Rx, Ws, [ao(Z,Dose)|As]) -->
+    {
+        tallyo(Q, Dose, Q1),
+        % Tallying an 'o' DOES affect Qpess,
+        % so Rx may have changed, and requires
+        % recalculation.
+        upcoming_assessments(As, Ps),
+        tally_pending_pesstally(Q1, Ps, Q1p),
+        call(Rec_2, Q1p, Rx1)
+    },
+    [o(Dose)],
+    rolling(Rec_2, Q1, Rx1, Ws, As).
+
+% TODO: Basic tally-arithmetic predicates belong in tally.pl!
+%       But let's hold off defining these there, until we see
+%       how the construction of a 'pessimistic' tally works.
+tallyx(Q, Dose, Q1) :-
+    todo.
+tallyo(Q, Dose, Q1) :-
+    todo.
+
+sched(As, A, As1) :-
+    todo.
+
+upcoming_assessments(As, Ps) :-
+    todo.
+
+tally_pending_pesstally(Q, Ps, Qp) :-
+    todo.
+
+% At any time, the realized state consists of:
+% - a tally of completed assessments ('the current tally')
 % - a queue of _waiting_ enrollees, which may grow during intervals
 %   when pending assessments are keeping the tally so pessimistic
 %   that the current recommended dose is zero.
 
-% Servicing of a new arrival at time t requires the following steps:
-% 1. Tally any non-toxicities that have resolved before time t
-% 2. Based on this now-current tally, determine enrolling dose dᵢ
-% 3. 'Pessimistically' tally a [provisional] toxicity at dᵢ
-% 3. If arrival's MTDᵢ exceeds dᵢ, record a pending non-toxicity
-%    to be resolved at time T+Δ.
+% Additionally, there is 'unrealized state' in the form of a time-series
+% of all upcoming events, which are all either:
+% - resolutions of pending assessments (time, dose, 0..1), or
+% - new arrivals (time, MTDᵢ).
 
-% The above requires maintaining a current, worst-case tally, as well
-% as a FIFO queue of pending non-tox assessments.  Representing the
-% latter requires only a list of (tᵢ, dᵢ) _pairs_, the (-1) magnitude
-% of the T adjustment being implicit.  Note also that with arrivals
-% occuring in ℝeal time, all arrival times are distinct.
+% The evolution of this state should generate a list of events
+% described by a DCG.
+
+% Servicing of a new arrival at time t requires the following steps:
+% 1. Tally any assessments that have resolved before time t
+% 2. Construct a 'pessimistic' tally by tallying all still-pending
+%    assessments as toxicities
+% 3. Based on this pessimistic tally, determine enrolling dose dᵢ
+% 4. If arrival's MTDᵢ exceeds dᵢ, record a pending non-toxicity
+%    to be resolved at time T+Δ.  Otherwise, calculate the delay
+%    to observation of the toxic respons via to exp(dᵢ - MTDᵢ),
+%    and schedule a pending toxicity accordingly.
+% 5. In case dᵢ = 0, but the *actual* current tally would permit
+%    enrollment, place the arrival in the _waiting_ queue. 
+
+% The above requires maintaining several FIFO queues, but because
+% these are indexed by time, their representation requires only
+% pairlists, which are easily sorted.  Note moreover that, with
+% arrivals occuring in ℝeal time, all arrival times are distinct.
 
 % Furthermore, since we can quickly keysort/2 this pending-assessments
 % list by _time_, there is no need to pursue the efficiencies of a
