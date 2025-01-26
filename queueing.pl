@@ -14,9 +14,7 @@ clpz:monotonic.
 
 :- use_module(probdist).
 :- use_module(intlist).
-
-% TODO: Document persistence of the choice-point despite permutations
-%       of the DCG rules.
+:- use_module(tally).
 
 poisson_arrival_times(Rate) --> poisson_arrival_times(Rate, 0.0).
 poisson_arrival_times(_, _) --> [].
@@ -35,14 +33,13 @@ poisson_arrival_times(Rate, T) --> [T1],
 ;  Ts = [0.018309727216998195,0.12343297062464463,1.3640943200409386], N = 3
 ;  ... .
 
-% Note how the cut here allows multiple invocations of the query.
-% Doing a cut after PRNG seems entirely unobjectionable, given that
-% RNG by its very nature renders 'do-overs' inadmissible!  That is,
-% the act of RNG implicitly involves the irreversibility of !/0.
-?- phrase(poisson_arrival_times(0.5, 100), [T1,T2,T3]), !.
-   T1 = 104.37649502158831, T2 = 104.87229743666023, T3 = 107.48527696201455.
-   T1 = 101.45398386792101, T2 = 101.89445295777217, T3 = 105.22004591280482.
-   T1 = 102.05680287259786, T2 = 108.09969402709206, T3 = 108.15661268827373.
+?- phrase(poisson_arrival_times(0.5, 100), [T1,T2,T3]).
+   T1 = 100.11587652773626, T2 = 101.69887792696088, T3 = 102.37692287870219
+;  false.
+   T1 = 100.09816887003277, T2 = 101.6810724566522, T3 = 104.13660078747704
+;  false.
+   T1 = 102.48350649365024, T2 = 105.24997093111844, T3 = 106.39690116093654
+;  false.
 
 % ==================== Toxicity Thresholds ====================
 
@@ -179,67 +176,6 @@ rolling(Rec_2, Q, Rx, Ws, [Z-ao(Dose)|As]) -->
 % Implementing the monoidal (+)/3 operation on 𝒬 might serve me best!
 % Can we define that in a syncactically appealing way?
 
-%% qsum_(?Q0s, ?ΔQs, ?Qs)
-%
-% Akin to clpz:max_, but taking Q0s, ΔQs, Qs ∈ 𝒬 as arguments, so that
-% Qs = Q0s + ΔQs, '+' here being the 𝒬's symmetric monoidal operation.
-%
-% TODO: Since this aims to extend declarative integer arithmetic to 𝒬,
-%       we might do well to pursue this more vigorously, including to
-%       the full MGQ, with attention to fair enumeration, etc.
-qsum_(Q0s, ΔQs, Qs) :-
-    same_length(Q0s, ΔQs), % Needed for
-    same_length(Q0s, Qs),  % termination
-    qs_ts_ns(Q0s, T0s, N0s),
-    qs_ts_ns(ΔQs, ΔTs, ΔNs),
-    qs_ts_ns(Qs, Ts, Ns),
-    maplist(sum_, T0s, ΔTs, Ts),
-    maplist(sum_, N0s, ΔNs, Ns).
-
-sum_(X, Y, Z) :- #Z #= #X + #Y.
-
-?- qsum_([0/1,1/1], [0/0,0/1], Qs).
-   Qs = [0/1,1/2].
-
-%% d_x_qs(+D, +X, -Qs)
-%
-% X in 1..D and Qs = <1/1>ₓ per Notation 2.5 of the monograph.  That
-% is, Qs is a length-D list of 0/0 *except* that nth1(X, Qs, 1/1).
-d_x_qs(D, X, Qs) :-
-    0 #< #X, #X #=< #D,
-    length(Qs, D),
-    qs_ts_ns(Qs, Ns, Ns),
-    d_unitvec_x(D, X, Ns),
-    % Now we just need Ns as a 'unit vector' in X direction
-    false.
-
-d_unitvec_x(D, O1s, X) :-
-    length(O1s, D),
-    0 #< #X, #X #< D,
-    intlist_from_upto(Ix, 1, D),
-    maplist(=(X), Ix, TFs), % NB: this is reif:(=)/3
-    maplist(clpz:zo_t, O1s, TFs).
-
-?- d_unitvec_x(5, O1s, 2).
-   O1s = [0,1,0,0,0]
-;  false.
-
-tallyx(Q, Dose, Q1) :-
-    length(Q, D),
-    d_unitvec_x(D, Ns, Dose),
-    qs_ts_ns(ΔQ, Ns, Ns),
-    qsum_(Q, ΔQ, Q1).
-tallyo(Q, Dose, Q1) :-
-    length(Q, D),
-    d_unitvec_x(D, Ns, Dose),
-    same_length(Q, Ts),
-    maplist(=(0), Ts),
-    qs_ts_ns(ΔQ, Ts, Ns),
-    qsum_(Q, ΔQ, Q1).
-
-?- Q = [0/3,0/3,2/3], tallyo(Q, 2, Qo), tallyx(Q, 2, Qx). 
-   Q = [0/3,0/3,2/3], Qo = [0/3,0/4,2/3], Qx = [0/3,1/4,2/3].
-
 sched(As, Za-A, As1) :- keysort([Za-A|As], As1).
 
 %% tally_pending_pesstally(+Q, +As, -Qp)
@@ -257,8 +193,4 @@ tally_pending_pesstally(Q, As, Qp) :-
 ?- tally_pending_pesstally([0/3,2/3], [0.1-ax(2), 0.3-arr(4.5), 0.5-ao(1)], Qp).
    Qp = [1/4,3/4]
 ;  false.
-
-% Copied from catform.pl:
-qs_ts_ns([T/N|Qs], [T|Ts], [N|Ns]) :- qs_ts_ns(Qs, Ts, Ns).
-qs_ts_ns([], [], []).
 
