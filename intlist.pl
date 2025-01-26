@@ -103,11 +103,20 @@ intlist_inverse(Xs, NegXs) :-
 %
 % Zs lists the integers from A ≤ B up to B, inclusive.
 % (Zs is therefore a list of length B-A+1.)
+%
+% The aim of this predicate is to avoid all-solutions predicates, à la
+% findall(X, (X in A..B, indomain(X)), Xs).  But perhaps in light of
+% https://github.com/mthom/scryer-prolog/discussions/2722#discussioncomment-11657471
+% this is not so important a goal?  (With the current Scryer engine,
+% this implementation leaves a choice-point which findall/3 does not.)
 intlist_from_upto([A|_As], A, B) :-
     #A #< #B,
     #A1 #= #A + 1,
     intlist_from_upto(_As, A1, B).
 intlist_from_upto([A], A, A).
+
+?- findall(N, (N in 1..5, indomain(N)), Ns).
+   Ns = [1,2,3,4,5].
 
 ?- intlist_from_upto(Ns, 1, 5).
    Ns = [1,2,3,4,5]
