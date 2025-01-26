@@ -613,23 +613,7 @@ max_enroll_t(MaxN, Qs0, X, Qs, Truth) :-
    Qs = [1/7,2/3], Truth = true
 ;  Qs = [2/7,2/3], Truth = true.
 
-tally_netn(Qs, ΣN) :- % net enrollment
-    qs_ts_ns(Qs, _, Ns),
-    sum(Ns, #=, #ΣN).
-
-qs_ts_ns([T/N|Qs], [T|Ts], [N|Ns]) :- qs_ts_ns(Qs, Ts, Ns).
-qs_ts_ns([], [], []).
-
-?- qs_ts_ns([1/6,2/3], Ts, Ns).
-   Ts = [1,2], Ns = [6,3].
-
-?- tally_netn([1/6,2/3], N).
-   N = 9.
-
 % (b) define a probability function on *instances* of final tallies
-
-qs_ts_us(Qs, Ts, Us) :-
-    maplist(\Q^T^U^(Q = T/N, #U #= N - T), Qs, Ts, Us).
 
 %% base_exp_power(+B, +E, -P) is det
 %

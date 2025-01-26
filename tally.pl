@@ -4,6 +4,8 @@
 
 :- module(tally, [
               qs_ts_ns/3,
+              qs_ts_us/3,
+              tally_netn/2,
               qsum_/3,
               tallyo/3,
               tallyx/3,
@@ -22,6 +24,17 @@ clpz:monotonic.
 
 qs_ts_ns([T/N|Qs], [T|Ts], [N|Ns]) :- qs_ts_ns(Qs, Ts, Ns).
 qs_ts_ns([], [], []).
+
+qs_ts_us(Qs, Ts, Us) :-
+    maplist(\Q^T^U^(Q = T/N, #U #= N - T), Qs, Ts, Us).
+
+tally_netn(Qs, ΣN) :- % net enrollment
+    qs_ts_ns(Qs, _, Ns),
+    sum(Ns, #=, #ΣN).
+
+?- tally_netn([1/6,2/3], N).
+   N = 9.
+   N = 9.
 
 %% qsum_(?Q0s, ?ΔQs, ?Qs)
 %
