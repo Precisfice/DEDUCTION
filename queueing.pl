@@ -13,6 +13,7 @@
 clpz:monotonic.
 
 :- use_module(probdist).
+:- use_module(intlist).
 
 % TODO: Document persistence of the choice-point despite permutations
 %       of the DCG rules.
@@ -215,23 +216,13 @@ d_x_qs(D, X, Qs) :-
 d_unitvec_x(D, O1s, X) :-
     length(O1s, D),
     0 #< #X, #X #< D,
-    countup(D, Ix),
+    intlist_from_upto(Ix, 1, D),
     maplist(=(X), Ix, TFs), % NB: this is reif:(=)/3
     maplist(clpz:zo_t, O1s, TFs).
 
 ?- d_unitvec_x(5, O1s, 2).
-   O1s = [0,1,0,0,0].
-
-% TODO: Use this instead, wherever I've done a findall/3,
-%       to obtain this kind of sequence.
-countup(N, Ns) :- N > 0, countup_(N, [], Ns).
-countup_(M, Ns, Ns_) :-
-    M > 1, M_ is M - 1,
-    countup_(M_, [M|Ns], Ns_).
-countup_(1, Ns, [1|Ns]).
-
-?- countup(5, Ns).
-   Ns = [1,2,3,4,5].
+   O1s = [0,1,0,0,0]
+;  false.
 
 tallyx(Q, Dose, Q1) :-
     length(Q, D),
@@ -265,77 +256,6 @@ tally_pending_pesstally(Q, As, Qp) :-
 
 ?- tally_pending_pesstally([0/3,2/3], [0.1-ax(2), 0.3-arr(4.5), 0.5-ao(1)], Qp).
    Qp = [1/4,3/4]
-;  false.
-
-%% posints_bins(+Ns, -Bins)
-%
-% Ns is a list of positive integers, and Bins is a 1-indexed list
-% such that nth1(N, Bins, F) iff N appears exactly F times in Ns.
-% That is, Bins lists the _frequency_ in Ns for each number 1..L,
-% where length(Bins, L).
-%
-% Generally, this predicate will be invoked with the length of Bins
-% fixed, but its elements uninstantiated.
-posints_bins(Ns, Bins) :-
-    length(Bins, L),
-    findall(B, (B in 1..L, indomain(B)), Bs),
-    append(Ns, Bs, N1s),  % each B ∈ 1..L occurs at least once in N1s
-    samsort(N1s, SN1s),
-    list_rle(SN1s, NC1s), % NC1s now overcounts each bin by +1
-    pairs_values(NC1s, Bins1),
-    maplist(\F1^F^(#F1 #= #F + 1), Bins1, Bins).
-
-?- length(Bins, 7), posints_bins([5,2,7,5,3,5,7,5,6,7], Bins).
-   Bins = [0,1,1,0,4,1,3]
-;  false.
-
-?- nth1(2, [a,b,c,d,e], C, R).
-   C = b, R = "acde".
-
-%% samsort(+Ls0, Ls)
-%
-% See https://github.com/mthom/scryer-prolog/issues/1163#issuecomment-1006135163
-% HT @triska
-samsort(Ls0, Ls) :-
-        same_length(Ls0, Pairs0), % https://github.com/mthom/scryer-prolog/issues/192
-        pairs_keys(Pairs0, Ls0),
-        keysort(Pairs0, Pairs),
-        pairs_keys(Pairs, Ls).
-
-?- samsort([4,2,4,2,3,5], SXs).
-   SXs = [2,2,3,4,4,5].
-
-
-%% list_rle(?Xs, ?XNs)
-%
-% The list XNs is a run-length decoding of list Xs.
-list_rle(Xs, XNs) :- phrase(rle(XNs), Xs).
-
-?- list_rle("Bwwaaahaaahaaaa!", RLE).
-   RLE = ['B'-1,w-2,a-3,h-1,a-3,h-1,a-4,!-1]
-;  false.
-
-?- list_rle(Bwahaha, ['B'-1,w-2,a-3,h-1,a-3,h-1,a-4,!-1]).
-   Bwahaha = "Bwwaaahaaahaaaa!"
-;  false.
-
-%% rle//1
-% 
-% Describes a list by run-length encoding.
-rle([X-N|XNs]) --> { #N #> 1, #N_ #= #N - 1 },
-                   [X],
-                   rle([X-N_|XNs]).
-rle([X-1,Y-N|XNs]) --> { dif(X,Y) },
-                       [X],
-                       rle([Y-N|XNs]).
-rle([X-1]) --> [X].
-rle([]) --> [].
-
-?- phrase(rle([a-2,b-3,z-1]), List).
-   List = "aabbbz"
-;  false.
-?- phrase(rle(RLE), "aabbbz").
-   RLE = [a-2,b-3,z-1]
 ;  false.
 
 % Copied from catform.pl:
