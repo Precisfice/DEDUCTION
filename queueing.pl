@@ -10,6 +10,7 @@
 :- use_module(library(clpz)).
 :- use_module(library(reif)).
 :- use_module(library(debug)).
+:- use_module(library(format)).
 
 clpz:monotonic.
 
@@ -140,47 +141,60 @@ reclD3(Q, Rx) :-
 ?- reclD3([0/10,0/0,0/0], Rx1).
    Rx1 = 3. % A consequence of R=2?
 
-% At last, we are in a position to debug the rolling//5 DCG!
-% 1. Why am I carrying Rx along as an argument?
-%    - note how already in several DCG rules, it has become a don't-care _
-%    - also, when initializing the DCG it seems capable of introducing mistakes!
-
 /*
 ?- d_init(3,Q0), length(Arrivals, 40),
    phrase(arrivals(0.5, rlognorm(log(6), log(2))), Arrivals),
-   phrase(rolling(reclD3, Q0, 1, [], Arrivals), Events).
+   phrase(rolling(reclD3, Q0, [], Arrivals), Events).
    false.
    false.
-   false.
-   Q0 = [0/0,0/0,0/0], Arrivals = [2.4166-arr(10.17),2.5587-arr(7.19),5.7166-arr(5.34),6.4651-arr(7.21),6.7527-arr(7.61),9.7636-arr(4.74),10.4789-arr(31.92),10.6249-arr(5.21),12.1074-arr(3.34),12.5291-arr(4.19),14.7906-arr(24.97),21.1305-arr(28.46),22.2668-arr(5.56),23.9901-arr(15.06),25.3396-arr(4.99),26.8684-arr(7.41),29.6358-arr(13.67),31.9247-arr(14.44),34.0201-arr(...),... -arr(...)|...]
+*/
+
+?- d_init(3, Q0), Arr = [], phrase(rolling(reclD3, Q0, [], Arr), Events).
+   Q0 = [0/0,0/0,0/0], Arr = [], Events = [next(1)]
+;  false. % base-case of no remaining enrollment works
+
+?- Arr = [0.2-arr(3.4)], phrase(rolling(reclD3, [0/0,0/0,0/0], [], Arr), Events).
+   Arr = [0.2-arr(3.4)], Events = [enroll(0.2,3.4),o(1),next(1)]
+;  false.
+
+?- Arr = [0.2-arr(0.3)], phrase(rolling(reclD3, [0/0,0/0,0/0], [], Arr), Events).
+   Arr = [0.2-arr(0.3)], Events = [enroll(0.2,0.3),x(1),next(1)]
+;  false.
+
+% The above 2 quads show that enrolling a 1st participant and recording
+% either x or o (according to the MTDi) works correctly.
+
+% Now, let's see if we can induce the Ws queue to fill up ..
+/*
+?- Arr = [0.1-arr(0.2), 0.3-arr(0.4), 0.5-arr(0.6), 0.7-arr(0.8)],
+   phrase(rolling(reclD3, [0/0,0/0,0/0], [], Arr), Events).
+   Arr = [0.1-arr(0.2),0.3-arr(0.4),0.5-arr(0.6),0.7-arr(0.8)], Events = [enroll(0.1,0.2),enroll(0.3,0.4),x(1),enqueue(0.5,0.6),x(1),enqueue(0.7,0.8),next(0)]
+;  false. % looks alright
+*/
+
+% Now, what about driving escalation?
+/*
+?- \((Arr = [0.1-arr(1.2), 1.3-arr(1.4), 2.5-arr(1.6), 3.7-arr(1.8), 4.9-arr(2.0),
+             6.1-arr(2.2), 7.3-arr(2.4), 8.5-arr(2.6), 9.7-arr(2.8), 11.9-arr(3.0)],
+      phrase(rolling(reclD3, [0/0,0/0,0/0], [], Arr), Events),
+      portray_clause(Events))).
+[enroll(0.1,1.2),o(1),enroll(1.3,1.4),o(1),enroll(2.5,1.6),o(1),enroll(3.7,1.8),o(1),enroll(4.9,2.0),o(1),enroll(6.1,2.2),o(1),enroll(7.3,2.4),o(1),enroll(8.5,2.6),o(2),enroll(9.7,2.8),o(2),enroll(11.9,3.0),o(2),next(3)].
+   true % Good!  (But note how titration would yield a safer RP2D in this case.)
 ;  false.
 */
 
-?- d_init(3, Q0), Arr = [], phrase(rolling(reclD3, Q0, 1, [], Arr), Events).
-   Q0 = [0/0,0/0,0/0], Arr = [], Events = []
-;  false. % base-case of no remaining enrollment works
-
-?- Arr = [0.2-arr(3.4)], phrase(rolling(reclD3, [0/0,0/0,0/0], 1, [], Arr), Events).
-   Arr = [0.2-arr(3.4)], Events = [enroll(0.2,3.4),o(1)]
-;  false.
-
-?- Arr = [0.2-arr(0.3)], phrase(rolling(reclD3, [0/0,0/0,0/0], 1, [], Arr), Events).
-   Arr = [0.2-arr(0.3)], Events = [enroll(0.2,0.3),x(1)]
-;  false.
-
-% The above quads show that enrolling a 1st participant and recording
-% either x or o (according to the MTDi) works correctly.
+% This all suggests the failure in the N=40 enrollment attempt above
+% originates in some case I haven't explicitly probed yet.
 
 % Now, at long last, we need a queue servicing function that takes a
 % current trial state to a new one upon admitting a new participant.
 % Of course, this requires that we specify what this state is!
 
-%% rolling(Rec_2, Q, Rx, Ws, As)//5
+%% rolling(Rec_2, Q, Ws, As)//4
 %
 % Describes events of a rolling-enrollment trial defined by the
 % dose-recommendation rule Rec_2, given a current state consisting of:
 % - Q ∈ 𝒬, a realized tally from assessments completed up to now
-% - Rx ∈ 0..D, the current dose recommendation
 % - Ws, a queue of enrolled participants Waiting for dose assignments
 % - As, a keysort/2-ed list of Time-A for future Arrivals/Assessments:
 %   - Arrivals are denoted arr(MTD)
@@ -199,53 +213,56 @@ reclD3(Q, Rx) :-
 %
 % TODO: Ideally, this would be condensed & formatted to fit on 1 page
 %       of the monograph -- or at most two facing pages.
-rolling(_, _, _, _, []) --> [].
-rolling(Rec_2, Q, Rx, Ws, [Z-arr(MTD)|As]) -->
-    { (   Rx == 0 % TODO: Ensure that Rx=0 only if assessments remain pending.
-      ;   Ws = [_|_]
-      )
-    },
+rolling(Rec_2, Q, _, []) --> [next(Rx)], { call(Rec_2, Q, Rx) }.
+% Note that we terminate with next(Rx), leaving aside the question of
+% whether this next-dose recommendation should be called an RP2D, as
+% indeed there remains some question whether 'RP2D' is even a coherent
+% concept.  (The point here is to define an incremental enrollment in
+% abstraction from trial-termination questions.)
+rolling(Rec_2, Q, Ws, [Z-arr(MTD)|As]) -->
+    { rec(Rec_2, Q, As, 0) },
     [enqueue(Z,MTD)],
     % Note that except in unusual scenarios with high arrival rates
     % (or during brief bursts of arrivals), the list Ws will stay
     % quite short on average.  Consequently, this O(n) append/3 does
     % negligible harm to sim speed.
     { append(Ws, [MTD], Ws1) },
-    rolling(Rec_2, Q, Rx, Ws1, As).
-rolling(Rec_2, Q, Rx, [], [Z-arr(MTD)|As]) -->
-    { Rx > 0,
+    rolling(Rec_2, Q, Ws1, As).
+rolling(Rec_2, Q, [], [Z-arr(MTD)|As]) -->
+    { rec(Rec_2, Q, As, Rx),
+      Rx > 0,
       (   MTD <  Rx, A = ax(Rx), Za is Z + MTD/Rx
       ;   MTD >= Rx, A = ao(Rx), Za is Z + 1.0
       ),
       % Although `Za is min(MTD/Rx, 1.0)` would yield Za in one go,
       % the elementary branches above seem clearer.
-      sched(As, Za-A, As1),
-      tally_pending_pesstally(Q, As1, Qp),
-      call(Rec_2, Qp, Rx1)
+      sched(As, Za-A, As1)
     },
     [enroll(Z,MTD)],
-    rolling(Rec_2, Q, Rx1, [], As1).
-rolling(Rec_2, Q, _, Ws, [_-ax(Dose)|As]) -->
+    rolling(Rec_2, Q, [], As1).
+rolling(Rec_2, Q, Ws, [_-ax(Dose)|As]) -->
     {
-        tallyx(Q, Dose, Q1),
-        % Tallying an 'x' has no effect on Qpess,
-        % and therefore leaves Rx unchanged.
-        tally_pending_pesstally(Q, As, Qp),
-        call(Rec_2, Qp, Rx1)
+        tallyx(Q, Dose, Q1)
     },
     [x(Dose)],
-    rolling(Rec_2, Q1, Rx1, Ws, As).
-rolling(Rec_2, Q, _, Ws, [_-ao(Dose)|As]) -->
+    rolling(Rec_2, Q1, Ws, As).
+rolling(Rec_2, Q, Ws, [_-ao(Dose)|As]) -->
     {
-        tallyo(Q, Dose, Q1),
-        % Tallying an 'o' DOES affect Qpess,
-        % so Rx may have changed, and requires
-        % recalculation.
-        tally_pending_pesstally(Q1, As, Q1p),
-        call(Rec_2, Q1p, Rx1)
+        tallyo(Q, Dose, Q1)
     },
     [o(Dose)],
-    rolling(Rec_2, Q1, Rx1, Ws, As).
+    rolling(Rec_2, Q1, Ws, As).
+
+%% rec(+Rec_2, +Q, +As, -Rx)
+%
+% Given dose-recommendation rule Rec_2 : 𝒬 → 0..D, a realized tally Q,
+% and list As that includes pending assessments of the form Z-a_(Dose)
+% (where Z > 0 is a time, and a_ is ax or ao), Rx is the recommended
+% dose based on a 'pessimistic' tally assuming all pending assessments
+% will resolve as toxicities.
+rec(Rec_2, Q, As, Rx) :-
+    tally_pending_pesstally(Q, As, Qp),
+    call(Rec_2, Qp, Rx).
 
 % TODO: Basic tally-arithmetic predicates belong in tally.pl!
 %       But let's hold off defining these there, until we see
