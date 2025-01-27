@@ -9,12 +9,15 @@
 :- use_module(library(pairs)).
 :- use_module(library(clpz)).
 :- use_module(library(reif)).
+:- use_module(library(debug)).
 
 clpz:monotonic.
 
 :- use_module(probdist).
 :- use_module(intlist).
 :- use_module(tally).
+:- use_module(cascade).
+:- use_module(run33).
 
 poisson_arrival_times(Rate) --> poisson_arrival_times(Rate, 0.0).
 poisson_arrival_times(_, _) --> [].
@@ -94,11 +97,85 @@ dltprobs(Mu_, Sigma_, Probs) :-
 ?- dlognorm(log(6), log(3), 6, P).
    P = 0.5.
 
+
+round(D, R, Rd) :- Rd is round(10^D*R)/10^D.
+
+?- round(3, pi, Pi).
+   Pi = 3.142.
+
+% TODO: Should I make a meta_predicate declaration?
+arrivals(Rate, MTD_2) --> arrivals(Rate, MTD_2, 0.0).
+arrivals(_, _, _) --> [].
+arrivals(Rate, MTD_1, T) --> [T1 - arr(MTDi)],
+                             { rexp(Rate, Δt), T1_ is T + Δt,
+                               call(MTD_1, MTDi_),
+                               % Rounding is just a convenience for testing,
+                               % as it yields less noisy answer descriptions.
+                               round(4, T1_, T1),
+                               round(2, MTDi_, MTDi)
+                             },
+                             arrivals(Rate, MTD_1, T1).
+
+?- length(Arrivals, 4), phrase(arrivals(0.5, rlognorm(log(6), log(2))), Arrivals).
+   Arrivals = [7.3401-arr(10.94),8.9332-arr(19.19),9.9591-arr(6.64),10.9729-arr(4.61)]
+;  false.
+
+?- d_joinscascade(3, Gs).
+   Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]]. % (**)
+
+%% reclD3(+Q, -Rx) is det
+%
+% A dose-recommendation function implementing a lower-Galois
+% rectification of the 3+3 protocol for D = 3.
+reclD3(Q, Rx) :-
+    Gs = [[0/3,0/6,0/0],[0/6,0/0,0/0],[2/6,0/0,0/0]], % see above (**)
+    cascade_tally_ladjoint(Gs, Q, Rx).
+
+?- d_init(3, Init), reclD3(Init, Rx1).
+   Init = [0/0,0/0,0/0], Rx1 = 1.
+
+?- findall(N, (N in 0..10, indomain(N), reclD3([0/N,0/0,0/0], 2)), Ns).
+   Ns = [7,8,9].
+
+?- reclD3([0/10,0/0,0/0], Rx1).
+   Rx1 = 3. % A consequence of R=2?
+
+% At last, we are in a position to debug the rolling//5 DCG!
+% 1. Why am I carrying Rx along as an argument?
+%    - note how already in several DCG rules, it has become a don't-care _
+%    - also, when initializing the DCG it seems capable of introducing mistakes!
+
+/*
+?- d_init(3,Q0), length(Arrivals, 40),
+   phrase(arrivals(0.5, rlognorm(log(6), log(2))), Arrivals),
+   phrase(rolling(reclD3, Q0, 1, [], Arrivals), Events).
+   false.
+   false.
+   false.
+   Q0 = [0/0,0/0,0/0], Arrivals = [2.4166-arr(10.17),2.5587-arr(7.19),5.7166-arr(5.34),6.4651-arr(7.21),6.7527-arr(7.61),9.7636-arr(4.74),10.4789-arr(31.92),10.6249-arr(5.21),12.1074-arr(3.34),12.5291-arr(4.19),14.7906-arr(24.97),21.1305-arr(28.46),22.2668-arr(5.56),23.9901-arr(15.06),25.3396-arr(4.99),26.8684-arr(7.41),29.6358-arr(13.67),31.9247-arr(14.44),34.0201-arr(...),... -arr(...)|...]
+;  false.
+*/
+
+?- d_init(3, Q0), Arr = [], phrase(rolling(reclD3, Q0, 1, [], Arr), Events).
+   Q0 = [0/0,0/0,0/0], Arr = [], Events = []
+;  false. % base-case of no remaining enrollment works
+
+?- Arr = [0.2-arr(3.4)], phrase(rolling(reclD3, [0/0,0/0,0/0], 1, [], Arr), Events).
+   Arr = [0.2-arr(3.4)], Events = [enroll(0.2,3.4),o(1)]
+;  false.
+
+?- Arr = [0.2-arr(0.3)], phrase(rolling(reclD3, [0/0,0/0,0/0], 1, [], Arr), Events).
+   Arr = [0.2-arr(0.3)], Events = [enroll(0.2,0.3),x(1)]
+;  false.
+
+% The above quads show that enrolling a 1st participant and recording
+% either x or o (according to the MTDi) works correctly.
+
 % Now, at long last, we need a queue servicing function that takes a
 % current trial state to a new one upon admitting a new participant.
 % Of course, this requires that we specify what this state is!
 
-%% rolling(Rec_2, Q, Ps, Ws, As)//5
+%% rolling(Rec_2, Q, Rx, Ws, As)//5
 %
 % Describes events of a rolling-enrollment trial defined by the
 % dose-recommendation rule Rec_2, given a current state consisting of:
@@ -122,9 +199,10 @@ dltprobs(Mu_, Sigma_, Probs) :-
 %
 % TODO: Ideally, this would be condensed & formatted to fit on 1 page
 %       of the monograph -- or at most two facing pages.
+rolling(_, _, _, _, []) --> [].
 rolling(Rec_2, Q, Rx, Ws, [Z-arr(MTD)|As]) -->
     { (   Rx == 0 % TODO: Ensure that Rx=0 only if assessments remain pending.
-      ;   Ws = [W|_]
+      ;   Ws = [_|_]
       )
     },
     [enqueue(Z,MTD)],
@@ -147,7 +225,7 @@ rolling(Rec_2, Q, Rx, [], [Z-arr(MTD)|As]) -->
     },
     [enroll(Z,MTD)],
     rolling(Rec_2, Q, Rx1, [], As1).
-rolling(Rec_2, Q, Rx, Ws, [Z-ax(Dose)|As]) -->
+rolling(Rec_2, Q, _, Ws, [_-ax(Dose)|As]) -->
     {
         tallyx(Q, Dose, Q1),
         % Tallying an 'x' has no effect on Qpess,
@@ -157,7 +235,7 @@ rolling(Rec_2, Q, Rx, Ws, [Z-ax(Dose)|As]) -->
     },
     [x(Dose)],
     rolling(Rec_2, Q1, Rx1, Ws, As).
-rolling(Rec_2, Q, Rx, Ws, [Z-ao(Dose)|As]) -->
+rolling(Rec_2, Q, _, Ws, [_-ao(Dose)|As]) -->
     {
         tallyo(Q, Dose, Q1),
         % Tallying an 'o' DOES affect Qpess,
