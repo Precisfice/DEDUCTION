@@ -142,49 +142,22 @@ reclD3(Q, Rx) :-
    Rx1 = 3. % A consequence of R=2?
 
 /*
-?- d_init(3,Q0), length(Arrivals, 40),
-   phrase(arrivals(0.5, rlognorm(log(6), log(2))), Arrivals),
-   phrase(rolling(reclD3, Q0, [], Arrivals), Events).
-   false.
-   false.
-*/
-
-?- d_init(3, Q0), Arr = [], phrase(rolling(reclD3, Q0, [], Arr), Events).
-   Q0 = [0/0,0/0,0/0], Arr = [], Events = [next(1)]
-;  false. % base-case of no remaining enrollment works
-
-?- Arr = [0.2-arr(3.4)], phrase(rolling(reclD3, [0/0,0/0,0/0], [], Arr), Events).
-   Arr = [0.2-arr(3.4)], Events = [enroll(0.2,3.4),o(1),next(1)]
-;  false.
-
-?- Arr = [0.2-arr(0.3)], phrase(rolling(reclD3, [0/0,0/0,0/0], [], Arr), Events).
-   Arr = [0.2-arr(0.3)], Events = [enroll(0.2,0.3),x(1),next(1)]
-;  false.
-
-% The above 2 quads show that enrolling a 1st participant and recording
-% either x or o (according to the MTDi) works correctly.
-
-% Now, let's see if we can induce the Ws queue to fill up ..
-/*
-?- Arr = [0.1-arr(0.2), 0.3-arr(0.4), 0.5-arr(0.6), 0.7-arr(0.8)],
-   phrase(rolling(reclD3, [0/0,0/0,0/0], [], Arr), Events).
-   Arr = [0.1-arr(0.2),0.3-arr(0.4),0.5-arr(0.6),0.7-arr(0.8)], Events = [enroll(0.1,0.2),enroll(0.3,0.4),x(1),enqueue(0.5,0.6),x(1),enqueue(0.7,0.8),next(0)]
-;  false. % looks alright
-*/
-
-% Now, what about driving escalation?
-/*
-?- \((Arr = [0.1-arr(1.2), 1.3-arr(1.4), 2.5-arr(1.6), 3.7-arr(1.8), 4.9-arr(2.0),
-             6.1-arr(2.2), 7.3-arr(2.4), 8.5-arr(2.6), 9.7-arr(2.8), 11.9-arr(3.0)],
-      phrase(rolling(reclD3, [0/0,0/0,0/0], [], Arr), Events),
-      portray_clause(Events))).
-[enroll(0.1,1.2),o(1),enroll(1.3,1.4),o(1),enroll(2.5,1.6),o(1),enroll(3.7,1.8),o(1),enroll(4.9,2.0),o(1),enroll(6.1,2.2),o(1),enroll(7.3,2.4),o(1),enroll(8.5,2.6),o(2),enroll(9.7,2.8),o(2),enroll(11.9,3.0),o(2),next(3)].
-   true % Good!  (But note how titration would yield a safer RP2D in this case.)
+?- Estack+\((d_init(3,Q0), length(Arrivals, 4), set_random(seed(2025)),
+             phrase(arrivals(0.5, rlognorm(log(6), log(2))), Arrivals),
+             phrase(rolling(reclD3, Q0, [], Arrivals), Events),
+             reverse(Estack, Events))).
+   Estack = []
+;  Estack = [enroll(1.4565,5.32,1)]
+;  Estack = [o(2.4565,1),enroll(1.4565,5.32,1)]
+;  Estack = [enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
+;  Estack = [o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
+;  Estack = [enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
+;  Estack = [enroll(12.011,10.82,1),enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
+;  Estack = [o(12.6277,1),enroll(12.011,10.82,1),enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
+;  Estack = [o(13.011,1),o(12.6277,1),enroll(12.011,10.82,1),enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
+;  Estack = [next(1),o(13.011,1),o(12.6277,1),enroll(12.011,10.82,1),enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
 ;  false.
 */
-
-% This all suggests the failure in the N=40 enrollment attempt above
-% originates in some case I haven't explicitly probed yet.
 
 % Now, at long last, we need a queue servicing function that takes a
 % current trial state to a new one upon admitting a new participant.
@@ -213,45 +186,57 @@ reclD3(Q, Rx) :-
 %
 % TODO: Ideally, this would be condensed & formatted to fit on 1 page
 %       of the monograph -- or at most two facing pages.
-rolling(Rec_2, Q, _, []) --> [next(Rx)], { call(Rec_2, Q, Rx) }.
+rolling(_, _, _, _) --> []. % 'stepper' for debugging
 % Note that we terminate with next(Rx), leaving aside the question of
 % whether this next-dose recommendation should be called an RP2D, as
 % indeed there remains some question whether 'RP2D' is even a coherent
 % concept.  (The point here is to define an incremental enrollment in
 % abstraction from trial-termination questions.)
-rolling(Rec_2, Q, Ws, [Z-arr(MTD)|As]) -->
-    { rec(Rec_2, Q, As, 0) },
-    [enqueue(Z,MTD)],
-    % Note that except in unusual scenarios with high arrival rates
-    % (or during brief bursts of arrivals), the list Ws will stay
-    % quite short on average.  Consequently, this O(n) append/3 does
-    % negligible harm to sim speed.
-    { append(Ws, [MTD], Ws1) },
-    rolling(Rec_2, Q, Ws1, As).
-rolling(Rec_2, Q, [], [Z-arr(MTD)|As]) -->
-    { rec(Rec_2, Q, As, Rx),
-      Rx > 0,
+rolling(Rec_2, Q,    [], []) --> { call(Rec_2, Q, Rx) }, [next(Rx)].
+rolling(Rec_2, Q, [_|_], []) --> { call(Rec_2, Q, 0)  }, [next(0)].
+rolling(Rec_2, Q, Ws, [now(_)|As]) -->
+    { (   Ws = []
+      ;   rec(Rec_2, Q, As, 0)
+      )
+    }, % NB: The only non-emitting rule in this DCG.
+    rolling(Rec_2, Q, Ws, As).
+rolling(Rec_2, Q, [MTD|Ws], [now(Z)|As]) -->
+    { rec(Rec_2, Q, As, Rx), Rx > 0,
       (   MTD <  Rx, A = ax(Rx), Za is Z + MTD/Rx
       ;   MTD >= Rx, A = ao(Rx), Za is Z + 1.0
       ),
-      % Although `Za is min(MTD/Rx, 1.0)` would yield Za in one go,
-      % the elementary branches above seem clearer.
       sched(As, Za-A, As1)
     },
-    [enroll(Z,MTD)],
+    [dequeue(Z,MTD,Rx)],
+    rolling(Rec_2, Q, Ws, [now(Z)|As1]).
+rolling(Rec_2, Q, Ws, [Z-arr(MTD)|As]) -->
+    { rec(Rec_2, Q, As, 0) }, [enqueue(Z,MTD)],
+    { append(Ws, [MTD], Ws1) },
+    rolling(Rec_2, Q, Ws1, As).
+rolling(Rec_2, Q, [], [Z-arr(MTD)|As]) -->
+    { rec(Rec_2, Q, As, Rx), Rx > 0,
+      (   MTD <  Rx, A = ax(Rx), Za is Z + MTD/Rx
+      ;   MTD >= Rx, A = ao(Rx), Za is Z + 1.0
+      ),
+      sched(As, Za-A, As1)
+    },
+    [enroll(Z,MTD,Rx)],
     rolling(Rec_2, Q, [], As1).
-rolling(Rec_2, Q, Ws, [_-ax(Dose)|As]) -->
-    {
-        tallyx(Q, Dose, Q1)
-    },
-    [x(Dose)],
+rolling(Rec_2, Q, Ws, [Z-ax(Dose)|As]) -->
+    { tallyx(Q, Dose, Q1) }, [x(Z,Dose)],
     rolling(Rec_2, Q1, Ws, As).
-rolling(Rec_2, Q, Ws, [_-ao(Dose)|As]) -->
-    {
-        tallyo(Q, Dose, Q1)
-    },
-    [o(Dose)],
-    rolling(Rec_2, Q1, Ws, As).
+% TODO: Note there _could_ be 2 different rules here, according
+%       to whether Ws = [] or not.  Only for non-empty Ws do we
+%       need to push now(Z) onto As.  But I think a rule to pop
+%       now(Z) when Ws = [] will be needed in any case, so this
+%       would only duplicate effort.
+rolling(Rec_2, Q, [], [Z-ao(Dose)|As]) -->
+    { tallyo(Q, Dose, Q1) }, [o(Z,Dose)],
+    rolling(Rec_2, Q1, [], As).
+rolling(Rec_2, Q, [W|Ws], [Z-ao(Dose)|As]) -->
+    { tallyo(Q, Dose, Q1) }, [o(Z,Dose)],
+    rolling(Rec_2, Q1, [W|Ws], [now(Z)|As]).
+
 
 %% rec(+Rec_2, +Q, +As, -Rx)
 %
@@ -279,7 +264,7 @@ sched(As, Za-A, As1) :- keysort([Za-A|As], As1).
 % events, Qp is the 'pessimistic' tally obtaining in the worst-case
 % scenario where all pending assessments in As turn out as toxicities.
 tally_pending_pesstally(Q, As, Qp) :-
-    findall(Dose, (member(Z-A, As), member(A, [ao(Dose), ax(Dose)])), Ps),
+    findall(Dose, (member(_-A, As), member(A, [ao(Dose), ax(Dose)])), Ps),
     same_length(Q, Ns),
     posints_bins(Ps, Ns),
     qs_ts_ns(ΔQ, Ns, Ns),
