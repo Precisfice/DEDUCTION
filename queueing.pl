@@ -142,20 +142,11 @@ reclD3(Q, Rx) :-
    Rx1 = 3. % A consequence of R=2?
 
 /*
-?- Estack+\((d_init(3,Q0), length(Arrivals, 4), set_random(seed(2025)),
-             phrase(arrivals(0.5, rlognorm(log(6), log(2))), Arrivals),
-             phrase(rolling(reclD3, Q0, [], Arrivals), Events),
-             reverse(Estack, Events))).
-   Estack = []
-;  Estack = [enroll(1.4565,5.32,1)]
-;  Estack = [o(2.4565,1),enroll(1.4565,5.32,1)]
-;  Estack = [enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
-;  Estack = [o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
-;  Estack = [enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
-;  Estack = [enroll(12.011,10.82,1),enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
-;  Estack = [o(12.6277,1),enroll(12.011,10.82,1),enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
-;  Estack = [o(13.011,1),o(12.6277,1),enroll(12.011,10.82,1),enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
-;  Estack = [next(1),o(13.011,1),o(12.6277,1),enroll(12.011,10.82,1),enroll(11.6277,3.08,1),o(5.6718,1),enroll(4.6718,8.64,1),o(2.4565,1),enroll(1.4565,5.32,1)]
+?- Next+\((d_init(3,Q0), length(Arrivals, 40), set_random(seed(2025)),
+           phrase(arrivals(0.5, rlognorm(log(6), log(2))), Arrivals),
+           phrase(rolling(reclD3, Q0, [], Arrivals), Events),
+           phrase((... , [next(Next)]), Events))).
+   Next = 3
 ;  false.
 */
 
@@ -186,7 +177,7 @@ reclD3(Q, Rx) :-
 %
 % TODO: Ideally, this would be condensed & formatted to fit on 1 page
 %       of the monograph -- or at most two facing pages.
-rolling(_, _, _, _) --> []. % 'stepper' for debugging
+%%%%rolling(_, _, _, _) --> []. % 'stepper' for debugging
 % Note that we terminate with next(Rx), leaving aside the question of
 % whether this next-dose recommendation should be called an RP2D, as
 % indeed there remains some question whether 'RP2D' is even a coherent
@@ -201,42 +192,42 @@ rolling(Rec_2, Q, Ws, [now(_)|As]) -->
     }, % NB: The only non-emitting rule in this DCG.
     rolling(Rec_2, Q, Ws, As).
 rolling(Rec_2, Q, [MTD|Ws], [now(Z)|As]) -->
-    { rec(Rec_2, Q, As, Rx), Rx > 0,
-      (   MTD <  Rx, A = ax(Rx), Za is Z + MTD/Rx
-      ;   MTD >= Rx, A = ao(Rx), Za is Z + 1.0
-      ),
-      sched(As, Za-A, As1)
-    },
-    [dequeue(Z,MTD,Rx)],
+    { rec(Rec_2, Q, As, Rx), Rx > 0 },
+    dequeue(Z, MTD, Rx, As, As1),
     rolling(Rec_2, Q, Ws, [now(Z)|As1]).
 rolling(Rec_2, Q, Ws, [Z-arr(MTD)|As]) -->
-    { rec(Rec_2, Q, As, 0) }, [enqueue(Z,MTD)],
-    { append(Ws, [MTD], Ws1) },
+    { rec(Rec_2, Q, As, 0) },
+    enqueue(Z, MTD, Ws, Ws1),
     rolling(Rec_2, Q, Ws1, As).
 rolling(Rec_2, Q, [], [Z-arr(MTD)|As]) -->
-    { rec(Rec_2, Q, As, Rx), Rx > 0,
-      (   MTD <  Rx, A = ax(Rx), Za is Z + MTD/Rx
-      ;   MTD >= Rx, A = ao(Rx), Za is Z + 1.0
-      ),
-      sched(As, Za-A, As1)
-    },
-    [enroll(Z,MTD,Rx)],
+    { rec(Rec_2, Q, As, Rx), Rx > 0 },
+    enroll(Z, MTD, Rx, As, As1),
     rolling(Rec_2, Q, [], As1).
 rolling(Rec_2, Q, Ws, [Z-ax(Dose)|As]) -->
-    { tallyx(Q, Dose, Q1) }, [x(Z,Dose)],
+    tallyx(Z, Q, Dose, Q1),
     rolling(Rec_2, Q1, Ws, As).
-% TODO: Note there _could_ be 2 different rules here, according
-%       to whether Ws = [] or not.  Only for non-empty Ws do we
-%       need to push now(Z) onto As.  But I think a rule to pop
-%       now(Z) when Ws = [] will be needed in any case, so this
-%       would only duplicate effort.
 rolling(Rec_2, Q, [], [Z-ao(Dose)|As]) -->
-    { tallyo(Q, Dose, Q1) }, [o(Z,Dose)],
+    tallyo(Z, Q, Dose, Q1),
     rolling(Rec_2, Q1, [], As).
 rolling(Rec_2, Q, [W|Ws], [Z-ao(Dose)|As]) -->
-    { tallyo(Q, Dose, Q1) }, [o(Z,Dose)],
+    tallyo(Z, Q, Dose, Q1),
     rolling(Rec_2, Q1, [W|Ws], [now(Z)|As]).
 
+dequeue(Z, MTD, Rx, As, As1) --> { dose(Z, MTD, Rx, As, As1) },
+                                 [dequeue(Z,MTD,Rx)].
+enroll(Z, MTD, Rx, As, As1) -->  { dose(Z, MTD, Rx, As, As1) },
+                                 [enroll(Z,MTD,Rx)].
+enqueue(Z, MTD, Ws, Ws1) --> { append(Ws, [MTD], Ws1) },
+                             [enqueue(Z,MTD)].
+
+dose(Z, MTD, Rx, As, As1) :-
+    (   MTD <  Rx, A = ax(Rx), Za is Z + MTD/Rx
+    ;   MTD >= Rx, A = ao(Rx), Za is Z + 1.0
+    ),
+    sched(As, Za-A, As1).
+
+tallyo(Z, Q, Dose, Q1) --> { tallyo(Q, Dose, Q1) }, [o(Z,Dose)].
+tallyx(Z, Q, Dose, Q1) --> { tallyx(Q, Dose, Q1) }, [x(Z,Dose)].
 
 %% rec(+Rec_2, +Q, +As, -Rx)
 %
