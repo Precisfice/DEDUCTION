@@ -193,7 +193,7 @@ rolling(Rec_2, Q, Ws, [now(_)|As]) -->
     rolling(Rec_2, Q, Ws, As).
 rolling(Rec_2, Q, [MTD|Ws], [now(Z)|As]) -->
     { rec(Rec_2, Q, As, Rx), Rx > 0 },
-    dequeue(Z, MTD, Rx, As, As1),
+    dose(dequeue(Z,MTD,Rx), As, As1),
     rolling(Rec_2, Q, Ws, [now(Z)|As1]).
 rolling(Rec_2, Q, Ws, [Z-arr(MTD)|As]) -->
     { rec(Rec_2, Q, As, 0) },
@@ -201,7 +201,7 @@ rolling(Rec_2, Q, Ws, [Z-arr(MTD)|As]) -->
     rolling(Rec_2, Q, Ws1, As).
 rolling(Rec_2, Q, [], [Z-arr(MTD)|As]) -->
     { rec(Rec_2, Q, As, Rx), Rx > 0 },
-    enroll(Z, MTD, Rx, As, As1),
+    dose(enroll(Z,MTD,Rx), As, As1),
     rolling(Rec_2, Q, [], As1).
 rolling(Rec_2, Q, Ws, [Z-ax(Dose)|As]) -->
     tallyx(Z, Q, Dose, Q1),
@@ -213,18 +213,15 @@ rolling(Rec_2, Q, [W|Ws], [Z-ao(Dose)|As]) -->
     tallyo(Z, Q, Dose, Q1),
     rolling(Rec_2, Q1, [W|Ws], [now(Z)|As]).
 
-dequeue(Z, MTD, Rx, As, As1) --> { dose(Z, MTD, Rx, As, As1) },
-                                 [dequeue(Z,MTD,Rx)].
-enroll(Z, MTD, Rx, As, As1) -->  { dose(Z, MTD, Rx, As, As1) },
-                                 [enroll(Z,MTD,Rx)].
 enqueue(Z, MTD, Ws, Ws1) --> { append(Ws, [MTD], Ws1) },
                              [enqueue(Z,MTD)].
 
-dose(Z, MTD, Rx, As, As1) :-
-    (   MTD <  Rx, A = ax(Rx), Za is Z + MTD/Rx
-    ;   MTD >= Rx, A = ao(Rx), Za is Z + 1.0
-    ),
-    sched(As, Za-A, As1).
+dose(Event, As, As1) --> { Event =.. [_, Z, MTD, Rx],
+                           (   MTD <  Rx, A = ax(Rx), Za is Z + MTD/Rx
+                           ;   MTD >= Rx, A = ao(Rx), Za is Z + 1.0
+                           ),
+                           sched(As, Za-A, As1) },
+                         [Event].
 
 tallyo(Z, Q, Dose, Q1) --> { tallyo(Q, Dose, Q1) }, [o(Z,Dose)].
 tallyx(Z, Q, Dose, Q1) --> { tallyx(Q, Dose, Q1) }, [x(Z,Dose)].
