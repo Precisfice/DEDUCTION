@@ -73,7 +73,7 @@ d_x_qs(D, X, Qs) :-
 % TODO: This utility may belong in module(intlist).
 d_unitvec_x(D, O1s, X) :-
     length(O1s, D),
-    0 #< #X, #X #< D,
+    0 #< #X, #X #=< D,
     intlist_from_upto(Ix, 1, D),
     maplist(=(X), Ix, TFs), % NB: this is reif:(=)/3
     maplist(clpz:zo_t, O1s, TFs).
@@ -81,6 +81,22 @@ d_unitvec_x(D, O1s, X) :-
 ?- d_unitvec_x(5, O1s, 2).
    O1s = [0,1,0,0,0]
 ;  false.
+
+?- d_unitvec_x(5, O1s, 5).
+   O1s = [0,0,0,0,1]
+;  false.
+
+?- d_unitvec_x(D, U, X).
+   D = 1, U = [1], X = 1
+;  D = 2, U = [1,0], X = 1
+;  D = 2, U = [0,1], X = 2
+;  D = 2, U = [0,0], clpz:(X in 1..2), dif:dif(X,1), dif:dif(X,2)
+;  D = 3, U = [1,0,0], X = 1
+;  D = 3, U = [0,1,0], X = 2
+;  D = 3, U = [0,0,1], X = 3
+;  D = 3, U = [0,0,0], clpz:(X in 1..3), dif:dif(X,1), dif:dif(X,2), dif:dif(X,3)
+;  D = 4, U = [1,0,0,0], X = 1
+;  ... .
 
 %% tallyx(Q, X, Q1)
 %
