@@ -185,12 +185,9 @@ reclD3(Q, Rx) :-
 % abstraction from trial-termination questions.)
 rolling(Rec_2, Q,    [], []) --> { call(Rec_2, Q, Rx) }, [next(Rx)].
 rolling(Rec_2, Q, [_|_], []) --> { call(Rec_2, Q, 0)  }, [next(0)].
-rolling(Rec_2, Q, Ws, [now(_)|As]) -->
-    { (   Ws = []
-      ;   rec(Rec_2, Q, As, 0)
-      )
-    }, % NB: The only non-emitting rule in this DCG.
-    rolling(Rec_2, Q, Ws, As).
+rolling(Rec_2, Q,     [], [now(_)|As]) --> rolling(Rec_2, Q, [], As).
+rolling(Rec_2, Q, [W|Ws], [now(_)|As]) --> { rec(Rec_2, Q, As, 0) },
+                                           rolling(Rec_2, Q, [W|Ws], As).
 rolling(Rec_2, Q, [MTD|Ws], [now(Z)|As]) -->
     { rec(Rec_2, Q, As, Rx), Rx > 0 },
     dose(dequeue(Z,MTD,Rx), As, As1),
@@ -223,6 +220,8 @@ dose(Event, As, As1) --> { Event =.. [_, Z, MTD, Rx],
                            sched(As, Za-A, As1) },
                          [Event].
 
+sched(As, Za-A, As1) :- keysort([Za-A|As], As1).
+
 tallyo(Z, Q, Dose, Q1) --> { tallyo(Q, Dose, Q1) }, [o(Z,Dose)].
 tallyx(Z, Q, Dose, Q1) --> { tallyx(Q, Dose, Q1) }, [x(Z,Dose)].
 
@@ -243,8 +242,6 @@ rec(Rec_2, Q, As, Rx) :-
 
 % Implementing the monoidal (+)/3 operation on 𝒬 might serve me best!
 % Can we define that in a syncactically appealing way?
-
-sched(As, Za-A, As1) :- keysort([Za-A|As], As1).
 
 %% tally_pending_pesstally(+Q, +As, -Qp)
 %
